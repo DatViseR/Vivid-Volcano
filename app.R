@@ -28,16 +28,20 @@ ui <- fluidPage(
                    choices = c(Dot = ".",
                                Comma = ","),
                    selected = "."),
-      actionButton("upload", "Upload"),
+      actionButton("upload", "Upload")
+    ),
+    mainPanel(
+      verbatimTextOutput("dataset_summary")
+    )
+  ),
+  sidebarLayout(
+    sidebarPanel(
       uiOutput("column_select_ui"),
       actionButton("save_columns", "Save Columns")
     ),
     mainPanel(
-      tableOutput("contents"),
-      verbatimTextOutput("column_info"),
-      verbatimTextOutput("column_structure"),
-      verbatimTextOutput("dataset_summary")
-    )
+      plotOutput("volcano"),
+      )
   )
 )
 
