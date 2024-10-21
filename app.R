@@ -9,42 +9,49 @@
 
 library(shiny)
 
-# Define UI for application that draws a histogram
 ui <- fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
-    )
+titlePanel("Upload CSV File"),
+sidebarLayout(
+  sidebarPanel(
+    fileInput("file1", "Upload a csv file with 3 columns: -log10 pvalue,
+                log2 fold and single gene names or uniprotIDs",
+              accept = c(
+                "text/csv",
+                "text/comma-separated-values,text/plain",
+                ".csv")
+    ),
+    
+    tags$hr(),
+    checkboxInput("header", "Header", TRUE),
+    radioButtons("sep", "Separator",
+                 choices = c(Comma = ",",
+                             Semicolon = ";",
+                             Tab = "\t"),
+                 selected = ","),
+    # add action button to upload the file
+    actionButton("upload", "Upload File"),
+      ),
+  
+  
+  mainPanel(
+    tableOutput("contents")
+  )
+)
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  
+# create an observer for the file input
+output$contents <- renderTable({
+  req(input$file1)
+ 
+  in_file <- input$file1
+  df <- read.csv(in_file$datapath, header = input$header, sep = input$sep)
+  head(df)
+})
 
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
 
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
 }
 
 # Run the application 
