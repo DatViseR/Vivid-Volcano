@@ -84,6 +84,22 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Check if the p-value column is log-transformed
+    pvalues <- df[[input$pvalue_col]]
+    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
+      cat("P-values appear to be -log10 transformed. Unlogging...\n")
+      pvalues <- 10^(-abs(pvalues))
+      df[[input$pvalue_col]] <- pvalues
+      uploaded_df(df)  # Update the reactive value with unlogged p-values
+      
+      # Show summary distribution of the unlogged p-values
+      output$pvalue_distribution <- renderPrint({ 
+        req(uploaded_df())  # Ensure output recalculates when df updates
+        cat("Summary of the unlogged p-values \n \n")
+        summary(pvalues)
+      })
+    }
+    
     # Add adjusted p-values to dataframe and update reactive value
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
