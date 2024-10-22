@@ -30,7 +30,6 @@ ui <- fluidPage(
       uiOutput("column_select_ui"),
       radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
       numericInput("alpha", "Significance threshold", value = 0.05),
-      actionButton("calculate", "Calculate adjusted p-values"),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
@@ -77,7 +76,7 @@ server <- function(input, output, session) {
     })
   })
   
-  observeEvent(input$calculate, {
+  observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     
@@ -138,12 +137,8 @@ server <- function(input, output, session) {
       updated_df <- uploaded_df()  # Re-fetch the updated dataframe
       str(updated_df)  # Reflect the updated dataframe
     })
-  })
-  
-  observeEvent(input$draw_volcano, {
-    req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col)
-    df <- uploaded_df()
     
+    # Draw the volcano plot
     if(!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
       return(NULL)
