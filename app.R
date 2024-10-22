@@ -11,6 +11,10 @@
 library(shiny)
 library(readr)
 
+library(dplyr)
+
+
+
 ui <- fluidPage(
   titlePanel("Advanced Data Input"),
   sidebarLayout(
@@ -28,22 +32,32 @@ ui <- fluidPage(
                    choices = c(Dot = ".",
                                Comma = ","),
                    selected = "."),
-      actionButton("upload", "Upload")
-    ),
-    mainPanel(
-      verbatimTextOutput("dataset_summary")
-    )
-  ),
-  sidebarLayout(
-    sidebarPanel(
+      actionButton("upload", "Upload"),
+      h4("Select columns to build a volcano plot"),
       uiOutput("column_select_ui"),
-      actionButton("save_columns", "Save Columns")
+      actionButton("save_columns", "Save Columns"),
+      h4("Find significantly regulated genes/proteins"),
+      radioButtons("adj", "pvalue adjustment",
+                   choices = c(None = "none",
+                               Bonferroni = "bonferroni",
+                               Hochberg = "hochberg",
+                               Benjamini_Hochberg  = "BH",
+                               Benjamini_Yekutieli = "BY",
+                               None = "none"),
+                   selected = "BH"),
+      numericInput("alpha", "Significance treshold", value = 0.05),
+      actionButton("adjust_pvalues", "calculate adjusted p values")
     ),
     mainPanel(
-      plotOutput("volcano"),
-      )
+      verbatimTextOutput("dataset_summary"),
+      verbatimTextOutput("column_structure"),
+      verbatimTextOutput("pvalue_distribution"),
+      verbatimTextOutput("significant_genes")
+    )
   )
 )
+ 
+
 
 server <- function(input, output, session) {
   
@@ -70,7 +84,9 @@ server <- function(input, output, session) {
     })
     
     output$dataset_summary <- renderPrint({
-      summary(df)
+      #output a message to the user "Check if the summary of the data is appropriate "
+      cat("The following columns were uploaded \n \n" )
+      dplyr::glimpse(df)
     })
   })
   
