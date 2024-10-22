@@ -146,7 +146,7 @@ server <- function(input, output, session) {
     
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
       geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
-      scale_color_manual(values = c("FALSE" = "black", "TRUE" = input$up_color)) +
+      scale_color_manual(values = c("FALSE" = "gray50", "TRUE" = "gray50")) +
       theme_minimal() +
       labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
     
