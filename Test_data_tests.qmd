@@ -1,0 +1,32 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+#upload the Test_data
+library(readr)
+Test_data <- read_delim("Test_data.csv", 
+    delim = "\t", escape_double = FALSE, 
+    col_types = cols(pvalue = col_number()), 
+    locale = locale(decimal_mark = ","), 
+    trim_ws = TRUE)
+View(Test_data)
+```
+
+You can add options to executable code like this
+
+```{r}
+str(Test_data)
+```
+
+```{r}
+summary(Test_data$pvalue )
+```
+
+```{r}
+original_pvalues <- 10^(-Test_data$pvalue)
+summary(original_pvalues)
+```
+
