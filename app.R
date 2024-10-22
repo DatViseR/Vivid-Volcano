@@ -24,7 +24,6 @@ ui <- fluidPage(
       actionButton("adjust_pvalues", "calculate adjusted p values"),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
-      checkboxInput("GO_highlight", "Highlight GO terms", FALSE),
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
       colourInput("down_color", "Down-regulated color", value = "red"),
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
@@ -36,6 +35,7 @@ ui <- fluidPage(
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
+      verbatimTextOutput("df_structure"),  # Added line
       plotOutput("volcano_plot")
     )
   )
@@ -100,7 +100,35 @@ server <- function(input, output, session) {
     })
   })
   
+  output$df_structure <- renderPrint({  # Added block
+    df <- uploaded_df()
+    cat("Final Data Frame Structure: \n")
+    str(df)
+  })
   
+  observeEvent(input$draw_volcano, {
+    req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col)
+    df <- uploaded_df()
+    if(!"adjusted_pvalues" %in% names(df)) {
+      print("Error: adjusted_pvalues column is missing.")
+      return(NULL)
+    }
+    volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
+      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
+      scale_color_manual(values = c("FALSE" = "black", "TRUE" = input$up_color)) +
+      theme_minimal() +
+      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
+    if (input$color_highlight) {
+      volcano_plot <- volcano_plot +
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.5, color = input$up_color) +
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.5, color = input$down_color)
+    }
+    if (input$num_labels > 0) {
+      top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
+      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf)
+    }
+    output$volcano_plot <- renderPlot({ print(volcano_plot) })
+  })
 }
 
 shinyApp(ui = ui, server = server)
