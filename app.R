@@ -4,6 +4,7 @@ library(readr)
 library(dplyr)
 library(ggplot2)
 library(colourpicker)
+library(ggrepel)
 
 ui <- fluidPage(
   titlePanel("Advanced Data Input"),
@@ -15,13 +16,11 @@ ui <- fluidPage(
       radioButtons("sep", "Separator", choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), selected = ","),
       radioButtons("dec", "Decimal Point", choices = c(Dot = ".", Comma = ","), selected = "."),
       actionButton("upload", "Upload"),
-      h4("Select columns to build a volcano plot"),
+      h4("Select columns and calculate adjusted p-values"),
       uiOutput("column_select_ui"),
-      actionButton("save_columns", "Save Columns"),
-      h4("Find significantly regulated genes/proteins"),
       radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
       numericInput("alpha", "Significance threshold", value = 0.05),
-      actionButton("adjust_pvalues", "calculate adjusted p values"),
+      actionButton("calculate", "Calculate adjusted p-values"),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
@@ -31,7 +30,6 @@ ui <- fluidPage(
     ),
     mainPanel(
       verbatimTextOutput("dataset_summary"),
-      verbatimTextOutput("column_info"),
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
@@ -69,24 +67,8 @@ server <- function(input, output, session) {
     })
   })
   
-  observeEvent(input$save_columns, {
-    req(input$pvalue_col, input$fold_col, input$annotation_col)
-    output$column_info <- renderPrint({ 
-      cat("The following columns were selected to build a volcano plot \n \n")
-      list(pvalue = input$pvalue_col, fold = input$fold_col, annotation = input$annotation_col)
-    })
-    
-    output$column_structure <- renderPrint({
-      cat("The following columns structure was selected to build a volcano plot \n \n")
-      df <- uploaded_df()
-      selected_columns <- df[, c(input$pvalue_col, input$fold_col, input$annotation_col)]
-      uploaded_df(selected_columns)
-      str(selected_columns)
-    })
-  })
-  
-  observeEvent(input$adjust_pvalues, {
-    req(uploaded_df(), input$pvalue_col)
+  observeEvent(input$calculate, {
+    req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     
     # Adjust p-values
@@ -128,7 +110,7 @@ server <- function(input, output, session) {
       req(uploaded_df())  # Ensure output recalculates when df updates
       cat("Final Data Frame Structure: \n")
       updated_df <- uploaded_df()  # Re-fetch the updated dataframe
-      str(updated_df )  # Reflect the updated dataframe
+      str(updated_df)  # Reflect the updated dataframe
     })
   })
   
