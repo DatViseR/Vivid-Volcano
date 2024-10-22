@@ -1,19 +1,7 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
-
 
 library(shiny)
 library(readr)
-
 library(dplyr)
-
-
 
 ui <- fluidPage(
   titlePanel("Advanced Data Input"),
@@ -50,6 +38,7 @@ ui <- fluidPage(
     ),
     mainPanel(
       verbatimTextOutput("dataset_summary"),
+      verbatimTextOutput("column_info"),
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes")
@@ -93,7 +82,8 @@ server <- function(input, output, session) {
   observeEvent(input$save_columns, {
     req(input$pvalue_col, input$fold_col, input$annotation_col)
     output$column_info <- renderPrint({
-      list(
+      cat("The following columns were selected to build a volcano plot \n \n")
+        list(
         pvalue = input$pvalue_col,
         fold = input$fold_col,
         annotation = input$annotation_col
@@ -101,6 +91,8 @@ server <- function(input, output, session) {
     })
     
     output$column_structure <- renderPrint({
+      cat("The following columns structure was selected to build a volcano plot \n \n")
+      
       req(input$file1)
       in_file <- input$file1
       
