@@ -1,4 +1,3 @@
-
 library(shiny)
 library(readr)
 library(dplyr)
@@ -11,11 +10,22 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
-      tags$hr(),
       checkboxInput("header", "Header", TRUE),
       radioButtons("sep", "Separator", choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), selected = ","),
       radioButtons("dec", "Decimal Point", choices = c(Dot = ".", Comma = ","), selected = "."),
-      actionButton("upload", "Upload"),
+      actionButton("upload", "Upload")
+    ),
+    mainPanel(
+      verbatimTextOutput("dataset_summary"),
+      verbatimTextOutput("column_structure"),
+      verbatimTextOutput("pvalue_distribution"),
+      verbatimTextOutput("significant_genes"),
+      verbatimTextOutput("df_structure"),
+      plotOutput("volcano_plot")
+    )
+  ),
+  sidebarLayout(
+    sidebarPanel(
       h4("Select columns and calculate adjusted p-values"),
       uiOutput("column_select_ui"),
       radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
