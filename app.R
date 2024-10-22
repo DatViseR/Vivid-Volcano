@@ -20,7 +20,7 @@ ui <- fluidPage(
       actionButton("save_columns", "Save Columns"),
       h4("Find significantly regulated genes/proteins"),
       radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
-      numericInput("alpha", "Significance treshold", value = 0.05),
+      numericInput("alpha", "Significance threshold", value = 0.05),
       actionButton("adjust_pvalues", "calculate adjusted p values"),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
@@ -35,7 +35,7 @@ ui <- fluidPage(
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
-      verbatimTextOutput("df_structure"),  # Added line
+      verbatimTextOutput("df_structure"),
       plotOutput("volcano_plot")
     )
   )
@@ -50,7 +50,9 @@ server <- function(input, output, session) {
     in_file <- input$file1
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
+    
     output$contents <- renderTable({ head(df) })
+    
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       colnames <- names(df)
@@ -60,12 +62,20 @@ server <- function(input, output, session) {
         selectInput("annotation_col", "Select annotation column", choices = colnames)
       )
     })
-    output$dataset_summary <- renderPrint({ cat("The following columns were uploaded \n \n"); dplyr::glimpse(df) })
+    
+    output$dataset_summary <- renderPrint({ 
+      cat("The following columns were uploaded \n \n")
+      dplyr::glimpse(df)
+    })
   })
   
   observeEvent(input$save_columns, {
     req(input$pvalue_col, input$fold_col, input$annotation_col)
-    output$column_info <- renderPrint({ cat("The following columns were selected to build a volcano plot \n \n"); list(pvalue = input$pvalue_col, fold = input$fold_col, annotation = input$annotation_col) })
+    output$column_info <- renderPrint({ 
+      cat("The following columns were selected to build a volcano plot \n \n")
+      list(pvalue = input$pvalue_col, fold = input$fold_col, annotation = input$annotation_col)
+    })
+    
     output$column_structure <- renderPrint({
       cat("The following columns structure was selected to build a volcano plot \n \n")
       df <- uploaded_df()
@@ -78,55 +88,76 @@ server <- function(input, output, session) {
   observeEvent(input$adjust_pvalues, {
     req(uploaded_df(), input$pvalue_col)
     df <- uploaded_df()
+    
+    # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
     if(length(pvalues) == 0) {
       print("Error: P-values column is empty or not found.")
       return(NULL)
     }
+    
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
     if(length(adjusted_pvalues) == 0) {
       print("Error: Adjusted p-values vector is empty.")
       return(NULL)
     }
+    
+    # Add adjusted p-values to dataframe and update reactive value
     df$adjusted_pvalues <- adjusted_pvalues
-    uploaded_df(df)
-    output$pvalue_distribution <- renderPrint({ cat("Summary of the adjusted p-values \n \n"); summary(adjusted_pvalues) })
+    uploaded_df(df)  # Ensure reactive value is updated
+    
+    # Render the adjusted p-values summary
+    output$pvalue_distribution <- renderPrint({ 
+      req(uploaded_df())  # Ensure output recalculates when df updates
+      cat("Summary of the adjusted p-values \n \n")
+      summary(adjusted_pvalues)
+    })
+    
+    # Render the significant genes/proteins
     output$significant_genes <- renderPrint({
+      req(uploaded_df())  # Ensure output recalculates when df updates
       cat("Significantly regulated genes/proteins \n \n")
       significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
       non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
       cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
       cat("Number of non-significant genes/proteins: ", nrow(non_significant_genes), "\n")
     })
-  })
-  
-  output$df_structure <- renderPrint({  # Added block
-    df <- uploaded_df()
-    cat("Final Data Frame Structure: \n")
-    str(df)
+    
+    # Render the final data frame structure
+    output$df_structure <- renderPrint({
+      req(uploaded_df())  # Ensure output recalculates when df updates
+      cat("Final Data Frame Structure: \n")
+      updated_df <- uploaded_df()  # Re-fetch the updated dataframe
+      str(updated_df )  # Reflect the updated dataframe
+    })
   })
   
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col)
     df <- uploaded_df()
+    
     if(!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
       return(NULL)
     }
+    
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
       geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
       scale_color_manual(values = c("FALSE" = "black", "TRUE" = input$up_color)) +
       theme_minimal() +
       labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
+    
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.5, color = input$up_color) +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.5, color = input$down_color)
     }
+    
     if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
       volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf)
     }
+    
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
   })
 }
