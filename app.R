@@ -31,7 +31,7 @@ ui <- fluidPage(
                                Hochberg = "hochberg",
                                Benjamini_Hochberg  = "BH",
                                Benjamini_Yekutieli = "BY",
-                               None = "none"),
+                               ),
                    selected = "BH"),
       numericInput("alpha", "Significance treshold", value = 0.05),
       actionButton("adjust_pvalues", "calculate adjusted p values")
@@ -129,12 +129,18 @@ server <- function(input, output, session) {
     uploaded_df(df)
     
     output$pvalue_distribution <- renderPrint({
+      cat("Summary of the adjusted p-values \n \n")
       summary(adjusted_pvalues)
     })
     
     output$significant_genes <- renderPrint({
+      cat("Significantly regulated genes/proteins \n \n")
       significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
-      significant_genes
+      non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
+      
+      cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
+      cat("Number of non-significant genes/proteins: ", nrow(non_significant_genes), "\n")
+      
     })
   })
 }
