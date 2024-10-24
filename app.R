@@ -29,14 +29,16 @@ ui <- fluidPage(
     sidebarPanel(
       h4("Select columns and calculate adjusted p-values"),
       uiOutput("column_select_ui"),
-      radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
+      radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
       numericInput("alpha", "Significance threshold", value = 0.05),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
+      colourInput("up_color", "Up-regulated color", value = "darkgreen"),
+      colourInput("down_color", "Down-regulated color", value = "red"),  
       checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
       uiOutput("go_category_ui"),  # Placeholder for dynamic UI # chose from 18777 unique categories
-      colourInput("up_color", "Up-regulated color", value = "darkgreen"),
-      colourInput("down_color", "Down-regulated color", value = "red"),
+      uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
+      
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
       actionButton("draw_volcano", "Draw Volcano Plot")
     ),
@@ -46,8 +48,7 @@ ui <- fluidPage(
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
       verbatimTextOutput("df_structure"),
-      plotOutput("volcano_plot"),
-   
+      plotOutput("volcano_plot")
     )
   )
 )
@@ -75,7 +76,7 @@ server <- function(input, output, session) {
     })
     
     output$dataset_summary <- renderPrint({ 
-      cat("The following columns were uploaded \n \n")
+      cat("The following columns were uploaded: \n\n")
       dplyr::glimpse(df)
     })
   })
@@ -95,9 +96,30 @@ server <- function(input, output, session) {
     }
   })
   
+  # Reactive expression to track chosen GO categories
+  chosen_go <- reactive({
+    input$go_category
+  })
+  
+  # Dynamic UI for additional color pickers
+  output$color_picker_ui <- renderUI({
+    req(chosen_go())
+    lapply(chosen_go(), function(go) {
+      colourInput(paste0("color_", go), paste("Color for", go), value = "blue")
+    })
+  })
+  
+  
+  observe({
+    print(chosen_go())  # This will help verify that categories are selected correctly
+  })
+  
+  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
+    
+    
     
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
@@ -123,7 +145,7 @@ server <- function(input, output, session) {
       # Show summary distribution of the unlogged p-values
       output$pvalue_distribution <- renderPrint({ 
         req(uploaded_df())  # Ensure output recalculates when df updates
-        cat("Summary of the unlogged p-values \n \n")
+        cat("Summary of the unlogged p-values: \n\n")
         summary(pvalues)
       })
     }
@@ -135,14 +157,14 @@ server <- function(input, output, session) {
     # Render the adjusted p-values summary
     output$pvalue_distribution <- renderPrint({ 
       req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Summary of the adjusted p-values \n \n")
+      cat("Summary of the adjusted p-values: \n\n")
       summary(adjusted_pvalues)
     })
     
     # Render the significant genes/proteins
     output$significant_genes <- renderPrint({
       req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Significantly regulated genes/proteins \n \n")
+      cat("Significantly regulated genes/proteins: \n\n")
       significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
       non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
       cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
