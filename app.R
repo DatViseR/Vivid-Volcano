@@ -7,7 +7,7 @@ library(ggrepel)
 library(arrow)
 
 ui <- fluidPage(
-  titlePanel("Advanced Data Input"),
+  titlePanel("Vivid Volcano Controls"),
   sidebarLayout(
     sidebarPanel(
       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
@@ -34,6 +34,7 @@ ui <- fluidPage(
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
       checkboxInput("show_go_category", "Show GO category", FALSE),
+      uiOutput("go_category_ui"),  # Placeholder for dynamic UI
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
       colourInput("down_color", "Down-regulated color", value = "red"),
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
@@ -46,7 +47,7 @@ ui <- fluidPage(
       verbatimTextOutput("significant_genes"),
       verbatimTextOutput("df_structure"),
       plotOutput("volcano_plot"),
-      uiOutput("go_category_ui")  # Placeholder for dynamic UI
+   
     )
   )
 )
