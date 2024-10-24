@@ -33,8 +33,8 @@ ui <- fluidPage(
       numericInput("alpha", "Significance threshold", value = 0.05),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
-      checkboxInput("show_go_category", "Show GO category", FALSE),
-      uiOutput("go_category_ui"),  # Placeholder for dynamic UI
+      checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
+      uiOutput("go_category_ui"),  # Placeholder for dynamic UI # chose from 18777 unique categories
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
       colourInput("down_color", "Down-regulated color", value = "red"),
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
@@ -83,7 +83,7 @@ server <- function(input, output, session) {
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Select GO category", choices = NULL, multiple = TRUE)
+      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
     }
   })
   
