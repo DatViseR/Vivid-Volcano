@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 library(colourpicker)
 library(ggrepel)
+library(arrow)
 
 ui <- fluidPage(
   titlePanel("Advanced Data Input"),
@@ -32,6 +33,8 @@ ui <- fluidPage(
       numericInput("alpha", "Significance threshold", value = 0.05),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
+      checkboxInput("show_go_category", "Show GO category", FALSE),
+      
       colourInput("up_color", "Up-regulated color", value = "darkgreen"),
       colourInput("down_color", "Down-regulated color", value = "red"),
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
@@ -43,7 +46,8 @@ ui <- fluidPage(
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
       verbatimTextOutput("df_structure"),
-      plotOutput("volcano_plot")
+      plotOutput("volcano_plot"),
+      uiOutput("go_category_ui"),  # Placeholder for dynamic UI
     )
   )
 )
@@ -137,6 +141,21 @@ server <- function(input, output, session) {
       updated_df <- uploaded_df()  # Re-fetch the updated dataframe
       str(updated_df)  # Reflect the updated dataframe
     })
+         
+    output$go_category_ui <- renderUI({
+        if (input$show_go_category) {
+          selectizeInput("go_category", "Select GO category", choices = NULL, multiple = TRUE)
+        }
+      })
+      
+    observe({
+        if (input$show_go_category) {
+          # Load Parquet file and extract GO names
+          df <- arrow::read_parquet("path/to/your/file.parquet")
+          updateSelectizeInput(session, "go_category", choices = unique(df$GO_name), server = TRUE)
+        }
+      })
+    
     
     # Draw the volcano plot
     if(!"adjusted_pvalues" %in% names(df)) {
