@@ -101,12 +101,19 @@ server <- function(input, output, session) {
     input$go_category
   })
   
-  # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     req(chosen_go())
-    lapply(chosen_go(), function(go) {
+    chosen <- chosen_go()
+    cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
+    color_inputs <- lapply(chosen, function(go) {
+      cat("Creating color input for: ", go, "\n")  # Debug statement
       colourInput(paste0("color_", go), paste("Color for", go), value = "blue")
     })
+    do.call(tagList, color_inputs)
+  })
+  
+  observe({
+    print(str(chosen_go()))  # This will help verify that categories are selected correctly
   })
   
   
