@@ -111,7 +111,7 @@ server <- function(input, output, session) {
   
   
   observe({
-    print(chosen_go())  # This will help verify that categories are selected correctly
+    print(str(chosen_go()))  # This will help verify that categories are selected correctly
   })
   
   
