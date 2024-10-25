@@ -38,7 +38,7 @@ ui <- fluidPage(
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
       uiOutput("color_highlight_ui"),
       checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
-      uiOutput("go_category_ui"),  # Placeholder for dynamic UI # chose from 18777 unique categories
+      uiOutput("go_category_ui"),  # Placeholder for dynamic UI
       uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
       
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
@@ -58,6 +58,17 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
+  
+  # Function to check and unlog p-values
+  check_and_unlog_pvalues <- function(df, pvalue_col) {
+    pvalues <- df[[pvalue_col]]
+    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
+      cat("P-values appear to be -log10 transformed. Unlogging...\n")
+      pvalues <- 10^(-abs(pvalues))
+      df[[pvalue_col]] <- pvalues
+    }
+    return(df)
+  }
   
   observeEvent(input$upload, {
     req(input$file1)
@@ -120,7 +131,7 @@ server <- function(input, output, session) {
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
     color_inputs <- lapply(chosen, function(go) {
-      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go) # this is needed because spaces in GO categories causes bug
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)  # this is needed because spaces in GO categories causes bug
       cat("Creating color input for: ", go, " with ID: ", sanitized_id, "\n")  # Debug statement
       colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = "blue")
     })
@@ -135,36 +146,13 @@ server <- function(input, output, session) {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     
+    # Check and unlog p-values
+    df <- check_and_unlog_pvalues(df, input$pvalue_col)
+    uploaded_df(df)  # Update the reactive value with unlogged p-values
+    
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
-    if(length(pvalues) == 0) {
-      print("Error: P-values column is empty or not found.")
-      return(NULL)
-    }
-    
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
-    if(length(adjusted_pvalues) == 0) {
-      print("Error: Adjusted p-values vector is empty.")
-      return(NULL)
-    }
-    
-    # Check if the p-value column is log-transformed
-    pvalues <- df[[input$pvalue_col]]
-    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
-      cat("P-values appear to be -log10 transformed. Unlogging...\n")
-      pvalues <- 10^(-abs(pvalues))
-      df[[input$pvalue_col]] <- pvalues
-      uploaded_df(df)  # Update the reactive value with unlogged p-values
-      
-      # Show summary distribution of the unlogged p-values
-      output$pvalue_distribution <- renderPrint({ 
-        req(uploaded_df())  # Ensure output recalculates when df updates
-        cat("Summary of the unlogged p-values: \n\n")
-        summary(pvalues)
-      })
-    }
-    
-    # Add adjusted p-values to dataframe and update reactive value
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
     
@@ -194,7 +182,7 @@ server <- function(input, output, session) {
     })
     
     # Draw the volcano plot
-    if(!"adjusted_pvalues" %in% names(df)) {
+    if (!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
       return(NULL)
     }
