@@ -6,28 +6,8 @@ library(colourpicker)
 library(ggrepel)
 library(arrow)
 
-# ## The structure of the parquet GO file is as follows:
-# spc_tbl_ [773,774 × 4] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
-# $ id      : chr [1:773774] "GO:0003723" "GO:0005515" "GO:0046872" "GO:0005829" ...
-# $ name    : chr [1:773774] "RNA binding" "protein binding" "metal ion binding" "cytosol" ...
-# $ gene    : chr [1:773774] "NUDT4B" "NUDT4B" "NUDT4B" "NUDT4B" ...
-# $ ontology: chr [1:773774] "F" "F" "F" "C" ...
-# - attr(*, "spec")=List of 3
-# ..$ cols   :List of 4
-# .. ..$ id      : list()
-# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
-# .. ..$ name    : list()
-# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
-# .. ..$ gene    : list()
-# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
-# .. ..$ ontology: list()
-# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
-# ..$ default: list()
-# .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
-# ..$ delim  : chr "\t"
-# ..- attr(*, "class")= chr "col_spec"
-# - attr(*, "problems")=<externalptr> 
-
+# Load the GO data once globally
+GO <- arrow::read_parquet("GO.parquet")
 
 ui <- fluidPage(
   titlePanel("Vivid Volcano Controls"),
@@ -116,14 +96,12 @@ server <- function(input, output, session) {
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
+      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE, server = TRUE)
     }
   })
   
   observe({
     if (input$show_go_category) {
-      # Load Parquet file and extract GO names
-      GO <- arrow::read_parquet("GO.parquet")
       updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
     }
   })
@@ -133,7 +111,7 @@ server <- function(input, output, session) {
     input$go_category
   })
   
-    # Dynamic UI for additional color pickers
+  # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       return(NULL)
@@ -231,6 +209,18 @@ server <- function(input, output, session) {
       volcano_plot <- volcano_plot +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.5, color = input$up_color) +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.5, color = input$down_color)
+    }
+    
+    # Highlighting genes belonging to chosen GO categories
+    if (!is.null(chosen_go())) {
+      selected_GO <- GO %>% filter(name %in% chosen_go())
+      for (go in chosen_go()) {
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
+        genes <- selected_GO %>% filter(name == go) %>% pull(gene)
+        volcano_plot <- volcano_plot +
+          geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$annotation_col) %in% genes),
+                     aes(color = !!sym(input$annotation_col)), size = 1.5, color = color)
+      }
     }
     
     if (input$num_labels > 0) {
