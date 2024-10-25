@@ -6,6 +6,29 @@ library(colourpicker)
 library(ggrepel)
 library(arrow)
 
+# ## The structure of the parquet GO file is as follows:
+# spc_tbl_ [773,774 × 4] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+# $ id      : chr [1:773774] "GO:0003723" "GO:0005515" "GO:0046872" "GO:0005829" ...
+# $ name    : chr [1:773774] "RNA binding" "protein binding" "metal ion binding" "cytosol" ...
+# $ gene    : chr [1:773774] "NUDT4B" "NUDT4B" "NUDT4B" "NUDT4B" ...
+# $ ontology: chr [1:773774] "F" "F" "F" "C" ...
+# - attr(*, "spec")=List of 3
+# ..$ cols   :List of 4
+# .. ..$ id      : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ name    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ gene    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ ontology: list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# ..$ default: list()
+# .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
+# ..$ delim  : chr "\t"
+# ..- attr(*, "class")= chr "col_spec"
+# - attr(*, "problems")=<externalptr> 
+
+
 ui <- fluidPage(
   titlePanel("Vivid Volcano Controls"),
   sidebarLayout(
@@ -33,8 +56,7 @@ ui <- fluidPage(
       numericInput("alpha", "Significance threshold", value = 0.05),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
-      colourInput("up_color", "Up-regulated color", value = "darkgreen"),
-      colourInput("down_color", "Down-regulated color", value = "red"),  
+      uiOutput("color_highlight_ui"),
       checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
       uiOutput("go_category_ui"),  # Placeholder for dynamic UI # chose from 18777 unique categories
       uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
@@ -81,6 +103,16 @@ server <- function(input, output, session) {
     })
   })
   
+  # Dynamic UI for color highlight options
+  output$color_highlight_ui <- renderUI({
+    if (input$color_highlight) {
+      tagList(
+        colourInput("up_color", "Up-regulated color", value = "darkgreen"),
+        colourInput("down_color", "Down-regulated color", value = "red")
+      )
+    }
+  })
+  
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
@@ -91,8 +123,8 @@ server <- function(input, output, session) {
   observe({
     if (input$show_go_category) {
       # Load Parquet file and extract GO names
-      df <- arrow::read_parquet("GO.parquet")
-      updateSelectizeInput(session, "go_category", choices = unique(df$name), server = TRUE)
+      GO <- arrow::read_parquet("GO.parquet")
+      updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
     }
   })
   
@@ -101,10 +133,7 @@ server <- function(input, output, session) {
     input$go_category
   })
   
-  # The bug in rendering the dynamic UI was caused by multi-word categories. For single word
-  # categories, the color pickers are rendered correctly. Lets check wheter it works
-  # when i erase the spaces in the categories and put _ instead each special character
-  
+    # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       return(NULL)
@@ -113,7 +142,7 @@ server <- function(input, output, session) {
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
     color_inputs <- lapply(chosen, function(go) {
-      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go) # this is needed because spaces in GO categories causes bug
       cat("Creating color input for: ", go, " with ID: ", sanitized_id, "\n")  # Debug statement
       colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = "blue")
     })
@@ -124,17 +153,9 @@ server <- function(input, output, session) {
     print(str(chosen_go()))  # This will help verify that categories are selected correctly
   })
   
-  
-  observe({
-    print(str(chosen_go()))  # This will help verify that categories are selected correctly
-  })
-  
-  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
-    
-    
     
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
