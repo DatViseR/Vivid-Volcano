@@ -101,13 +101,18 @@ server <- function(input, output, session) {
     input$go_category
   })
   
+  # The bug in rendering the dynamic UI was caused by multi-word categories. For single word
+  # categories, the color pickers are rendered correctly. Lets check wheter it works
+  # when i erase the spaces in the categories and put _ instead each special character
+  
   output$color_picker_ui <- renderUI({
     req(chosen_go())
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
     color_inputs <- lapply(chosen, function(go) {
-      cat("Creating color input for: ", go, "\n")  # Debug statement
-      colourInput(paste0("color_", go), paste("Color for", go), value = "blue")
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)
+      cat("Creating color input for: ", go, " with ID: ", sanitized_id, "\n")  # Debug statement
+      colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = "blue")
     })
     do.call(tagList, color_inputs)
   })
