@@ -137,14 +137,12 @@ server <- function(input, output, session) {
     
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
-    req(pvalues)  # Ensure pvalues are not NULL
     if(length(pvalues) == 0) {
       print("Error: P-values column is empty or not found.")
       return(NULL)
     }
     
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
-    req(adjusted_pvalues)  # Ensure adjusted_pvalues are not NULL
     if(length(adjusted_pvalues) == 0) {
       print("Error: Adjusted p-values vector is empty.")
       return(NULL)
@@ -196,14 +194,14 @@ server <- function(input, output, session) {
     })
     
     # Draw the volcano plot
-    req(df$adjusted_pvalues)  # Ensure adjusted_pvalues column is present
     if(!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
       return(NULL)
     }
     
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
-      geom_point(color = "gray50", size = 1.5) +
+      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
+      scale_color_manual(values = c("FALSE" = "gray50", "TRUE" = "gray50")) +
       theme_minimal() +
       labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
     
@@ -216,27 +214,25 @@ server <- function(input, output, session) {
     # Highlighting genes belonging to chosen GO categories
     if (!is.null(chosen_go())) {
       selected_GO <- GO %>% filter(name %in% chosen_go())
-      req(selected_GO)  # Ensure selected_GO is not NULL
       for (go in chosen_go()) {
         color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
         genes <- selected_GO %>% filter(name == go) %>% pull(gene)
-        req(genes)  # Ensure genes are not NULL
         volcano_plot <- volcano_plot +
-          geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$annotation_col) %in% genes),
-                     aes(color = !!sym(input$annotation_col)), size = 1.5, color = color)
+          geom_point(
+            data = df %>% filter(!!sym(input$annotation_col) %in% genes),
+            aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
+            size = 1.5, color = color
+          )
       }
     }
     
-    if (input$num_labels > 0 & input$color_highlight ) {
+    if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
-      req(top_hits)  # Ensure top_hits are not NULL
-      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf, nudge_y = 0.3)
+      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf, nudge_y = 0.2)
     }
     
-    output$volcano_plot <- renderPlot({ 
-      req(volcano_plot)  # Ensure volcano_plot is not NULL
-      print(volcano_plot) 
-    })
+    output$volcano_plot <- renderPlot({ print(volcano_plot) })
   })
 }
+
 shinyApp(ui = ui, server = server)
