@@ -106,6 +106,9 @@ server <- function(input, output, session) {
   # when i erase the spaces in the categories and put _ instead each special character
   
   output$color_picker_ui <- renderUI({
+    if (!input$show_go_category) {
+      return(NULL)
+    }
     req(chosen_go())
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
