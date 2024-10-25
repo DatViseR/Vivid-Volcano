@@ -96,7 +96,7 @@ server <- function(input, output, session) {
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE, server = TRUE)
+      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
     }
   })
   
