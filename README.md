@@ -1,6 +1,5 @@
----
-title: Vivid-volcano
----
+# Vivid - volcano ![](Vivid_volcano_logo3.svg){style="align"}
+
 Vivid-Volcano is a Shiny app designed for the easy creation of publication-ready volcano plots for omics data. Features
 
 ```         
