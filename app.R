@@ -42,6 +42,8 @@ ui <- fluidPage(
       uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
       
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
+      textInput("plot_title", "Plot Title", "Vivid Volcano"),
+      textInput("x_axis_label", "X Axis Label", "log2 fold condition X vs. condition Y"),
       actionButton("draw_volcano", "Draw Volcano Plot")
     ),
     mainPanel(
@@ -191,7 +193,7 @@ server <- function(input, output, session) {
       geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.8, alpha = 0.5) +
       scale_color_manual(values = c("FALSE" = "gray70", "TRUE" = "gray70")) +
       theme_minimal() +
-      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")+
+      labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
       theme(legend.position = "none",
             panel.grid.minor = element_blank()
             )+
