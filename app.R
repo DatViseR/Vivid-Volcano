@@ -4,9 +4,13 @@ library(dplyr)
 library(ggplot2)
 library(colourpicker)
 library(ggrepel)
+library(arrow)
+
+# Load the GO data once globally
+GO <- arrow::read_parquet("GO.parquet")
 
 ui <- fluidPage(
-  titlePanel("Advanced Data Input"),
+  titlePanel("Vivid Volcano Controls"),
   sidebarLayout(
     sidebarPanel(
       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
@@ -28,12 +32,15 @@ ui <- fluidPage(
     sidebarPanel(
       h4("Select columns and calculate adjusted p-values"),
       uiOutput("column_select_ui"),
-      radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg  = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
+      radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
       numericInput("alpha", "Significance threshold", value = 0.05),
       h4("Volcano Plot Options"),
       checkboxInput("color_highlight", "Highlight significant hits", FALSE),
-      colourInput("up_color", "Up-regulated color", value = "darkgreen"),
-      colourInput("down_color", "Down-regulated color", value = "red"),
+      uiOutput("color_highlight_ui"),
+      checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
+      uiOutput("go_category_ui"),  # Placeholder for dynamic UI
+      uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
+      
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
       actionButton("draw_volcano", "Draw Volcano Plot")
     ),
@@ -51,6 +58,17 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
+  
+  # Function to check and unlog p-values
+  check_and_unlog_pvalues <- function(df, pvalue_col) {
+    pvalues <- df[[pvalue_col]]
+    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
+      cat("P-values appear to be -log10 transformed. Unlogging...\n")
+      pvalues <- 10^(-abs(pvalues))
+      df[[pvalue_col]] <- pvalues
+    }
+    return(df)
+  }
   
   observeEvent(input$upload, {
     req(input$file1)
@@ -71,59 +89,84 @@ server <- function(input, output, session) {
     })
     
     output$dataset_summary <- renderPrint({ 
-      cat("The following columns were uploaded \n \n")
+      cat("The following columns were uploaded: \n\n")
       dplyr::glimpse(df)
     })
+  })
+  
+  # Dynamic UI for color highlight options
+  output$color_highlight_ui <- renderUI({
+    if (input$color_highlight) {
+      tagList(
+        colourInput("up_color", "Up-regulated color", value = "darkgreen"),
+        colourInput("down_color", "Down-regulated color", value = "red")
+      )
+    }
+  })
+  
+  # Dynamic UI for GO Category Input
+  output$go_category_ui <- renderUI({
+    if (input$show_go_category) {
+      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
+    }
+  })
+  
+  observe({
+    if (input$show_go_category) {
+      updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
+    }
+  })
+  
+  # Reactive expression to track chosen GO categories
+  chosen_go <- reactive({
+    input$go_category
+  })
+  
+  # Dynamic UI for additional color pickers
+  output$color_picker_ui <- renderUI({
+    if (!input$show_go_category) {
+      return(NULL)
+    }
+    req(chosen_go())
+    chosen <- chosen_go()
+    cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
+    color_inputs <- lapply(chosen, function(go) {
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)  # this is needed because spaces in GO categories causes bug
+      cat("Creating color input for: ", go, " with ID: ", sanitized_id, "\n")  # Debug statement
+      colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = "blue")
+    })
+    do.call(tagList, color_inputs)
+  })
+  
+  observe({
+    print(str(chosen_go()))  # This will help verify that categories are selected correctly
   })
   
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     
+    # Check and unlog p-values
+    df <- check_and_unlog_pvalues(df, input$pvalue_col)
+    uploaded_df(df)  # Update the reactive value with unlogged p-values
+    
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
-    if(length(pvalues) == 0) {
-      print("Error: P-values column is empty or not found.")
-      return(NULL)
-    }
-    
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
-    if(length(adjusted_pvalues) == 0) {
-      print("Error: Adjusted p-values vector is empty.")
-      return(NULL)
-    }
-    
-    # Check if the p-value column is log-transformed
-    pvalues <- df[[input$pvalue_col]]
-    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
-      cat("P-values appear to be -log10 transformed. Unlogging...\n")
-      pvalues <- 10^(-abs(pvalues))
-      df[[input$pvalue_col]] <- pvalues
-      uploaded_df(df)  # Update the reactive value with unlogged p-values
-      
-      # Show summary distribution of the unlogged p-values
-      output$pvalue_distribution <- renderPrint({ 
-        req(uploaded_df())  # Ensure output recalculates when df updates
-        cat("Summary of the unlogged p-values \n \n")
-        summary(pvalues)
-      })
-    }
-    
-    # Add adjusted p-values to dataframe and update reactive value
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
     
     # Render the adjusted p-values summary
     output$pvalue_distribution <- renderPrint({ 
       req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Summary of the adjusted p-values \n \n")
+      cat("Summary of the adjusted p-values: \n\n")
       summary(adjusted_pvalues)
     })
     
     # Render the significant genes/proteins
     output$significant_genes <- renderPrint({
       req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Significantly regulated genes/proteins \n \n")
+      cat("Significantly regulated genes/proteins: \n\n")
       significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
       non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
       cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
@@ -139,26 +182,45 @@ server <- function(input, output, session) {
     })
     
     # Draw the volcano plot
-    if(!"adjusted_pvalues" %in% names(df)) {
+    if (!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
       return(NULL)
     }
     
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
-      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
-      scale_color_manual(values = c("FALSE" = "gray50", "TRUE" = "gray50")) +
+      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.8, alpha = 0.5) +
+      scale_color_manual(values = c("FALSE" = "gray70", "TRUE" = "gray70")) +
       theme_minimal() +
-      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
-    
+      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")+
+      theme(legend.position = "none",
+            panel.grid.minor = element_blank()
+            )+
+      geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") 
+   
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.5, color = input$up_color) +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.5, color = input$down_color)
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.8, color = input$up_color, alpha = 0.5) +
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.8, color = input$down_color, alpha = 0.5)
+    }
+    
+    # Highlighting genes belonging to chosen GO categories
+    if (!is.null(chosen_go())) {
+      selected_GO <- GO %>% filter(name %in% chosen_go())
+      for (go in chosen_go()) {
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
+        genes <- selected_GO %>% filter(name == go) %>% pull(gene)
+        volcano_plot <- volcano_plot +
+          geom_point(
+            data = df %>% filter(!!sym(input$annotation_col) %in% genes),
+            aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
+            size = 1.8, color = color, alpha = 0.5
+          )
+      }
     }
     
     if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
-      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf)
+      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf, nudge_y = 0.2)
     }
     
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
