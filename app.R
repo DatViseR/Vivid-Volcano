@@ -191,7 +191,12 @@ server <- function(input, output, session) {
       geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
       scale_color_manual(values = c("FALSE" = "gray50", "TRUE" = "gray50")) +
       theme_minimal() +
-      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")
+      labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")+
+      theme(legend.position = "none",
+            panel.grid.minor = element_blank()
+            )+
+      geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") 
+      
     
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
