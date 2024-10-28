@@ -42,6 +42,7 @@ ui <- fluidPage(
       uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
       
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
+      checkboxInput("trim_gene_names", "Trim multiple gene names to first occurrence", FALSE),
       textInput("plot_title", "Plot Title", "Vivid Volcano"),
       textInput("x_axis_label", "X Axis Label", "log2 fold condition X vs. condition Y"),
       actionButton("draw_volcano", "Draw Volcano Plot")
@@ -220,10 +221,17 @@ server <- function(input, output, session) {
       }
     }
     
+    if (input$trim_gene_names) {
+      df[[input$annotation_col]] <- sapply(df[[input$annotation_col]], function(x) {
+        strsplit(as.character(x), "[,; :]+")[[1]][1]
+      })
+    }
+    
     if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
       volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf, nudge_y = 0.2)
     }
+    
     
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
   })
