@@ -42,10 +42,10 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
 }
 
 # Function to calculate GO tag enrichment for upregulated, downregulated, and both
-calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data) {
-  upregulated_genes <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% pull(!!sym(annotation_col))
-  downregulated_genes <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% pull(!!sym(annotation_col))
-  regulated_genes <- df %>% filter(adjusted_pvalues < input$alpha) %>% pull(!!sym(annotation_col))
+calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
+  upregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% pull(!!sym(annotation_col))
+  downregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% pull(!!sym(annotation_col))
+  regulated_genes <- df %>% filter(adjusted_pvalues < alpha) %>% pull(!!sym(annotation_col))
   
   upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data)
   downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
@@ -57,8 +57,6 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     regulated = regulated_enrichment
   )
 }
-
-
 
 
 
@@ -239,19 +237,15 @@ server <- function(input, output, session) {
     })
     
     # Calculate GO tag enrichment
-    enrichment_results <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO)
-    output$go_enrichment_regulated<- renderTable({
-      enrichment_results$regulated 
-      
+    enrichment_results <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    output$go_enrichment_regulated <- renderTable({
+      enrichment_results$regulated
     })
-      
-      output$go_enrichment_upregulated<- renderTable({
-        enrichment_results$upregulated
-        
-      })
-        output$go_enrichment_downregulated<- renderTable({
-          enrichment_results$downregulated
-      
+    output$go_enrichment_upregulated <- renderTable({
+      enrichment_results$upregulated
+    })
+    output$go_enrichment_downregulated <- renderTable({
+      enrichment_results$downregulated
     })
     
     
