@@ -188,20 +188,19 @@ server <- function(input, output, session) {
     }
     
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
-      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.5) +
-      scale_color_manual(values = c("FALSE" = "gray50", "TRUE" = "gray50")) +
+      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.8, alpha = 0.5) +
+      scale_color_manual(values = c("FALSE" = "gray70", "TRUE" = "gray70")) +
       theme_minimal() +
       labs(title = "Volcano Plot", x = "Log2 Fold Change", y = "-Log10 P-Value")+
       theme(legend.position = "none",
             panel.grid.minor = element_blank()
             )+
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") 
-      
-    
+   
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.5, color = input$up_color) +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.5, color = input$down_color)
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.8, color = input$up_color, alpha = 0.5) +
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.8, color = input$down_color, alpha = 0.5)
     }
     
     # Highlighting genes belonging to chosen GO categories
@@ -214,7 +213,7 @@ server <- function(input, output, session) {
           geom_point(
             data = df %>% filter(!!sym(input$annotation_col) %in% genes),
             aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
-            size = 1.5, color = color
+            size = 1.8, color = color, alpha = 0.5
           )
       }
     }
