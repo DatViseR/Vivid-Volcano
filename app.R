@@ -11,20 +11,26 @@ GO <- arrow::read_parquet("GO.parquet")
 
 
 perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
+  cat("Performing hypergeometric test with parameters:\n")
+  cat("population_size:", population_size, "success_population_size:", success_population_size, "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
   phyper(sample_success_size - 1, success_population_size, population_size - success_population_size, sample_size, lower.tail = FALSE)
 }
 
 calculate_go_enrichment <- function(genes, go_categories, go_data) {
+  cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
   enrichment_results <- lapply(go_categories, function(go_category) {
     go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
+    cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
     
     population_size <- length(unique(go_data$gene))
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
     sample_success_size <- sum(genes %in% go_genes)
+    cat("Computed values - population_size:", population_size, "success_population_size:", success_population_size,
+        "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
     
     p_value <- perform_hypergeometric_test(population_size, success_population_size, sample_size, sample_success_size)
-    
+    cat("Calculated p_value for category", go_category, "is:", p_value, "\n")
     data.frame(
       GO_Category = go_category,
       P_Value = p_value,
@@ -38,14 +44,21 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   enrichment_results <- bind_rows(enrichment_results)
   enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "BH")
   
+  cat("Enrichment results:\n")
+  print(enrichment_results)
+  
   return(enrichment_results)
 }
 
-# Function to calculate GO tag enrichment for upregulated, downregulated, and both
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
+  cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
   upregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% pull(!!sym(annotation_col))
   downregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% pull(!!sym(annotation_col))
   regulated_genes <- df %>% filter(adjusted_pvalues < alpha) %>% pull(!!sym(annotation_col))
+  
+  cat("Upregulated genes:", paste(upregulated_genes, collapse = ", "), "\n")
+  cat("Downregulated genes:", paste(downregulated_genes, collapse = ", "), "\n")
+  cat("All regulated genes:", paste(regulated_genes, collapse = ", "), "\n")
   
   upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data)
   downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
@@ -57,8 +70,6 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     regulated = regulated_enrichment
   )
 }
-
-
 
 
 ui <- fluidPage(
