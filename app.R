@@ -54,7 +54,9 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   
   enrichment_results <- bind_rows(enrichment_results)
   #This is only adjusting pvalue for the p values for the picked categories - i need to change this 
-  enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "BH")
+  # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
+  
+  enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
   
   cat("Enrichment results:\n")
   print(enrichment_results)
