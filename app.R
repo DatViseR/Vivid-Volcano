@@ -121,7 +121,15 @@ ui <- fluidPage(
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
       verbatimTextOutput("df_structure"),
-      plotOutput("volcano_plot")
+      plotOutput("volcano_plot"),
+      h3("GO Enrichment for Regulated Genes"),
+      tableOutput("go_enrichment_regulated"),
+      h3("GO Enrichment for Upregulated Genes"),
+      tableOutput("go_enrichment_upregulated"),
+      h3("GO Enrichment for Downregulated Genes"),
+      tableOutput("go_enrichment_downregulated")
+      
+      
     )
   )
 )
@@ -259,14 +267,29 @@ server <- function(input, output, session) {
     str(enrichment_results_list)
     
     output$go_enrichment_regulated <- renderTable({
-      enrichment_results_list$regulated
+      if (nrow(enrichment_results_list$regulated) > 0) {
+        enrichment_results_list$regulated
+      } else {
+        data.frame(Message = "No data available for regulated enrichment.")
+      }
     })
+    
     output$go_enrichment_upregulated <- renderTable({
-      enrichment_results_list$upregulated
+      if (nrow(enrichment_results_list$upregulated) > 0) {
+        enrichment_results_list$upregulated
+      } else {
+        data.frame(Message = "No data available for upregulated enrichment.")
+      }
     })
+    
     output$go_enrichment_downregulated <- renderTable({
-      enrichment_results_list$downregulated
+      if (nrow(enrichment_results_list$downregulated) > 0) {
+        enrichment_results_list$downregulated
+      } else {
+        data.frame(Message = "No data available for downregulated enrichment.")
+      }
     })
+    
     
     
     # Draw the volcano plot
