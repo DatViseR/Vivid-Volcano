@@ -22,7 +22,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
     cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
     
-    population_size <- length(unique(go_data$gene))
+    population_size <- 20000  # Safe estimate for human coding genes
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
     sample_success_size <- sum(genes %in% go_genes)
@@ -64,11 +64,16 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
   regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data)
   
-  list(
+  enrichment_results_list <- list(
     upregulated = upregulated_enrichment,
     downregulated = downregulated_enrichment,
     regulated = regulated_enrichment
   )
+  
+  cat("Structure of enrichment_results_list:\n")
+  str(enrichment_results_list)
+  
+  return(enrichment_results_list)
 }
 
 
@@ -248,15 +253,19 @@ server <- function(input, output, session) {
     })
     
     # Calculate GO tag enrichment
-    enrichment_results <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    
+    cat("Structure of enrichment_results_list:\n")
+    str(enrichment_results_list)
+    
     output$go_enrichment_regulated <- renderTable({
-      enrichment_results$regulated
+      enrichment_results_list$regulated
     })
     output$go_enrichment_upregulated <- renderTable({
-      enrichment_results$upregulated
+      enrichment_results_list$upregulated
     })
     output$go_enrichment_downregulated <- renderTable({
-      enrichment_results$downregulated
+      enrichment_results_list$downregulated
     })
     
     
