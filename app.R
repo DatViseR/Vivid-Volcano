@@ -25,7 +25,18 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     population_size <- 20000  # Safe estimate for human coding genes
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
-    sample_success_size <- sum(genes %in% go_genes)
+    # Check if each gene name has at least one exact match after cleaning and splitting
+    sample_success_size <- sum(sapply(genes, function(gene) {
+      # Remove special characters commonly surrounding genes
+      cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
+      
+      # Split by spaces, commas, semicolons, or colons
+      gene_parts <- unlist(strsplit(cleaned_gene, "[ ,;:]+"))
+      
+      # Check if any of the cleaned parts match exactly with go_genes
+      any(gene_parts %in% go_genes)
+    }))
+    
     cat("Computed values - population_size:", population_size, "success_population_size:", success_population_size,
         "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
     
