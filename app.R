@@ -22,7 +22,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
     cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
     
-    population_size <- 20000  # Safe estimate for human coding genes
+    population_size <- 19689  # Number of human coding genes after pseudogene exclusion
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
     # Check if each gene name has at least one exact match after cleaning and splitting
