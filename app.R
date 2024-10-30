@@ -363,14 +363,27 @@ server <- function(input, output, session) {
       df$trimmed_labels <- df[[input$annotation_col]]
     }
     
-    # Select top hits for labeling
+    # Select top hits for labeling and assign colors to labels
     if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
-      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = trimmed_labels), size = 3, max.overlaps = Inf, nudge_y = 0.2)
+      
+      # Assign Default Label Color
+      top_hits$label_color <- "black"  # Default label color
+      if (!is.null(chosen_go())) {
+        selected_GO <- GO %>% filter(name %in% chosen_go())
+        for (go in chosen_go()) {
+          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
+          genes <- selected_GO %>% filter(name == go) %>% pull(gene)
+          top_hits$label_color[top_hits[[input$annotation_col]] %in% genes] <- color
+        }
+      }
+      
+      volcano_plot <- volcano_plot + 
+        geom_text_repel(data = top_hits, aes(label = trimmed_labels, color = label_color), size = 3, max.overlaps = Inf, nudge_y = 0.2) +
+        scale_color_identity()  # Use identity scale to apply the colors directly
     }
     
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
   })
 }
-
 shinyApp(ui = ui, server = server)
