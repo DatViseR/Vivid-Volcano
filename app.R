@@ -299,8 +299,7 @@ server <- function(input, output, session) {
     }
     
     volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
-      geom_point(aes(color = adjusted_pvalues < input$alpha), size = 1.8, alpha = 0.5) +
-      scale_color_manual(values = c("FALSE" = "gray70", "TRUE" = "gray70")) +
+      geom_point(size = 1.8, alpha = 0.5, color = "gray70") +
       theme_minimal() +
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
       theme(legend.position = "none",
