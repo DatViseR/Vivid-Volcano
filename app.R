@@ -9,6 +9,7 @@ library(arrow)
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
 
+####################CRUCIAL FUNCTION DEFINITIONS ###############################
 
 perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
   cat("Performing hypergeometric test with parameters:\n")
@@ -89,7 +90,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   
   return(enrichment_results_list)
 }
-
+##################################################UI############################################################
 
 ui <- fluidPage(
   titlePanel("Vivid Volcano Controls"),
@@ -99,20 +100,8 @@ ui <- fluidPage(
       checkboxInput("header", "Header", TRUE),
       radioButtons("sep", "Separator", choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), selected = ","),
       radioButtons("dec", "Decimal Point", choices = c(Dot = ".", Comma = ","), selected = "."),
-      actionButton("upload", "Upload")
-    ),
-    mainPanel(
-      verbatimTextOutput("dataset_summary"),
-      verbatimTextOutput("column_structure"),
-      verbatimTextOutput("pvalue_distribution"),
-      verbatimTextOutput("significant_genes"),
-      verbatimTextOutput("df_structure"),
-      plotOutput("volcano_plot")
-    )
-  ),
-  sidebarLayout(
-    sidebarPanel(
-      h4("Select columns and calculate adjusted p-values"),
+      actionButton("upload", "Upload"),
+      h4("Select columns for analysis"),
       uiOutput("column_select_ui"),
       radioButtons("adj", "pvalue adjustment", choices = c(None = "none", Bonferroni = "bonferroni", Hochberg = "hochberg", Benjamini_Hochberg = "BH", Benjamini_Yekutieli = "BY"), selected = "BH"),
       numericInput("alpha", "Significance threshold", value = 0.05),
@@ -122,7 +111,6 @@ ui <- fluidPage(
       checkboxInput("show_go_category", "I want to visualise GO categories", FALSE),
       uiOutput("go_category_ui"),  # Placeholder for dynamic UI
       uiOutput("color_picker_ui"),  # Placeholder for dynamic color pickers
-      
       numericInput("num_labels", "Number of labels (0-100)", value = 10, min = 0, max = 100),
       checkboxInput("trim_gene_names", "Trim multiple gene names to first occurrence", FALSE),
       textInput("plot_title", "Plot Title", "Vivid Volcano"),
@@ -142,8 +130,6 @@ ui <- fluidPage(
       tableOutput("go_enrichment_upregulated"),
       h3("GO Enrichment for Downregulated Genes"),
       tableOutput("go_enrichment_downregulated")
-      
-      
     )
   )
 )
@@ -175,9 +161,9 @@ server <- function(input, output, session) {
       if (is.null(df)) return(NULL)
       colnames <- names(df)
       tagList(
-        selectInput("pvalue_col", "Select pvalue column", choices = colnames),
-        selectInput("fold_col", "Select fold column", choices = colnames),
-        selectInput("annotation_col", "Select annotation column", choices = colnames)
+        selectInput("pvalue_col", "Select p-value column", choices = colnames),
+        selectInput("fold_col", "Select regulation column - log2(fold)", choices = colnames),
+        selectInput("annotation_col", "Select human gene symbols column", choices = colnames)
       )
     })
     
@@ -343,17 +329,21 @@ server <- function(input, output, session) {
       }
     }
     
+    # Create a new column for trimmed labels if input$trim_gene_names is TRUE
     if (input$trim_gene_names) {
-      df[[input$annotation_col]] <- sapply(df[[input$annotation_col]], function(x) {
+      df$trimmed_labels <- sapply(df[[input$annotation_col]], function(x) {
         strsplit(as.character(x), "[,; :]+")[[1]][1]
       })
+    } else {
+      # If not trimming, use the original annotation column for labels
+      df$trimmed_labels <- df[[input$annotation_col]]
     }
     
+    # Select top hits for labeling
     if (input$num_labels > 0) {
       top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
-      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = !!sym(input$annotation_col)), size = 3, max.overlaps = Inf, nudge_y = 0.2)
+      volcano_plot <- volcano_plot + geom_text_repel(data = top_hits, aes(label = trimmed_labels), size = 3, max.overlaps = Inf, nudge_y = 0.2)
     }
-    
     
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
   })
