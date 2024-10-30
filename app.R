@@ -9,6 +9,88 @@ library(arrow)
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
 
+
+perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
+  cat("Performing hypergeometric test with parameters:\n")
+  cat("population_size:", population_size, "success_population_size:", success_population_size, "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
+  phyper(sample_success_size - 1, success_population_size, population_size - success_population_size, sample_size, lower.tail = FALSE)
+}
+
+calculate_go_enrichment <- function(genes, go_categories, go_data) {
+  cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
+  enrichment_results <- lapply(go_categories, function(go_category) {
+    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
+    cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
+    
+    population_size <- 19689  # Number of human coding genes after pseudogene exclusion
+    success_population_size <- length(go_genes)
+    sample_size <- length(genes)
+    # Check if each gene name has at least one exact match after cleaning and splitting
+    sample_success_size <- sum(sapply(genes, function(gene) {
+      # Remove special characters commonly surrounding genes
+      cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
+      
+      # Split by spaces, commas, semicolons, or colons
+      gene_parts <- unlist(strsplit(cleaned_gene, "[ ,;:]+"))
+      
+      # Check if any of the cleaned parts match exactly with go_genes
+      any(gene_parts %in% go_genes)
+    }))
+    
+    cat("Computed values - population_size:", population_size, "success_population_size:", success_population_size,
+        "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
+    
+    p_value <- perform_hypergeometric_test(population_size, success_population_size, sample_size, sample_success_size)
+    cat("Calculated p_value for category", go_category, "is:", p_value, "\n")
+    data.frame(
+      GO_Category = go_category,
+      P_Value = p_value,
+      Population_Size = population_size,
+      Success_Population_Size = success_population_size,
+      Sample_Size = sample_size,
+      Sample_Success_Size = sample_success_size
+    )
+  })
+  
+  enrichment_results <- bind_rows(enrichment_results)
+  #This is only adjusting pvalue for the p values for the picked categories - i need to change this 
+  # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
+  
+  enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
+  
+  cat("Enrichment results:\n")
+  print(enrichment_results)
+  
+  return(enrichment_results)
+}
+
+calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
+  cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
+  upregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% pull(!!sym(annotation_col))
+  downregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% pull(!!sym(annotation_col))
+  regulated_genes <- df %>% filter(adjusted_pvalues < alpha) %>% pull(!!sym(annotation_col))
+  
+  cat("Upregulated genes:", paste(upregulated_genes, collapse = ", "), "\n")
+  cat("Downregulated genes:", paste(downregulated_genes, collapse = ", "), "\n")
+  cat("All regulated genes:", paste(regulated_genes, collapse = ", "), "\n")
+  
+  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data)
+  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
+  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data)
+  
+  enrichment_results_list <- list(
+    upregulated = upregulated_enrichment,
+    downregulated = downregulated_enrichment,
+    regulated = regulated_enrichment
+  )
+  
+  cat("Structure of enrichment_results_list:\n")
+  str(enrichment_results_list)
+  
+  return(enrichment_results_list)
+}
+
+
 ui <- fluidPage(
   titlePanel("Vivid Volcano Controls"),
   sidebarLayout(
@@ -53,7 +135,15 @@ ui <- fluidPage(
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
       verbatimTextOutput("df_structure"),
-      plotOutput("volcano_plot")
+      plotOutput("volcano_plot"),
+      h3("GO Enrichment for Regulated Genes"),
+      tableOutput("go_enrichment_regulated"),
+      h3("GO Enrichment for Upregulated Genes"),
+      tableOutput("go_enrichment_upregulated"),
+      h3("GO Enrichment for Downregulated Genes"),
+      tableOutput("go_enrichment_downregulated")
+      
+      
     )
   )
 )
@@ -183,6 +273,38 @@ server <- function(input, output, session) {
       updated_df <- uploaded_df()  # Re-fetch the updated dataframe
       str(updated_df)  # Reflect the updated dataframe
     })
+    
+    # Calculate GO tag enrichment
+    enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    
+    cat("Structure of enrichment_results_list:\n")
+    str(enrichment_results_list)
+    
+    output$go_enrichment_regulated <- renderTable({
+      if (nrow(enrichment_results_list$regulated) > 0) {
+        enrichment_results_list$regulated
+      } else {
+        data.frame(Message = "No data available for regulated enrichment.")
+      }
+    })
+    
+    output$go_enrichment_upregulated <- renderTable({
+      if (nrow(enrichment_results_list$upregulated) > 0) {
+        enrichment_results_list$upregulated
+      } else {
+        data.frame(Message = "No data available for upregulated enrichment.")
+      }
+    })
+    
+    output$go_enrichment_downregulated <- renderTable({
+      if (nrow(enrichment_results_list$downregulated) > 0) {
+        enrichment_results_list$downregulated
+      } else {
+        data.frame(Message = "No data available for downregulated enrichment.")
+      }
+    })
+    
+    
     
     # Draw the volcano plot
     if (!"adjusted_pvalues" %in% names(df)) {
