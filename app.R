@@ -308,10 +308,34 @@ server <- function(input, output, session) {
             )+
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") 
    
+    # Generate subtitle based on the input settings
+    subtitle <- NULL
+    
+    if (input$color_highlight) {
+      upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
+      downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
+      subtitle <- paste0("Upregulated n= ", upregulated_count, "\n" , "\n", "Downregulated n= ", downregulated_count, "\n")
+    }
+    
+    if (input$show_go_category) {
+      chosen <- chosen_go()
+      go_details <- paste0("GO: ", paste(chosen, collapse = ", "))
+      if (!is.null(subtitle)) {
+        subtitle <- paste(subtitle, go_details, sep = "\n")
+      } else {
+        subtitle <- go_details
+      }
+    }
+    
+    # Add subtitle to the plot
+    if (!is.null(subtitle)) {
+      volcano_plot <- volcano_plot + labs(subtitle = subtitle)
+    }
+    
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 1.8, color = input$up_color, alpha = 0.5) +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 1.8, color = input$down_color, alpha = 0.5)
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 2, color = input$up_color, alpha = 0.5) +
+        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 2, color = input$down_color, alpha = 0.5)
     }
     
     # Highlighting genes belonging to chosen GO categories
