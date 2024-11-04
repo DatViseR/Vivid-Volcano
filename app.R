@@ -328,7 +328,17 @@ server <- function(input, output, session) {
     
     if (input$show_go_category) {
       chosen <- chosen_go()
-      go_details <- paste0("GO: ", paste(chosen, collapse = ", "))
+      selected_GO <- GO %>% filter(name %in% chosen)
+      cat("Selected GO categories:\n")
+      print(head(selected_GO))  # Debug print to check the content of selected_GO
+      
+      if ("id" %in% colnames(selected_GO)) {
+        go_details <- paste0(paste(chosen, unique(selected_GO$id), collapse = ", "))
+      } else {
+        go_details <- paste0("GO: ", paste(chosen, collapse = ", "), "\nID: Not available")
+        cat("Warning: 'id' column not found in selected_GO\n")  # Debug warning if 'id' column is missing
+      }
+      
       if (!is.null(subtitle)) {
         subtitle <- paste(subtitle, go_details, sep = "\n")
       } else {
