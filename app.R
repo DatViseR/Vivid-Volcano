@@ -121,10 +121,10 @@ ui <- fluidPage(
     mainPanel(
       uiOutput("uploaded_dataset_ui"),
       DT::dataTableOutput("dataset_summary"),
-      verbatimTextOutput("column_structure"),
-      verbatimTextOutput("pvalue_distribution"),
-      verbatimTextOutput("significant_genes"),
-      verbatimTextOutput("df_structure"),
+      cat("column_structure"),
+      cat("pvalue_distribution"),
+      cat("significant_genes"),
+      cat("df_structure"),
       plotOutput("volcano_plot"),
       h3("GO Enrichment for Regulated Genes"),
       tableOutput("go_enrichment_regulated"),
@@ -323,33 +323,38 @@ server <- function(input, output, session) {
     if (input$color_highlight) {
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
       downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
-      subtitle <- paste0("Upregulated n= ", upregulated_count, "\n" , "\n", "Downregulated n= ", downregulated_count, "\n")
+      volcano_plot <- volcano_plot +
+        annotate("text", x = Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = 1.1, vjust = 2, size = 6, fontface = "italic") +
+        annotate("text", x = Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = 1.1, vjust = 3, size = 6, fontface = "italic")
     }
     
+    # Add annotations for chosen GO categories
     if (input$show_go_category) {
       chosen <- chosen_go()
       selected_GO <- GO %>% filter(name %in% chosen)
-      cat("Selected GO categories:\n")
-      print(head(selected_GO))  # Debug print to check the content of selected_GO
       
       if ("id" %in% colnames(selected_GO)) {
-        go_details <- paste0(paste(chosen, unique(selected_GO$id), collapse = ", "))
+        go_details <- paste0(paste(chosen, unique(selected_GO$id), collapse = "\n"))
       } else {
         go_details <- paste0("GO: ", paste(chosen, collapse = ", "), "\nID: Not available")
         cat("Warning: 'id' column not found in selected_GO\n")  # Debug warning if 'id' column is missing
+        cat(go_details)  # Debug statement
       }
       
-      if (!is.null(subtitle)) {
-        subtitle <- paste(subtitle, go_details, sep = "\n")
-      } else {
-        subtitle <- go_details
+      for (i in seq_along(chosen)) {
+        go <- chosen[i]
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
+        go_detail <- paste0(go, ": ", unique(selected_GO$id[selected_GO$name == go]))
+        volcano_plot <- volcano_plot +
+          annotate("text", x = Inf, y = Inf, label = go_detail, color = color, hjust = 1.1, vjust = 3 + i, size = 6, fontface = "italic")
       }
-    }
-    
+    }  
+     
     # Add subtitle to the plot
     if (!is.null(subtitle)) {
       volcano_plot <- volcano_plot + labs(subtitle = subtitle)
     }
+  
     
     if (input$color_highlight) {
       volcano_plot <- volcano_plot +
