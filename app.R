@@ -119,7 +119,7 @@ ui <- fluidPage(
       actionButton("draw_volcano", "Draw Volcano Plot")
     ),
     mainPanel(
-      h3("Uploaded Dataset Preview"),
+      uiOutput("uploaded_dataset_ui"),
       DT::dataTableOutput("dataset_summary"),
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
@@ -171,7 +171,15 @@ server <- function(input, output, session) {
     
     output$dataset_summary <- DT::renderDataTable({ 
       cat("The following columns were uploaded: \n\n")
-     datatable(df)
+      #show only first 3 entries
+     datatable(df, rownames = FALSE, options = list(pageLength = 3))
+    })
+      output$uploaded_dataset_ui <- renderUI({
+       tagList(
+         h3("Uploaded Dataset Preview"),
+         DT::dataTableOutput("dataset_summary")
+       )
+     
     })
   })
   
