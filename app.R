@@ -6,6 +6,7 @@ library(colourpicker)
 library(ggrepel)
 library(arrow)
 library(DT)
+library(plotly)
 
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
@@ -125,7 +126,10 @@ ui <- fluidPage(
       cat("pvalue_distribution"),
       cat("significant_genes"),
       cat("df_structure"),
-      plotOutput("volcano_plot", width = "auto", height = "720px"),  # 2/3 of 1080px
+      tabsetPanel(
+        tabPanel("Static", plotOutput("volcano_plot", width = "auto", height = "720px")),
+        tabPanel("Interactive", plotlyOutput("volcano_plotly", width = "auto", height = "720px"))
+      ),
       h3("GO Enrichment for Regulated Genes"),
       tableOutput("go_enrichment_regulated"),
       h3("GO Enrichment for Upregulated Genes"),
@@ -318,7 +322,12 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    volcano_plot <- ggplot(df, aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))) +
+    volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), y = -log10(!!sym(input$pvalue_col)),
+                                   text = paste("Gene:", !!sym(input$annotation_col),
+                                                "\nP-value:", round(!!sym(input$pvalue_col), 4),
+                                                "<br>log2 Fold Change:", round(!!sym(input$fold_col),3),
+                                                "<br>Adjusted P-value:", round(adjusted_pvalues, 4)))) +
+                                                
       geom_point(size = 1.8, alpha = 0.5, color = "gray70") +
       theme_minimal() +
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
@@ -419,6 +428,7 @@ server <- function(input, output, session) {
     }
     
     output$volcano_plot <- renderPlot({ print(volcano_plot) })
+    output$volcano_plotly <- renderPlotly({ ggplotly(volcano_plot, tooltip = "text") })  # Render Plotly version
   })
 }
 shinyApp(ui = ui, server = server)
