@@ -5,11 +5,12 @@ library(ggplot2)
 library(colourpicker)
 library(ggrepel)
 library(arrow)
+library(DT)
 
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
 
-####################CRUCIAL FUNCTION DEFINITIONS ###############################
+##################---CRUCIAL FUNCTION DEFINITIONS---- ###########################
 
 perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
   cat("Performing hypergeometric test with parameters:\n")
@@ -90,7 +91,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   
   return(enrichment_results_list)
 }
-##################################################UI############################################################
+################################### ----UI---#################################
 
 ui <- fluidPage(
   titlePanel("Vivid Volcano Controls"),
@@ -118,7 +119,8 @@ ui <- fluidPage(
       actionButton("draw_volcano", "Draw Volcano Plot")
     ),
     mainPanel(
-      verbatimTextOutput("dataset_summary"),
+      h3("Uploaded Dataset Preview"),
+      DT::dataTableOutput("dataset_summary"),
       verbatimTextOutput("column_structure"),
       verbatimTextOutput("pvalue_distribution"),
       verbatimTextOutput("significant_genes"),
@@ -167,9 +169,9 @@ server <- function(input, output, session) {
       )
     })
     
-    output$dataset_summary <- renderPrint({ 
+    output$dataset_summary <- DT::renderDataTable({ 
       cat("The following columns were uploaded: \n\n")
-      dplyr::glimpse(df)
+     datatable(df)
     })
   })
   
