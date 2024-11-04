@@ -125,7 +125,7 @@ ui <- fluidPage(
       cat("pvalue_distribution"),
       cat("significant_genes"),
       cat("df_structure"),
-      plotOutput("volcano_plot"),
+      plotOutput("volcano_plot", width = "auto", height = "720px"),  # 2/3 of 1080px
       h3("GO Enrichment for Regulated Genes"),
       tableOutput("go_enrichment_regulated"),
       h3("GO Enrichment for Upregulated Genes"),
@@ -323,9 +323,10 @@ server <- function(input, output, session) {
       theme_minimal() +
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
       theme(legend.position = "none",
-            panel.grid.minor = element_blank()
-            )+
-      geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") 
+            panel.grid.minor = element_blank(),
+            aspect.ratio = 0.75) +  
+      geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") +
+      scale_x_continuous(limits = c(-max(abs(df[[input$fold_col]])), max(abs(df[[input$fold_col]]))))  # Set x-axis limits
    
     # Generate subtitle based on the input settings
     subtitle <- NULL
