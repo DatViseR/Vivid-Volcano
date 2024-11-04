@@ -211,19 +211,29 @@ server <- function(input, output, session) {
     input$go_category
   })
   
+  
+  color_palette <- c("#009688", "#8E44AD", "#F39C12", "#D35400", "#2C3E50", "#D4AC0D")
+  
   # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       return(NULL)
     }
+    
     req(chosen_go())
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
-    color_inputs <- lapply(chosen, function(go) {
-      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)  # this is needed because spaces in GO categories causes bug
-      cat("Creating color input for: ", go, " with ID: ", sanitized_id, "\n")  # Debug statement
-      colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = "blue")
+    
+    # Iterate over indices, not values, to correctly access both `chosen[i]` and `color_palette[i]`
+    color_inputs <- lapply(seq_along(chosen), function(i) {
+      go <- chosen[i]
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)  # Sanitize ID
+      color_value <- color_palette[(i - 1) %% length(color_palette) + 1]  # Cycle through colors using index `i`
+      cat("Creating color input for: ", go, " with ID: ", sanitized_id, " and color: ", color_value, "\n")  # Debug statement
+      
+      colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = color_value)
     })
+    
     do.call(tagList, color_inputs)
   })
   
