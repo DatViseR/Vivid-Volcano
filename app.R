@@ -108,22 +108,9 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   title_size <- 12
   text_size <- 8
   
-  # Store original annotations
-  original_annotations <- NULL
-  for(layer in base_plot$layers) {
-    if(inherits(layer$geom, "GeomText") || inherits(layer$geom, "GeomTextRepel")) {
-      original_annotations <- layer
-      break
-    }
-  }
-  
-  # Remove original annotations temporarily
-  base_plot$layers <- base_plot$layers[!sapply(base_plot$layers, function(l) 
-    inherits(l$geom, "GeomText") || inherits(l$geom, "GeomTextRepel"))]
-  
   # Modify the plot with publication-ready settings
   publication_plot <- base_plot +
-     theme(
+    theme(
       # Text sizes are now fixed
       plot.title = element_text(size = title_size, face = "bold"),
       plot.subtitle = element_text(size = text_size),
@@ -131,8 +118,7 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       axis.text = element_text(size = text_size),
       legend.text = element_text(size = text_size),
       legend.title = element_text(size = text_size),
-      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt"),  # Increased right margin for annotations
-      plot.title.position = "plot"
+      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")  # Increased right margin for annotations
     )
   
   # Adjust point sizes in all geom_point layers
@@ -146,68 +132,8 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
     }
   }
   
-  # Get the plot range to position annotations
-  plot_data <- ggplot_build(publication_plot)
-  x_range <- diff(plot_data$layout$panel_params[[1]]$x.range)
-  y_range <- diff(plot_data$layout$panel_params[[1]]$y.range)
-  
-  # Calculate x position for annotations (95% of x range)
-  x_pos <- plot_data$layout$panel_params[[1]]$x.range[2] - (x_range * 0.05)
-  
-  # Calculate starting y position for annotations (95% of y range)
-  y_pos <- plot_data$layout$panel_params[[1]]$y.range[2] - (y_range * 0.05)
-  
-  # Add annotations with fixed positioning
-  y_offset <- 0
-  
-  # Function to add annotations with proper spacing
-  add_annotation <- function(label, color, y_offset) {
-    publication_plot <<- publication_plot +
-      annotate("text",
-               x = x_pos,
-               y = y_pos - (y_offset * y_range * 0.1),  # Space annotations evenly
-               label = label,
-               color = color,
-               size = text_size/ggplot2::.pt,  # Convert to ggplot2 size
-               hjust = 1,
-               vjust = 1,
-               fontface = "italic")
-  }
-  
-  # Add existing annotations back with proper positioning
-  for(layer in base_plot$layers) {
-    if(inherits(layer$geom, "GeomText") && !is.null(layer$data)) {
-      if(!is.null(layer$data$label)) {
-        for(i in seq_along(layer$data$label)) {
-          add_annotation(layer$data$label[i], 
-                         layer$data$colour[i], 
-                         y_offset)
-          y_offset <- y_offset + 1
-        }
-      }
-    }
-  }
-  
-  # Add back the gene labels with fixed size
-  if(!is.null(original_annotations)) {
-    publication_plot <- publication_plot +
-      geom_text_repel(
-        data = original_annotations$data,
-        aes(label = original_annotations$mapping$label,
-            color = original_annotations$mapping$colour),
-        size = text_size/ggplot2::.pt,  # Convert to ggplot2 size
-        max.overlaps = Inf,
-        nudge_y = 0.2,
-        segment.size = 0.2,  # Fixed segment size
-        box.padding = 0.5,
-        point.padding = 0.3
-      ) +
-      scale_color_identity()
-  }
-  
   return(publication_plot)
 }
-
 
 
 
