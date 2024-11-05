@@ -429,7 +429,11 @@ server <- function(input, output, session) {
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
       theme(legend.position = "none",
             panel.grid.minor = element_blank(),
-            aspect.ratio = 0.75) +  
+            aspect.ratio = 0.75,
+            plot.title = element_text(size = 18, face = "bold"),
+            axis.title = element_text(size = 16, color = "navy", face = "bold"),
+            axis.text = element_text(size = 14, color = "navy", face = "bold"),
+             ) +  
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") +
       scale_x_continuous(limits = c(-max(abs(df[[input$fold_col]])), max(abs(df[[input$fold_col]]))))  # Set x-axis limits
    
@@ -519,7 +523,7 @@ server <- function(input, output, session) {
       }
       
       volcano_plot <- volcano_plot + 
-        geom_text_repel(data = top_hits, aes(label = trimmed_labels, color = label_color), size = 3, max.overlaps = Inf, nudge_y = 0.2) +
+        geom_text_repel(data = top_hits, aes(label = trimmed_labels, color = label_color), size = 4, max.overlaps = Inf, nudge_y = 0.2) +
         scale_color_identity()  # Use identity scale to apply the colors directly
     }
     
