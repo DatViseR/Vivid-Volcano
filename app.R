@@ -94,46 +94,78 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   return(enrichment_results_list)
 }
 
+
+
 create_publication_plot <- function(base_plot, width_mm, height_mm) {
-  # Convert mm to inches
+  # Convert mm to inches for ggsave compatibility
   width_in <- width_mm * 0.0393701
   height_in <- height_mm * 0.0393701
   
-  # Calculate plot area in mm² and use it for point size scaling only
-  plot_area <- width_mm * height_mm
-  reference_area <- 174 * 174  # Reference area (largest plot)
-  area_scale_factor <- sqrt(plot_area / reference_area)  # Square root for proportional scaling
-  
-  # Fixed sizes for all text elements
+  # Define fixed base sizes for different plot elements
   title_size <- 12
   text_size <- 8
+  
+  # Define fixed point sizes for different plot dimensions
+  point_sizes <- list(
+    "85x85" = list(base = 0.6, highlight = 0.9, annotation = 1.5),
+    "114x114" = list(base = 0.8, highlight = 1.2, annotation = 2),
+    "114x65" = list(base = 0.7, highlight = 1.05, annotation = 1.75),
+    "174x174" = list(base = 1, highlight = 1.5,annotation = 2.5),
+    "174x98" = list(base = 0.9, highlight = 1.35, annotation = 2.25)) 
+  
+  # Determine which size configuration to use
+  plot_key <- paste0(width_mm, "x", height_mm)
+  point_size <- point_sizes[[plot_key]] %||% point_sizes[["85x85"]]
   
   # Modify the plot with publication-ready settings
   publication_plot <- base_plot +
     theme(
-      # Text sizes are now fixed
       plot.title = element_text(size = title_size, face = "bold"),
       plot.subtitle = element_text(size = text_size),
       axis.title = element_text(size = text_size),
       axis.text = element_text(size = text_size),
       legend.text = element_text(size = text_size),
       legend.title = element_text(size = text_size),
-      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")  # Increased right margin for annotations
+      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")
     )
   
-  # Adjust point sizes in all geom_point layers
+  # Update all layers
   for(i in seq_along(publication_plot$layers)) {
-    if(inherits(publication_plot$layers[[i]]$geom, "GeomPoint")) {
-      if(!is.null(publication_plot$layers[[i]]$aes_params$size)) {
-        # Scale points based on area
-        original_size <- publication_plot$layers[[i]]$aes_params$size
-        publication_plot$layers[[i]]$aes_params$size <- original_size * area_scale_factor
+    layer <- publication_plot$layers[[i]]
+    
+    # Handle point geometries
+    if(inherits(layer$geom, "GeomPoint")) {
+      is_highlight <- !is.null(layer$aes_params$color) &&
+        layer$aes_params$color %in% c("darkgreen", "red")
+      new_size <- if(is_highlight) point_size$highlight else point_size$base
+      layer$aes_params$size <- new_size
+    }
+    
+    # Handle text annotations
+    if(inherits(layer$geom, "GeomText") || inherits(layer$geom, "GeomTextRepel")) {
+      # Check if this is an annotation text (positioned at Inf,Inf)
+      is_annotation <- all(
+        !is.null(layer$data),
+        "x" %in% names(layer$data),
+        "y" %in% names(layer$data),
+        all(is.infinite(layer$data$x) & is.infinite(layer$data$y))
+      )
+      
+      if(is_annotation) {
+        # This is an annotation text (upregulated/downregulated counts or GO details)
+        layer$aes_params$size <- point_size$annotation
+      } else {
+        # This is a regular text label (gene names)
+        layer$aes_params$size <- text_size * 0.25
       }
     }
   }
   
   return(publication_plot)
 }
+
+
+
 
 
 
