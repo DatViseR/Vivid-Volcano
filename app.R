@@ -7,6 +7,7 @@ library(ggrepel)
 library(arrow)
 library(DT)
 library(plotly)
+library(Cairo)
 
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
@@ -92,6 +93,45 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   
   return(enrichment_results_list)
 }
+
+# creates a publication-ready plot based on the input dimensions 
+create_publication_plot <- function(base_plot, width_mm, height_mm) {
+  # Convert mm to inches (1 mm = 0.0393701 inches)
+  width_in <- width_mm * 0.0393701
+  height_in <- height_mm * 0.0393701
+  
+  # Calculate base sizes based on plot dimensions
+  base_size <- ifelse(min(width_mm, height_mm) <= 85, 8,
+                      ifelse(min(width_mm, height_mm) <= 114, 10, 12))
+  
+  # Modify the base plot with publication-ready settings
+  publication_plot <- base_plot +
+    theme_minimal(base_size = base_size) +
+    theme(
+      plot.title = element_text(size = base_size * 1.2, face = "bold"),
+      plot.subtitle = element_text(size = base_size * 0.9),
+      axis.title = element_text(size = base_size * 1.1),
+      axis.text = element_text(size = base_size * 0.9),
+      legend.text = element_text(size = base_size * 0.8),
+      legend.title = element_text(size = base_size * 0.9),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "gray90"),
+      plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+    )
+  
+  # Adjust point sizes based on plot dimensions
+  if (inherits(publication_plot$layers[[1]], "LayoutGeomPoint")) {
+    publication_plot$layers[[1]]$aes_params$size <- 
+      ifelse(min(width_mm, height_mm) <= 85, 0.8,
+             ifelse(min(width_mm, height_mm) <= 114, 1.2, 1.5))
+  }
+  
+  return(publication_plot)
+}
+
+
+
+
 ################################### ----UI---#################################
 
 ui <- fluidPage(
@@ -130,6 +170,19 @@ ui <- fluidPage(
         tabPanel("Static", plotOutput("volcano_plot", width = "auto", height = "720px")),
         tabPanel("Interactive", plotlyOutput("volcano_plotly", width = "auto", height = "720px"))
       ),
+      # Add after the tabsetPanel in mainPanel
+      hr(),  # Add a horizontal line for visual separation
+      h3("Download Publication-Ready Plots"),
+      fluidRow(
+        column(12,
+               downloadButton("download_plot1", "Download 85x85mm (1 column)"),
+               downloadButton("download_plot2", "Download 114x114mm (1.5 column)"),
+               downloadButton("download_plot3", "Download 114x65mm (1.5 column landscape)"),
+               downloadButton("download_plot4", "Download 174x174mm (square)"),
+               downloadButton("download_plot5", "Download 174x98mm (landscape)"),
+               style = "margin-bottom: 20px"
+        )
+      ),
       h3("GO Enrichment for Regulated Genes"),
       tableOutput("go_enrichment_regulated"),
       h3("GO Enrichment for Upregulated Genes"),
@@ -140,9 +193,54 @@ ui <- fluidPage(
   )
 )
 
+##########################-----SERVER----####################################
+
+
 server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
+  volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
+  
+  # Add at the start of your server function
+create_publication_plot <- function(base_plot, width_mm, height_mm) {
+    # Convert mm to inches (1 mm = 0.0393701 inches)
+    width_in <- width_mm * 0.0393701
+    height_in <- height_mm * 0.0393701
+    
+    # Calculate base sizes based on plot dimensions
+    base_size <- ifelse(min(width_mm, height_mm) <= 85, 8,
+                       ifelse(min(width_mm, height_mm) <= 114, 10, 12))
+    
+    # Modify the base plot with publication-ready settings
+    publication_plot <- base_plot +
+      theme_minimal(base_size = base_size) +
+      theme(
+        plot.title = element_text(size = base_size * 1.2, face = "bold"),
+        plot.subtitle = element_text(size = base_size * 0.9),
+        axis.title = element_text(size = base_size * 1.1),
+        axis.text = element_text(size = base_size * 0.9),
+        legend.text = element_text(size = base_size * 0.8),
+        legend.title = element_text(size = base_size * 0.9),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(color = "gray90"),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+      )
+    
+    # Adjust point sizes based on plot dimensions
+    if (inherits(publication_plot$layers[[1]], "LayoutGeomPoint")) {
+      publication_plot$layers[[1]]$aes_params$size <- 
+        ifelse(min(width_mm, height_mm) <= 85, 0.8,
+               ifelse(min(width_mm, height_mm) <= 114, 1.2, 1.5))
+    }
+    
+    return(publication_plot)
+}
+  
+  
+  
+  
+  
+  
   
   # Function to check and unlog p-values
   check_and_unlog_pvalues <- function(df, pvalue_col) {
@@ -428,8 +526,79 @@ server <- function(input, output, session) {
         scale_color_identity()  # Use identity scale to apply the colors directly
     }
     
-    output$volcano_plot <- renderPlot({ print(volcano_plot) })
-    output$volcano_plotly <- renderPlotly({ ggplotly(volcano_plot, tooltip = "text") })  # Render Plotly version
-  })
+    volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
+    
+    output$volcano_plot <- renderPlot({ 
+      req(volcano_plot_rv())
+      print(volcano_plot_rv()) 
+    })
+    
+    output$volcano_plotly <- renderPlotly({ 
+      req(volcano_plot_rv())
+      ggplotly(volcano_plot_rv(), tooltip = "text") 
+    })
+    
+
+    output$download_plot1 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85)
+        ggsave(file, publication_plot, width = 85, height = 85, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot2 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114)
+        ggsave(file, publication_plot, width = 114, height = 114, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot3 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65)
+        ggsave(file, publication_plot, width = 114, height = 65, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot4 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174)
+        ggsave(file, publication_plot, width = 174, height = 174, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot5 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98)
+        ggsave(file, publication_plot, width = 174, height = 98, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+  
+})
 }
 shinyApp(ui = ui, server = server)
