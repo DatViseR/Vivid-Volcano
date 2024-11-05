@@ -94,36 +94,115 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   return(enrichment_results_list)
 }
 
-# creates a publication-ready plot based on the input dimensions 
 create_publication_plot <- function(base_plot, width_mm, height_mm) {
-  # Convert mm to inches (1 mm = 0.0393701 inches)
+  # Convert mm to inches
   width_in <- width_mm * 0.0393701
   height_in <- height_mm * 0.0393701
   
-  # Calculate base sizes based on plot dimensions
-  base_size <- ifelse(min(width_mm, height_mm) <= 85, 8,
-                      ifelse(min(width_mm, height_mm) <= 114, 10, 12))
+  # Calculate plot area in mm² and use it for point size scaling only
+  plot_area <- width_mm * height_mm
+  reference_area <- 174 * 174  # Reference area (largest plot)
+  area_scale_factor <- sqrt(plot_area / reference_area)  # Square root for proportional scaling
   
-  # Modify the base plot with publication-ready settings
+  # Fixed sizes for all text elements
+  title_size <- 12
+  text_size <- 8
+  
+  # Store original annotations
+  original_annotations <- NULL
+  for(layer in base_plot$layers) {
+    if(inherits(layer$geom, "GeomText") || inherits(layer$geom, "GeomTextRepel")) {
+      original_annotations <- layer
+      break
+    }
+  }
+  
+  # Remove original annotations temporarily
+  base_plot$layers <- base_plot$layers[!sapply(base_plot$layers, function(l) 
+    inherits(l$geom, "GeomText") || inherits(l$geom, "GeomTextRepel"))]
+  
+  # Modify the plot with publication-ready settings
   publication_plot <- base_plot +
-    theme_minimal(base_size = base_size) +
-    theme(
-      plot.title = element_text(size = base_size * 1.2, face = "bold"),
-      plot.subtitle = element_text(size = base_size * 0.9),
-      axis.title = element_text(size = base_size * 1.1),
-      axis.text = element_text(size = base_size * 0.9),
-      legend.text = element_text(size = base_size * 0.8),
-      legend.title = element_text(size = base_size * 0.9),
-      panel.grid.minor = element_blank(),
-      panel.grid.major = element_line(color = "gray90"),
-      plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+     theme(
+      # Text sizes are now fixed
+      plot.title = element_text(size = title_size, face = "bold"),
+      plot.subtitle = element_text(size = text_size),
+      axis.title = element_text(size = text_size),
+      axis.text = element_text(size = text_size),
+      legend.text = element_text(size = text_size),
+      legend.title = element_text(size = text_size),
+      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt"),  # Increased right margin for annotations
+      plot.title.position = "plot"
     )
   
-  # Adjust point sizes based on plot dimensions
-  if (inherits(publication_plot$layers[[1]], "LayoutGeomPoint")) {
-    publication_plot$layers[[1]]$aes_params$size <- 
-      ifelse(min(width_mm, height_mm) <= 85, 0.8,
-             ifelse(min(width_mm, height_mm) <= 114, 1.2, 1.5))
+  # Adjust point sizes in all geom_point layers
+  for(i in seq_along(publication_plot$layers)) {
+    if(inherits(publication_plot$layers[[i]]$geom, "GeomPoint")) {
+      if(!is.null(publication_plot$layers[[i]]$aes_params$size)) {
+        # Scale points based on area
+        original_size <- publication_plot$layers[[i]]$aes_params$size
+        publication_plot$layers[[i]]$aes_params$size <- original_size * area_scale_factor
+      }
+    }
+  }
+  
+  # Get the plot range to position annotations
+  plot_data <- ggplot_build(publication_plot)
+  x_range <- diff(plot_data$layout$panel_params[[1]]$x.range)
+  y_range <- diff(plot_data$layout$panel_params[[1]]$y.range)
+  
+  # Calculate x position for annotations (95% of x range)
+  x_pos <- plot_data$layout$panel_params[[1]]$x.range[2] - (x_range * 0.05)
+  
+  # Calculate starting y position for annotations (95% of y range)
+  y_pos <- plot_data$layout$panel_params[[1]]$y.range[2] - (y_range * 0.05)
+  
+  # Add annotations with fixed positioning
+  y_offset <- 0
+  
+  # Function to add annotations with proper spacing
+  add_annotation <- function(label, color, y_offset) {
+    publication_plot <<- publication_plot +
+      annotate("text",
+               x = x_pos,
+               y = y_pos - (y_offset * y_range * 0.1),  # Space annotations evenly
+               label = label,
+               color = color,
+               size = text_size/ggplot2::.pt,  # Convert to ggplot2 size
+               hjust = 1,
+               vjust = 1,
+               fontface = "italic")
+  }
+  
+  # Add existing annotations back with proper positioning
+  for(layer in base_plot$layers) {
+    if(inherits(layer$geom, "GeomText") && !is.null(layer$data)) {
+      if(!is.null(layer$data$label)) {
+        for(i in seq_along(layer$data$label)) {
+          add_annotation(layer$data$label[i], 
+                         layer$data$colour[i], 
+                         y_offset)
+          y_offset <- y_offset + 1
+        }
+      }
+    }
+  }
+  
+  # Add back the gene labels with fixed size
+  if(!is.null(original_annotations)) {
+    publication_plot <- publication_plot +
+      geom_text_repel(
+        data = original_annotations$data,
+        aes(label = original_annotations$mapping$label,
+            color = original_annotations$mapping$colour),
+        size = text_size/ggplot2::.pt,  # Convert to ggplot2 size
+        max.overlaps = Inf,
+        nudge_y = 0.2,
+        segment.size = 0.2,  # Fixed segment size
+        box.padding = 0.5,
+        point.padding = 0.3
+      ) +
+      scale_color_identity()
   }
   
   return(publication_plot)
@@ -200,46 +279,6 @@ server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
   volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
-  
-  # Add at the start of your server function
-create_publication_plot <- function(base_plot, width_mm, height_mm) {
-    # Convert mm to inches (1 mm = 0.0393701 inches)
-    width_in <- width_mm * 0.0393701
-    height_in <- height_mm * 0.0393701
-    
-    # Calculate base sizes based on plot dimensions
-    base_size <- ifelse(min(width_mm, height_mm) <= 85, 8,
-                       ifelse(min(width_mm, height_mm) <= 114, 10, 12))
-    
-    # Modify the base plot with publication-ready settings
-    publication_plot <- base_plot +
-      theme_minimal(base_size = base_size) +
-      theme(
-        plot.title = element_text(size = base_size * 1.2, face = "bold"),
-        plot.subtitle = element_text(size = base_size * 0.9),
-        axis.title = element_text(size = base_size * 1.1),
-        axis.text = element_text(size = base_size * 0.9),
-        legend.text = element_text(size = base_size * 0.8),
-        legend.title = element_text(size = base_size * 0.9),
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(color = "gray90"),
-        plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
-      )
-    
-    # Adjust point sizes based on plot dimensions
-    if (inherits(publication_plot$layers[[1]], "LayoutGeomPoint")) {
-      publication_plot$layers[[1]]$aes_params$size <- 
-        ifelse(min(width_mm, height_mm) <= 85, 0.8,
-               ifelse(min(width_mm, height_mm) <= 114, 1.2, 1.5))
-    }
-    
-    return(publication_plot)
-}
-  
-  
-  
-  
-  
   
   
   # Function to check and unlog p-values
@@ -428,7 +467,7 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
                                                 "<br>Adjusted P-value:", round(adjusted_pvalues, 4)))) +
                                                 
       geom_point(size = 1.8, alpha = 0.5, color = "gray70") +
-      theme_minimal() +
+      theme_classic() +
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
       theme(legend.position = "none",
             panel.grid.minor = element_blank(),
