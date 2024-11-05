@@ -70,26 +70,46 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
 
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
   cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
-  upregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% pull(!!sym(annotation_col))
-  downregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% pull(!!sym(annotation_col))
-  regulated_genes <- df %>% filter(adjusted_pvalues < alpha) %>% pull(!!sym(annotation_col))
   
-  cat("Upregulated genes:", paste(upregulated_genes, collapse = ", "), "\n")
-  cat("Downregulated genes:", paste(downregulated_genes, collapse = ", "), "\n")
-  cat("All regulated genes:", paste(regulated_genes, collapse = ", "), "\n")
+  # Get genes
+  upregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
+    pull(!!sym(annotation_col))
   
-  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data)
-  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
-  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data)
+  downregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
+    pull(!!sym(annotation_col))
+  
+  regulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha) %>% 
+    pull(!!sym(annotation_col))
+  
+  # Get GO IDs for categories
+  go_ids <- go_data %>% 
+    filter(name %in% go_categories) %>% 
+    distinct(name, id)
+  
+  # Calculate enrichment with added GO IDs
+  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
+  
+  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
+  
+  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
   
   enrichment_results_list <- list(
-    upregulated = upregulated_enrichment,
-    downregulated = downregulated_enrichment,
-    regulated = regulated_enrichment
+    upregulated = list(
+      data = upregulated_enrichment
+    ),
+    downregulated = list(
+      data = downregulated_enrichment
+    ),
+    regulated = list(
+      data = regulated_enrichment
+    )
   )
-  
-  cat("Structure of enrichment_results_list:\n")
-  str(enrichment_results_list)
   
   return(enrichment_results_list)
 }
@@ -220,12 +240,9 @@ ui <- fluidPage(
                style = "margin-bottom: 20px"
         )
       ),
-      h3("GO Enrichment for Regulated Genes"),
-      tableOutput("go_enrichment_regulated"),
-      h3("GO Enrichment for Upregulated Genes"),
-      tableOutput("go_enrichment_upregulated"),
-      h3("GO Enrichment for Downregulated Genes"),
-      tableOutput("go_enrichment_downregulated")
+      htmlOutput("go_enrichment_regulated"),
+      htmlOutput("go_enrichment_upregulated"),
+      htmlOutput("go_enrichment_downregulated")
     )
   )
 )
@@ -237,7 +254,7 @@ server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
   volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
-  
+  enrichment_results <- reactiveVal()
   
   # Function to check and unlog p-values
   check_and_unlog_pvalues <- function(df, pvalue_col) {
@@ -379,36 +396,159 @@ server <- function(input, output, session) {
       str(updated_df)  # Reflect the updated dataframe
     })
     
-    # Calculate GO tag enrichment
-    enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    # Calculate GO enrichment and store in reactive value
+    if (!is.null(input$go_category) && length(input$go_category) > 0) {
+      enrichment_results(
+        calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+      )
+    }
     
-    cat("Structure of enrichment_results_list:\n")
-    str(enrichment_results_list)
-    
+    # Render tables
     output$go_enrichment_regulated <- renderTable({
-      if (nrow(enrichment_results_list$regulated) > 0) {
-        enrichment_results_list$regulated
-      } else {
-        data.frame(Message = "No data available for regulated enrichment.")
+      req(enrichment_results())
+      req(df)
+      enrichment_df <- enrichment_results()$regulated$data
+      
+      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
+        return(data.frame(Message = "No enrichment data available."))
       }
+      
+      regulated_count <- nrow(df %>% filter(adjusted_pvalues < input$alpha))
+      
+      # Add HTML color styling to the GO_Category column
+      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+        go_cat <- enrichment_df$GO_Category[i]
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+        sprintf('<span style="color: %s">%s</span>', color, go_cat)
+      })
+      
+      enrichment_df
+    }, sanitize.text.function = function(x) x, 
+    caption = function() {
+      sprintf("GO Enrichment for Regulated Genes (n = %d)", 
+              nrow(df %>% filter(adjusted_pvalues < input$alpha)))
     })
     
     output$go_enrichment_upregulated <- renderTable({
-      if (nrow(enrichment_results_list$upregulated) > 0) {
-        enrichment_results_list$upregulated
-      } else {
-        data.frame(Message = "No data available for upregulated enrichment.")
+      req(enrichment_results())
+      req(df)
+      enrichment_df <- enrichment_results()$upregulated$data
+      
+      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
+        return(data.frame(Message = "No enrichment data available."))
       }
+      
+      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+        go_cat <- enrichment_df$GO_Category[i]
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+        sprintf('<span style="color: %s">%s</span>', color, go_cat)
+      })
+      
+      enrichment_df
+    }, sanitize.text.function = function(x) x, 
+    caption = function() {
+      sprintf('<span style="color: %s">GO Enrichment for Upregulated Genes (n = %d)</span>', 
+              input$up_color, 
+              nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)))
     })
     
     output$go_enrichment_downregulated <- renderTable({
-      if (nrow(enrichment_results_list$downregulated) > 0) {
-        enrichment_results_list$downregulated
-      } else {
-        data.frame(Message = "No data available for downregulated enrichment.")
+      req(enrichment_results())
+      req(df)
+      enrichment_df <- enrichment_results()$downregulated$data
+      
+      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
+        return(data.frame(Message = "No enrichment data available."))
       }
+      
+      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+        go_cat <- enrichment_df$GO_Category[i]
+        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+        sprintf('<span style="color: %s">%s</span>', color, go_cat)
+      })
+      
+      enrichment_df
+    }, sanitize.text.function = function(x) x, 
+    caption = function() {
+      sprintf('<span style="color: %s">GO Enrichment for Downregulated Genes (n = %d)</span>', 
+              input$down_color, 
+              nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)))
     })
+  })
     
+    observeEvent(input$draw_volcano, {
+      # ... (previous code remains the same until the enrichment tables) ...
+      
+      # Create the enrichment tables with colored text
+      output$go_enrichment_regulated <- renderTable({
+        req(enrichment_results_list$regulated)
+        enrichment_df <- enrichment_results_list$regulated$data
+        
+        # Calculate regulated gene count
+        regulated_count <- nrow(df %>% filter(adjusted_pvalues < input$alpha))
+        
+        # Add HTML color styling to the GO_Category column
+        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+          go_cat <- enrichment_df$GO_Category[i]
+          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+          sprintf('<span style="color: %s">%s</span>', color, go_cat)
+        })
+        
+        enrichment_df
+      }, sanitize.text.function = function(x) x, 
+      caption = function() {
+        sprintf("GO Enrichment for Regulated Genes (n = %d)", 
+                nrow(df %>% filter(adjusted_pvalues < input$alpha)))
+      })
+      
+      output$go_enrichment_upregulated <- renderTable({
+        req(enrichment_results_list$upregulated)
+        enrichment_df <- enrichment_results_list$upregulated$data
+        
+        # Calculate upregulated gene count
+        upregulated_count <- nrow(df %>% 
+                                    filter(adjusted_pvalues < input$alpha & 
+                                             !!sym(input$fold_col) > 0))
+        
+        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+          go_cat <- enrichment_df$GO_Category[i]
+          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+          sprintf('<span style="color: %s">%s</span>', color, go_cat)
+        })
+        
+        enrichment_df
+      }, sanitize.text.function = function(x) x, 
+      caption = function() {
+        sprintf('<span style="color: %s">GO Enrichment for Upregulated Genes (n = %d)</span>', 
+                input$up_color, 
+                nrow(df %>% filter(adjusted_pvalues < input$alpha & 
+                                     !!sym(input$fold_col) > 0)))
+      })
+      
+      output$go_enrichment_downregulated <- renderTable({
+        req(enrichment_results_list$downregulated)
+        enrichment_df <- enrichment_results_list$downregulated$data
+        
+        # Calculate downregulated gene count
+        downregulated_count <- nrow(df %>% 
+                                      filter(adjusted_pvalues < input$alpha & 
+                                               !!sym(input$fold_col) < 0))
+        
+        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
+          go_cat <- enrichment_df$GO_Category[i]
+          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
+          sprintf('<span style="color: %s">%s</span>', color, go_cat)
+        })
+        
+        enrichment_df
+      }, sanitize.text.function = function(x) x, 
+      caption = function() {
+        sprintf('<span style="color: %s">GO Enrichment for Downregulated Genes (n = %d)</span>', 
+                input$down_color, 
+                nrow(df %>% filter(adjusted_pvalues < input$alpha & 
+                                     !!sym(input$fold_col) < 0)))
+      })
+    })
     
     
     # Draw the volcano plot
