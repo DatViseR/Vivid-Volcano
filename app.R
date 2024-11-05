@@ -322,10 +322,11 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), y = -log10(!!sym(input$pvalue_col)),
+    volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
+                                   y = -log10(!!sym(input$pvalue_col)),
                                    text = paste("Gene:", !!sym(input$annotation_col),
                                                 "\nP-value:", round(!!sym(input$pvalue_col), 4),
-                                                "<br>log2 Fold Change:", round(!!sym(input$fold_col),3),
+                                                "<br>log2 Fold Change:", round(!!sym(input$fold_col), 3),
                                                 "<br>Adjusted P-value:", round(adjusted_pvalues, 4)))) +
                                                 
       geom_point(size = 1.8, alpha = 0.5, color = "gray70") +
