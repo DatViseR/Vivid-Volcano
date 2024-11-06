@@ -116,7 +116,6 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
-  
   # Prepare data frames
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
@@ -136,8 +135,16 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
     )
   
-  # Create the {gt} table
-  gt_table <- gt() %>%
+  # Combine all data frames
+  combined_df <- bind_rows(
+    regulated_df,
+    upregulated_df,
+    downregulated_df
+  )
+  
+  # Create the gt table
+  gt_table <- combined_df %>%
+    gt() %>%
     tab_header(
       title = "Gene Ontology Enrichment Results",
       subtitle = paste(
@@ -145,18 +152,6 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
         nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df),
         "chosen GO terms"
       )
-    ) %>%
-    tab_row_group(
-      label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
-      data = regulated_df
-    ) %>%
-    tab_row_group(
-      label = paste0("Upregulated n = ", nrow(upregulated_df)),
-      data = upregulated_df
-    ) %>%
-    tab_row_group(
-      label = paste0("Downregulated n = ", nrow(downregulated_df)),
-      data = downregulated_df
     ) %>%
     cols_label(
       GO_Category = "GO name",
@@ -167,11 +162,33 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Adjusted_P_Value = "Adjusted-p value"
     )
   
+  # Add row groups after creating the gt table
+  if(nrow(regulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
+        rows = 1:nrow(regulated_df)
+      )
+  }
+  
+  if(nrow(upregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Upregulated n = ", nrow(upregulated_df)),
+        rows = (nrow(regulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df))
+      )
+  }
+  
+  if(nrow(downregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Downregulated n = ", nrow(downregulated_df)),
+        rows = (nrow(regulated_df) + nrow(upregulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df))
+      )
+  }
+  
   return(gt_table)
 }
-
-
-
 
 
 create_publication_plot <- function(base_plot, width_mm, height_mm) {
@@ -311,7 +328,11 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  # Reactive values
   uploaded_df <- reactiveVal()
+  volcano_plot_rv <- reactiveVal()
+  
+  
   check_and_unlog_pvalues <- function(df, pvalue_col) {
     pvalues <- df[[pvalue_col]]
     if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
