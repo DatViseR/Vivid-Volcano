@@ -22,21 +22,28 @@ perform_hypergeometric_test <- function(population_size, success_population_size
 }
 
 calculate_go_enrichment <- function(genes, go_categories, go_data) {
-  cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
+  # Remove duplicates from input genes
+  genes <- unique(genes)
+  cat("Calculating GO enrichment for unique genes:\n", paste(genes, collapse = ", "), "\n")
+  
   enrichment_results <- lapply(go_categories, function(go_category) {
-    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
+    # Get unique genes for this GO category
+    go_genes <- go_data %>% 
+      filter(name == go_category) %>% 
+      pull(gene) %>%
+      unique()  # Remove duplicates from GO genes
+    
     cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
     
     population_size <- 19689  # Number of human coding genes after pseudogene exclusion
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
-    # Check if each gene name has at least one exact match after cleaning and splitting
+    
+    # Check for exact matches with cleaned and unique genes
     sample_success_size <- sum(sapply(genes, function(gene) {
-      # Remove special characters commonly surrounding genes
+      # Remove special characters and split
       cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
-      
-      # Split by spaces, commas, semicolons, or colons
-      gene_parts <- unlist(strsplit(cleaned_gene, "[ ,;:]+"))
+      gene_parts <- unique(unlist(strsplit(cleaned_gene, "[ ,;:]+")))  # Make parts unique
       
       # Check if any of the cleaned parts match exactly with go_genes
       any(gene_parts %in% go_genes)
@@ -47,6 +54,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     
     p_value <- perform_hypergeometric_test(population_size, success_population_size, sample_size, sample_success_size)
     cat("Calculated p_value for category", go_category, "is:", p_value, "\n")
+    
     data.frame(
       GO_Category = go_category,
       P_Value = p_value,
@@ -58,13 +66,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   })
   
   enrichment_results <- bind_rows(enrichment_results)
-  #This is only adjusting pvalue for the p values for the picked categories - i need to change this 
-  # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
-  
   enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
-  
-  cat("Enrichment results:\n")
-  print(enrichment_results)
   
   return(enrichment_results)
 }
@@ -116,23 +118,29 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
-  # Prepare data frames
+  # Prepare data frames with rounded values
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
-      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
-      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = round(P_Value, 2),
+      Adjusted_P_Value = round(Adjusted_P_Value, 2)
     )
   
   upregulated_df <- enrichment_results_list$upregulated$data %>%
     mutate(
-      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
-      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = round(P_Value, 2),
+      Adjusted_P_Value = round(Adjusted_P_Value, 2)
     )
   
   downregulated_df <- enrichment_results_list$downregulated$data %>%
     mutate(
-      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
-      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = round(P_Value, 2),
+      Adjusted_P_Value = round(Adjusted_P_Value, 2)
     )
   
   # Combine all data frames
@@ -142,7 +150,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     downregulated_df
   )
   
-  # Create the gt table
+  # Create the gt table with formatted numbers
   gt_table <- combined_df %>%
     gt() %>%
     tab_header(
@@ -152,6 +160,15 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
         nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df),
         "chosen GO terms"
       )
+    ) %>%
+    fmt_number(
+      columns = c(
+        "Population_Enrichment_Ratio",
+        "Subpopulation_Enrichment_Ratio",
+        "P_Value",
+        "Adjusted_P_Value"
+      ),
+      decimals = 2
     ) %>%
     cols_label(
       GO_Category = "GO name",
