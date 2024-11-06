@@ -23,7 +23,7 @@ perform_hypergeometric_test <- function(population_size, success_population_size
 calculate_go_enrichment <- function(genes, go_categories, go_data) {
   cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
   enrichment_results <- lapply(go_categories, function(go_category) {
-    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)
+    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)%>% toupper()%>% unique()
     cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
     
     population_size <- 19689  # Number of human coding genes after pseudogene exclusion
@@ -35,7 +35,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
       cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
       
       # Split by spaces, commas, semicolons, or colons
-      gene_parts <- unlist(strsplit(cleaned_gene, "[ ,;:]+"))
+      gene_parts <- toupper(unlist(strsplit(cleaned_gene, "[ ,;:]+")) )
       
       # Check if any of the cleaned parts match exactly with go_genes
       any(gene_parts %in% go_genes)
@@ -255,8 +255,9 @@ server <- function(input, output, session) {
     in_file <- input$file1
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
-    
-    output$contents <- renderTable({ head(df) })
+    #show structure of the uploaded dataset
+    cat("\n The structure of the uploaded dataset is: \n")
+    str(df)
     
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
@@ -267,6 +268,7 @@ server <- function(input, output, session) {
         selectInput("annotation_col", "Select human gene symbols column", choices = colnames)
       )
     })
+    
     
     output$dataset_summary <- DT::renderDataTable({ 
       cat("The following columns were uploaded: \n\n")
@@ -380,6 +382,7 @@ server <- function(input, output, session) {
     })
     
     # Calculate GO tag enrichment
+    # modify so the arguments are described in the function
     enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
     
     cat("Structure of enrichment_results_list:\n")
@@ -488,9 +491,22 @@ server <- function(input, output, session) {
       for (go in chosen_go()) {
         color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
         genes <- selected_GO %>% filter(name == go) %>% pull(gene)
+        
+        # Convert all gene names to uppercase in one step
+        genes <- toupper(genes)
+        
+        # print a message if any genes were modified
+        non_human_genes <- genes[genes != toupper(genes)]
+        if (length(non_human_genes) > 0) {
+          cat(sprintf("\n %d non-human genes detected - converted to uppercase\n", 
+                      length(non_human_genes)))
+          cat("\n the following genes were converted to uppercase: \n")
+          print(non_human_genes)
+        }
+        
         volcano_plot <- volcano_plot +
           geom_point(
-            data = df %>% filter(!!sym(input$annotation_col) %in% genes),
+            data = df %>% filter(toupper(!!sym(input$annotation_col)) %in% genes),
             aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
             size = 1.8, color = color, alpha = 0.5
           )
