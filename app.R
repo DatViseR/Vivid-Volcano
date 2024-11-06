@@ -8,6 +8,7 @@ library(arrow)
 library(DT)
 library(plotly)
 library(Cairo)
+library(gt)
 
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
@@ -114,6 +115,57 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   return(enrichment_results_list)
 }
 
+build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
+
+  # Prepare data frames
+  regulated_df <- enrichment_results_list$regulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
+      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+    )
+  
+  upregulated_df <- enrichment_results_list$upregulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
+      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+    )
+  
+  downregulated_df <- enrichment_results_list$downregulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = Success_Population_Size / Population_Size,
+      Subpopulation_Enrichment_Ratio = Sample_Success_Size / Sample_Size
+    )
+  
+  # Create the {gt} table
+  gt_table <- gt() %>%
+    tab_header(
+      title = "Gene Ontology Enrichment Results",
+      subtitle = paste(
+        "three groups of regulated proteins and",
+        nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df),
+        "chosen GO terms"
+      )
+    ) %>%
+    row_group_order(list(
+      "Bidirectionally regulated n = " = regulated_df,
+      "Upregulated n = " = upregulated_df,
+      "Downregulated n = " = downregulated_df
+    )) %>%
+    cols_label(
+      GO_Category = "GO name",
+      id = "GO id",
+      Population_Enrichment_Ratio = "Population enrichment ratio",
+      Subpopulation_Enrichment_Ratio = "Subpopulation enrichment ratio",
+      P_Value = "Hypergeometric test p-value",
+      Adjusted_P_Value = "Adjusted-p value"
+    )
+  
+  return(gt_table)
+}
+
+
+
+
 
 
 create_publication_plot <- function(base_plot, width_mm, height_mm) {
@@ -161,6 +213,7 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       layer$aes_params$size <- new_size
     }
     
+    # This part will need to be modified when the annotations by annotate() will be deleted
     # Handle text annotations
     if(inherits(layer$geom, "GeomText") || inherits(layer$geom, "GeomTextRepel")) {
       # Check if this is an annotation text (positioned at Inf,Inf)
@@ -183,11 +236,6 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   
   return(publication_plot)
 }
-
-
-
-
-
 
 ################################### ----UI---#################################
 
@@ -224,7 +272,12 @@ ui <- fluidPage(
       cat("significant_genes"),
       cat("df_structure"),
       tabsetPanel(
-        tabPanel("Static", plotOutput("volcano_plot", width = "auto", height = "720px")),
+        tabPanel("Static", 
+                 fluidRow(
+                   column(6, plotOutput("volcano_plot", width = "auto", height = "720px")),
+                   column(6, gt_output("go_enrichment_gt"))
+                 )
+        ),
         tabPanel("Interactive", plotlyOutput("volcano_plotly", width = "auto", height = "720px"))
       ),
       # Add after the tabsetPanel in mainPanel
@@ -247,16 +300,12 @@ ui <- fluidPage(
   )
 )
 
-##########################-----SERVER----####################################
+##########################-----SERVER----######################################
 
 
 server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
-  volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
-  enrichment_results <- reactiveVal()
-  
-  # Function to check and unlog p-values
   check_and_unlog_pvalues <- function(df, pvalue_col) {
     pvalues <- df[[pvalue_col]]
     if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
@@ -273,8 +322,6 @@ server <- function(input, output, session) {
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
     
-    output$contents <- renderTable({ head(df) })
-    
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       colnames <- names(df)
@@ -286,20 +333,17 @@ server <- function(input, output, session) {
     })
     
     output$dataset_summary <- DT::renderDataTable({ 
-      cat("The following columns were uploaded: \n\n")
-      #show only first 3 entries
-     datatable(df, rownames = FALSE, options = list(pageLength = 3))
+      datatable(df, rownames = FALSE, options = list(pageLength = 3))
     })
-      output$uploaded_dataset_ui <- renderUI({
-       tagList(
-         h3("Uploaded Dataset Preview"),
-         DT::dataTableOutput("dataset_summary")
-       )
-     
+    
+    output$uploaded_dataset_ui <- renderUI({
+      tagList(
+        h3("Uploaded Dataset Preview"),
+        DT::dataTableOutput("dataset_summary")
+      )
     })
   })
   
-  # Dynamic UI for color highlight options
   output$color_highlight_ui <- renderUI({
     if (input$color_highlight) {
       tagList(
@@ -309,7 +353,6 @@ server <- function(input, output, session) {
     }
   })
   
-  # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
       selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
@@ -322,15 +365,10 @@ server <- function(input, output, session) {
     }
   })
   
-  # Reactive expression to track chosen GO categories
   chosen_go <- reactive({
     input$go_category
   })
   
-  
-  color_palette <- c("#009688", "#8E44AD", "#F39C12", "#D35400", "#2C3E50", "#D4AC0D")
-  
-  # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       return(NULL)
@@ -338,232 +376,73 @@ server <- function(input, output, session) {
     
     req(chosen_go())
     chosen <- chosen_go()
-    cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
-    
-    # Iterate over indices, not values, to correctly access both `chosen[i]` and `color_palette[i]`
     color_inputs <- lapply(seq_along(chosen), function(i) {
       go <- chosen[i]
-      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)  # Sanitize ID
-      color_value <- color_palette[(i - 1) %% length(color_palette) + 1]  # Cycle through colors using index `i`
-      cat("Creating color input for: ", go, " with ID: ", sanitized_id, " and color: ", color_value, "\n")  # Debug statement
-      
+      sanitized_id <- gsub("[^a-zA-Z0-9]", "_", go)
+      color_value <- color_palette[(i - 1) %% length(color_palette) + 1]
       colourInput(paste0("color_", sanitized_id), paste("Color for", go), value = color_value)
     })
     
     do.call(tagList, color_inputs)
   })
   
-  observe({
-    print(str(chosen_go()))  # This will help verify that categories are selected correctly
-  })
   
+#################------------DRAW VOLCANO OBSERVER-----------------#################
+    
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     
-    # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col)
-    uploaded_df(df)  # Update the reactive value with unlogged p-values
+    uploaded_df(df)
     
-    # Adjust p-values
+    
     pvalues <- df[[input$pvalue_col]]
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
     df$adjusted_pvalues <- adjusted_pvalues
-    uploaded_df(df)  # Ensure reactive value is updated
+    uploaded_df(df)
     
-    # Render the adjusted p-values summary
     output$pvalue_distribution <- renderPrint({ 
-      req(uploaded_df())  # Ensure output recalculates when df updates
+      req(uploaded_df())
       cat("Summary of the adjusted p-values: \n\n")
       summary(adjusted_pvalues)
     })
     
-    # Render the significant genes/proteins
     output$significant_genes <- renderPrint({
-      req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Significantly regulated genes/proteins: \n\n")
+      req(uploaded_df())
       significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
       non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
       cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
       cat("Number of non-significant genes/proteins: ", nrow(non_significant_genes), "\n")
     })
     
-    # Render the final data frame structure
     output$df_structure <- renderPrint({
-      req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Final Data Frame Structure: \n")
-      updated_df <- uploaded_df()  # Re-fetch the updated dataframe
-      str(updated_df)  # Reflect the updated dataframe
+      req(uploaded_df())
+      updated_df <- uploaded_df()
+      cat("Column structure of the updated data frame:\n")
+      print(updated_df)
     })
     
-    # Calculate GO enrichment and store in reactive value
-    if (!is.null(input$go_category) && length(input$go_category) > 0) {
-      enrichment_results(
-        calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
+    
+    
+    output$go_enrichment_gt <- render_gt({
+      req(enrichment_results_list)
+      build_gt_table(
+        enrichment_results_list,
+        upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
+        downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
       )
-    }
-    
-    # Render tables
-    output$go_enrichment_regulated <- renderTable({
-      req(enrichment_results())
-      req(df)
-      enrichment_df <- enrichment_results()$regulated$data
-      
-      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
-        return(data.frame(Message = "No enrichment data available."))
-      }
-      
-      regulated_count <- nrow(df %>% filter(adjusted_pvalues < input$alpha))
-      
-      # Add HTML color styling to the GO_Category column
-      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-        go_cat <- enrichment_df$GO_Category[i]
-        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-        sprintf('<span style="color: %s">%s</span>', color, go_cat)
-      })
-      
-      enrichment_df
-    }, sanitize.text.function = function(x) x, 
-    caption = function() {
-      sprintf("GO Enrichment for Regulated Genes (n = %d)", 
-              nrow(df %>% filter(adjusted_pvalues < input$alpha)))
-    })
-    
-    output$go_enrichment_upregulated <- renderTable({
-      req(enrichment_results())
-      req(df)
-      enrichment_df <- enrichment_results()$upregulated$data
-      
-      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
-        return(data.frame(Message = "No enrichment data available."))
-      }
-      
-      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-        go_cat <- enrichment_df$GO_Category[i]
-        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-        sprintf('<span style="color: %s">%s</span>', color, go_cat)
-      })
-      
-      enrichment_df
-    }, sanitize.text.function = function(x) x, 
-    caption = function() {
-      sprintf('<span style="color: %s">GO Enrichment for Upregulated Genes (n = %d)</span>', 
-              input$up_color, 
-              nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)))
-    })
-    
-    output$go_enrichment_downregulated <- renderTable({
-      req(enrichment_results())
-      req(df)
-      enrichment_df <- enrichment_results()$downregulated$data
-      
-      if (is.null(enrichment_df) || nrow(enrichment_df) == 0) {
-        return(data.frame(Message = "No enrichment data available."))
-      }
-      
-      enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-        go_cat <- enrichment_df$GO_Category[i]
-        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-        sprintf('<span style="color: %s">%s</span>', color, go_cat)
-      })
-      
-      enrichment_df
-    }, sanitize.text.function = function(x) x, 
-    caption = function() {
-      sprintf('<span style="color: %s">GO Enrichment for Downregulated Genes (n = %d)</span>', 
-              input$down_color, 
-              nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)))
     })
   })
     
-    observeEvent(input$draw_volcano, {
-      # ... (previous code remains the same until the enrichment tables) ...
-      
-      # Create the enrichment tables with colored text
-      output$go_enrichment_regulated <- renderTable({
-        req(enrichment_results_list$regulated)
-        enrichment_df <- enrichment_results_list$regulated$data
-        
-        # Calculate regulated gene count
-        regulated_count <- nrow(df %>% filter(adjusted_pvalues < input$alpha))
-        
-        # Add HTML color styling to the GO_Category column
-        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-          go_cat <- enrichment_df$GO_Category[i]
-          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-          sprintf('<span style="color: %s">%s</span>', color, go_cat)
-        })
-        
-        enrichment_df
-      }, sanitize.text.function = function(x) x, 
-      caption = function() {
-        sprintf("GO Enrichment for Regulated Genes (n = %d)", 
-                nrow(df %>% filter(adjusted_pvalues < input$alpha)))
-      })
-      
-      output$go_enrichment_upregulated <- renderTable({
-        req(enrichment_results_list$upregulated)
-        enrichment_df <- enrichment_results_list$upregulated$data
-        
-        # Calculate upregulated gene count
-        upregulated_count <- nrow(df %>% 
-                                    filter(adjusted_pvalues < input$alpha & 
-                                             !!sym(input$fold_col) > 0))
-        
-        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-          go_cat <- enrichment_df$GO_Category[i]
-          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-          sprintf('<span style="color: %s">%s</span>', color, go_cat)
-        })
-        
-        enrichment_df
-      }, sanitize.text.function = function(x) x, 
-      caption = function() {
-        sprintf('<span style="color: %s">GO Enrichment for Upregulated Genes (n = %d)</span>', 
-                input$up_color, 
-                nrow(df %>% filter(adjusted_pvalues < input$alpha & 
-                                     !!sym(input$fold_col) > 0)))
-      })
-      
-      output$go_enrichment_downregulated <- renderTable({
-        req(enrichment_results_list$downregulated)
-        enrichment_df <- enrichment_results_list$downregulated$data
-        
-        # Calculate downregulated gene count
-        downregulated_count <- nrow(df %>% 
-                                      filter(adjusted_pvalues < input$alpha & 
-                                               !!sym(input$fold_col) < 0))
-        
-        enrichment_df$GO_Category <- sapply(seq_len(nrow(enrichment_df)), function(i) {
-          go_cat <- enrichment_df$GO_Category[i]
-          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go_cat))]]
-          sprintf('<span style="color: %s">%s</span>', color, go_cat)
-        })
-        
-        enrichment_df
-      }, sanitize.text.function = function(x) x, 
-      caption = function() {
-        sprintf('<span style="color: %s">GO Enrichment for Downregulated Genes (n = %d)</span>', 
-                input$down_color, 
-                nrow(df %>% filter(adjusted_pvalues < input$alpha & 
-                                     !!sym(input$fold_col) < 0)))
-      })
-    })
-    
-    
-    # Draw the volcano plot
-    if (!"adjusted_pvalues" %in% names(df)) {
-      print("Error: adjusted_pvalues column is missing.")
-      return(NULL)
-    }
-    
+ 
     volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
                                    y = -log10(!!sym(input$pvalue_col)),
                                    text = paste("Gene:", !!sym(input$annotation_col),
                                                 "\nP-value:", round(!!sym(input$pvalue_col), 4),
                                                 "<br>log2 Fold Change:", round(!!sym(input$fold_col), 3),
                                                 "<br>Adjusted P-value:", round(adjusted_pvalues, 4)))) +
-                                                
       geom_point(size = 1.8, alpha = 0.5, color = "gray70") +
       theme_classic() +
       labs(title = input$plot_title, x = input$x_axis_label, y = "-Log10 P-Value") +
@@ -572,13 +451,9 @@ server <- function(input, output, session) {
             aspect.ratio = 0.75,
             plot.title = element_text(size = 18, face = "bold"),
             axis.title = element_text(size = 16, color = "navy", face = "bold"),
-            axis.text = element_text(size = 14, color = "navy", face = "bold"),
-             ) +  
+            axis.text = element_text(size = 14, color = "navy", face = "bold")) +  
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") +
-      scale_x_continuous(limits = c(-max(abs(df[[input$fold_col]])), max(abs(df[[input$fold_col]]))))  # Set x-axis limits
-   
-    # Generate subtitle based on the input settings
-    subtitle <- NULL
+      scale_x_continuous(limits = c(-max(abs(df[[input$fold_col]])), max(abs(df[[input$fold_col]]))))
     
     if (input$color_highlight) {
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
@@ -588,7 +463,6 @@ server <- function(input, output, session) {
         annotate("text", x = Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = 1.1, vjust = 3, size = 6, fontface = "italic")
     }
     
-    # Add annotations for chosen GO categories
     if (input$show_go_category) {
       chosen <- chosen_go()
       selected_GO <- GO %>% filter(name %in% chosen)
@@ -597,149 +471,90 @@ server <- function(input, output, session) {
         go_details <- paste0(paste(chosen, unique(selected_GO$id), collapse = "\n"))
       } else {
         go_details <- paste0("GO: ", paste(chosen, collapse = ", "), "\nID: Not available")
-        cat("Warning: 'id' column not found in selected_GO\n")  # Debug warning if 'id' column is missing
-        cat(go_details)  # Debug statement
       }
       
-      for (i in seq_along(chosen)) {
-        go <- chosen[i]
-        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
-        go_detail <- paste0(go, ": ", unique(selected_GO$id[selected_GO$name == go]))
-        volcano_plot <- volcano_plot +
-          annotate("text", x = Inf, y = Inf, label = go_detail, color = color, hjust = 1.1, vjust = 3 + i, size = 6, fontface = "italic")
-      }
-    }  
-     
-    # Add subtitle to the plot
-    if (!is.null(subtitle)) {
-      volcano_plot <- volcano_plot + labs(subtitle = subtitle)
-    }
-  
-    
-    if (input$color_highlight) {
       volcano_plot <- volcano_plot +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 2, color = input$up_color, alpha = 0.5) +
-        geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 2, color = input$down_color, alpha = 0.5)
+        annotate("text", x = Inf, y = Inf, label = go_details, hjust = 1.1, vjust = 1, size = 5, fontface = "italic")
     }
     
-    # Highlighting genes belonging to chosen GO categories
-    if (!is.null(chosen_go())) {
-      selected_GO <- GO %>% filter(name %in% chosen_go())
-      for (go in chosen_go()) {
-        color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
-        genes <- selected_GO %>% filter(name == go) %>% pull(gene)
-        volcano_plot <- volcano_plot +
-          geom_point(
-            data = df %>% filter(!!sym(input$annotation_col) %in% genes),
-            aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
-            size = 1.8, color = color, alpha = 0.5
-          )
-      }
-    }
+    # create a reactive value to store the plot
+    volcano_plot_rv(volcano_plot)
     
-    # Create a new column for trimmed labels if input$trim_gene_names is TRUE
-    if (input$trim_gene_names) {
-      df$trimmed_labels <- sapply(df[[input$annotation_col]], function(x) {
-        strsplit(as.character(x), "[,; :]+")[[1]][1]
-      })
-    } else {
-      # If not trimming, use the original annotation column for labels
-      df$trimmed_labels <- df[[input$annotation_col]]
-    }
-    
-    # Select top hits for labeling and assign colors to labels
-    if (input$num_labels > 0) {
-      top_hits <- df %>% arrange(adjusted_pvalues, desc(abs(!!sym(input$fold_col)))) %>% head(input$num_labels)
-      
-      # Assign Default Label Color
-      top_hits$label_color <- "black"  # Default label color
-      if (!is.null(chosen_go())) {
-        selected_GO <- GO %>% filter(name %in% chosen_go())
-        for (go in chosen_go()) {
-          color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
-          genes <- selected_GO %>% filter(name == go) %>% pull(gene)
-          top_hits$label_color[top_hits[[input$annotation_col]] %in% genes] <- color
-        }
-      }
-      
-      volcano_plot <- volcano_plot + 
-        geom_text_repel(data = top_hits, aes(label = trimmed_labels, color = label_color), size = 4, max.overlaps = Inf, nudge_y = 0.2) +
-        scale_color_identity()  # Use identity scale to apply the colors directly
-    }
-    
-    volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
-    
-    output$volcano_plot <- renderPlot({ 
+    output$volcano_plot <- renderPlot({
       req(volcano_plot_rv())
-      print(volcano_plot_rv()) 
+      print(volcano_plot_rv())
     })
     
-    output$volcano_plotly <- renderPlotly({ 
+    output$volcano_plotly <- renderPlotly({
       req(volcano_plot_rv())
-      ggplotly(volcano_plot_rv(), tooltip = "text") 
+      ggplotly(volcano_plot_rv(), tooltip = "text")
     })
+
+#################------------DOWNLOAD HANDLERS-----------------#################
+
+
+output$download_plot1 <- downloadHandler(
+  filename = function() {
+    paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(volcano_plot_rv())
+    publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85)
+    ggsave(file, publication_plot, width = 85, height = 85, 
+           units = "mm", device = cairo_pdf)
+  }
+)
+
+output$download_plot2 <- downloadHandler(
+  filename = function() {
+    paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(volcano_plot_rv())
+    publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114)
+    ggsave(file, publication_plot, width = 114, height = 114, 
+           units = "mm", device = cairo_pdf)
+  }
+)
+
+output$download_plot3 <- downloadHandler(
+  filename = function() {
+    paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(volcano_plot_rv())
+    publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65)
+    ggsave(file, publication_plot, width = 114, height = 65, 
+           units = "mm", device = cairo_pdf)
+  }
+)
+
+output$download_plot4 <- downloadHandler(
+  filename = function() {
+    paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(volcano_plot_rv())
+    publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174)
+    ggsave(file, publication_plot, width = 174, height = 174, 
+           units = "mm", device = cairo_pdf)
+  }
+)
+
+output$download_plot5 <- downloadHandler(
+  filename = function() {
+    paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(volcano_plot_rv())
+    publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98)
+    ggsave(file, publication_plot, width = 174, height = 98, 
+           units = "mm", device = cairo_pdf)
+  }
+)
+
+})
     
 
-    output$download_plot1 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85)
-        ggsave(file, publication_plot, width = 85, height = 85, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot2 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114)
-        ggsave(file, publication_plot, width = 114, height = 114, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot3 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65)
-        ggsave(file, publication_plot, width = 114, height = 65, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot4 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174)
-        ggsave(file, publication_plot, width = 174, height = 174, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot5 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98)
-        ggsave(file, publication_plot, width = 174, height = 98, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-  
-})
-}
+
 shinyApp(ui = ui, server = server)
