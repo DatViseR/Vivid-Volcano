@@ -359,11 +359,14 @@ server <- function(input, output, session) {
     }
   })
   
+  color_palette <- c("darkviolet", "#8E44AD", "#F39C12", "#D35400", "#2C3E50", "#D4AC0D")
+  
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
       selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
     }
   })
+  
   
   observe({
     if (input$show_go_category) {
@@ -374,6 +377,8 @@ server <- function(input, output, session) {
   chosen_go <- reactive({
     input$go_category
   })
+  
+  
   
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
@@ -440,10 +445,8 @@ server <- function(input, output, session) {
         downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
       )
     })
-  })
-    
- 
-    volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
+  
+    volcano_plot <- ggplot(data = df, aes(x = round(!!sym(input$fold_col), 4), 
                                    y = -log10(!!sym(input$pvalue_col)),
                                    text = paste("Gene:", !!sym(input$annotation_col),
                                                 "\nP-value:", round(!!sym(input$pvalue_col), 4),
@@ -495,6 +498,8 @@ server <- function(input, output, session) {
       req(volcano_plot_rv())
       ggplotly(volcano_plot_rv(), tooltip = "text")
     })
+    
+  })  
 
 #################------------DOWNLOAD HANDLERS-----------------#################
 
@@ -559,7 +564,7 @@ output$download_plot5 <- downloadHandler(
   }
 )
 
-})
+}
     
 
 
