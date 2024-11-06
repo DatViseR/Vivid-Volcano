@@ -116,7 +116,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
-
+  
   # Prepare data frames
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
@@ -146,11 +146,18 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
         "chosen GO terms"
       )
     ) %>%
-    row_group_order(list(
-      "Bidirectionally regulated n = " = regulated_df,
-      "Upregulated n = " = upregulated_df,
-      "Downregulated n = " = downregulated_df
-    )) %>%
+    tab_row_group(
+      label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
+      data = regulated_df
+    ) %>%
+    tab_row_group(
+      label = paste0("Upregulated n = ", nrow(upregulated_df)),
+      data = upregulated_df
+    ) %>%
+    tab_row_group(
+      label = paste0("Downregulated n = ", nrow(downregulated_df)),
+      data = downregulated_df
+    ) %>%
     cols_label(
       GO_Category = "GO name",
       id = "GO id",
@@ -162,7 +169,6 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
   
   return(gt_table)
 }
-
 
 
 
