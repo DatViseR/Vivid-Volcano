@@ -252,7 +252,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     tab_footnote(
       footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
       locations = cells_column_labels("Adjusted_P_Value")
-    )
+    )%>%
+    # Hide the Sample_Size column
+    cols_hide(columns = "Sample_Size")
   
   # Add colored row groups
   if(nrow(regulated_df) > 0) {
