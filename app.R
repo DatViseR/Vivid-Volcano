@@ -148,7 +148,8 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     regulated_df,
     upregulated_df,
     downregulated_df
-  )
+  ) %>%
+    select(-Population_Size) # 1. Remove "Number of human genes" column
   
   # Create the gt table with formatted numbers
   gt_table <- combined_df %>%
@@ -173,18 +174,32 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     cols_label(
       GO_Category = "GO name",
       id = "GO id",
-      Population_Enrichment_Ratio = "Population enrichment ratio",
-      Subpopulation_Enrichment_Ratio = "Subpopulation enrichment ratio",
+      Population_Enrichment_Ratio = "Genomic enrichment",
+      Subpopulation_Enrichment_Ratio = "Regulated genes enrichment",
       P_Value = "Hypergeometric test p-value",
-      Adjusted_P_Value = "Adjusted-p value"
+      Adjusted_P_Value = "Bonferroni(n = 1160) adj-p value",
+      Success_Population_Size = "Genes in GO category",
+      Sample_Size = "Number of regulated genes",
+      Sample_Success_Size = "Regulated genes in GO category"
+    ) %>%
+    # 3. Add footnote for Adjusted_P_Value column
+    tab_footnote(
+      footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags.",
+      locations = cells_column_labels("Adjusted_P_Value")
     )
   
-  # Add row groups after creating the gt table
+  # 2. Add colored row groups
   if(nrow(regulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
         label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
         rows = 1:nrow(regulated_df)
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#D3D3D3") # Light gray color
+        ),
+        locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", nrow(regulated_df)))
       )
   }
   
@@ -193,6 +208,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       tab_row_group(
         label = paste0("Upregulated n = ", nrow(upregulated_df)),
         rows = (nrow(regulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df))
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#ADD8E6") # Light blue color
+        ),
+        locations = cells_row_groups(groups = paste0("Upregulated n = ", nrow(upregulated_df)))
       )
   }
   
@@ -201,6 +222,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       tab_row_group(
         label = paste0("Downregulated n = ", nrow(downregulated_df)),
         rows = (nrow(regulated_df) + nrow(upregulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df))
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#FFC0CB") # Light pink color
+        ),
+        locations = cells_row_groups(groups = paste0("Downregulated n = ", nrow(downregulated_df)))
       )
   }
   
