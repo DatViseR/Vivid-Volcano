@@ -217,7 +217,8 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     upregulated_df,
     downregulated_df
   ) %>%
-    select(-Population_Size) # 1. Remove "Number of human genes" column
+    select(-Population_Size)   # 1. Remove "Number of human genes" column
+  #  select(-Sample_Size)   # 2. Remove "Number of regulated genes" column
   
   # Create the gt table with formatted numbers
   gt_table <- combined_df %>%
@@ -257,42 +258,42 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
   if(nrow(regulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
-        label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
+        label = paste0("Bidirectionally regulated n = ", regulated_df$Sample_Size[1]),
         rows = 1:nrow(regulated_df)
       ) %>%
       tab_style(
         style = list(
           cell_fill(color = "#D3D3D3") # Light gray color
         ),
-        locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", nrow(regulated_df)))
+        locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", regulated_df$Sample_Size[1]))
       )
   }
   
   if(nrow(upregulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
-        label = paste0("Upregulated n = ", nrow(upregulated_df)),
+        label = paste0("Upregulated n = ", upregulated_df$Sample_Size[1]),
         rows = (nrow(regulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df))
       ) %>%
       tab_style(
         style = list(
           cell_fill(color = "#ADD8E6") # Light blue color
         ),
-        locations = cells_row_groups(groups = paste0("Upregulated n = ", nrow(upregulated_df)))
+        locations = cells_row_groups(groups = paste0("Upregulated n = ",  upregulated_df$Sample_Size[1]))
       )
   }
   
   if(nrow(downregulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
-        label = paste0("Downregulated n = ", nrow(downregulated_df)),
+        label = paste0("Downregulated n = ",  downregulated_df$Sample_Size[1]),
         rows = (nrow(regulated_df) + nrow(upregulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df))
       ) %>%
       tab_style(
         style = list(
           cell_fill(color = "#FFC0CB") # Light pink color
         ),
-        locations = cells_row_groups(groups = paste0("Downregulated n = ", nrow(downregulated_df)))
+        locations = cells_row_groups(groups = paste0("Downregulated n = ", downregulated_df$Sample_Size[1]))
       )
   }
   
