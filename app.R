@@ -118,32 +118,32 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
-  # Prepare data frames with rounded values
+  # Prepare data frames with rounded values and formatted p-values
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
-      P_Value = round(P_Value, 2),
-      Adjusted_P_Value = round(Adjusted_P_Value, 2)
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.3f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.3f", Adjusted_P_Value))
     )
   
   upregulated_df <- enrichment_results_list$upregulated$data %>%
     mutate(
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
-      P_Value = round(P_Value, 2),
-      Adjusted_P_Value = round(Adjusted_P_Value, 2)
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
     )
   
   downregulated_df <- enrichment_results_list$downregulated$data %>%
     mutate(
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
-      P_Value = round(P_Value, 2),
-      Adjusted_P_Value = round(Adjusted_P_Value, 2)
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
     )
   
-  # Combine all data frames
+  # Combine all data frames and remove "Population_Size" column
   combined_df <- bind_rows(
     regulated_df,
     upregulated_df,
@@ -162,14 +162,11 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
         "chosen GO terms"
       )
     ) %>%
-    fmt_number(
+    fmt_markdown(
       columns = c(
         "Population_Enrichment_Ratio",
-        "Subpopulation_Enrichment_Ratio",
-        "P_Value",
-        "Adjusted_P_Value"
-      ),
-      decimals = 2
+        "Subpopulation_Enrichment_Ratio"
+      )
     ) %>%
     cols_label(
       GO_Category = "GO name",
@@ -182,13 +179,13 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Sample_Size = "Number of regulated genes",
       Sample_Success_Size = "Regulated genes in GO category"
     ) %>%
-    # 3. Add footnote for Adjusted_P_Value column
+    # Add footnote for Adjusted_P_Value column
     tab_footnote(
       footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags.",
       locations = cells_column_labels("Adjusted_P_Value")
     )
   
-  # 2. Add colored row groups
+  # Add colored row groups
   if(nrow(regulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
