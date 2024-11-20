@@ -164,6 +164,125 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   return(publication_plot)
 }
 
+build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
+  # Prepare data frames with rounded values and formatted p-values
+  regulated_df <- enrichment_results_list$regulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.3f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.3f", Adjusted_P_Value))
+    )
+  
+  upregulated_df <- enrichment_results_list$upregulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
+    )
+  
+  downregulated_df <- enrichment_results_list$downregulated$data %>%
+    mutate(
+      Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
+      Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
+      P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
+    )
+  
+  # Combine all data frames and remove "Population_Size" column
+  combined_df <- bind_rows(
+    regulated_df,
+    upregulated_df,
+    downregulated_df
+  ) %>%
+    select(-Population_Size) # 1. Remove "Number of human genes" column
+  
+  # Create the gt table with formatted numbers
+  gt_table <- combined_df %>%
+    gt() %>%
+    tab_header(
+      title = "Gene Ontology Enrichment Results",
+      subtitle = paste(
+        "three groups of regulated proteins and",
+        nrow(regulated_df),
+        "chosen GO terms"
+      )
+    ) %>%
+    fmt_markdown(
+      columns = c(
+        "Population_Enrichment_Ratio",
+        "Subpopulation_Enrichment_Ratio"
+      )
+    ) %>%
+    cols_label(
+      GO_Category = "GO name",
+      id = "GO id",
+      Population_Enrichment_Ratio = "Genomic enrichment",
+      Subpopulation_Enrichment_Ratio = "Regulated genes enrichment",
+      P_Value = "Hypergeometric test p-value",
+      Adjusted_P_Value = "Bonferroni adj-p value",
+      Success_Population_Size = "Genes in GO category",
+      Sample_Size = "Number of regulated genes",
+      Sample_Success_Size = "Regulated genes in GO category"
+    ) %>%
+    # Add footnote for Adjusted_P_Value column
+    tab_footnote(
+      footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
+      locations = cells_column_labels("Adjusted_P_Value")
+    )
+  
+  # Add colored row groups
+  if(nrow(regulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Bidirectionally regulated n = ", nrow(regulated_df)),
+        rows = 1:nrow(regulated_df)
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#D3D3D3") # Light gray color
+        ),
+        locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", nrow(regulated_df)))
+      )
+  }
+  
+  if(nrow(upregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Upregulated n = ", nrow(upregulated_df)),
+        rows = (nrow(regulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df))
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#ADD8E6") # Light blue color
+        ),
+        locations = cells_row_groups(groups = paste0("Upregulated n = ", nrow(upregulated_df)))
+      )
+  }
+  
+  if(nrow(downregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_row_group(
+        label = paste0("Downregulated n = ", nrow(downregulated_df)),
+        rows = (nrow(regulated_df) + nrow(upregulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df))
+      ) %>%
+      tab_style(
+        style = list(
+          cell_fill(color = "#FFC0CB") # Light pink color
+        ),
+        locations = cells_row_groups(groups = paste0("Downregulated n = ", nrow(downregulated_df)))
+      )
+  }
+  
+  return(gt_table)
+}
+
+
+
+
+
+
 
 ################################### ----UI---#################################
 
@@ -194,14 +313,15 @@ ui <- fluidPage(
     ),
     mainPanel(
       uiOutput("uploaded_dataset_ui"),
-      DT::dataTableOutput("dataset_summary"),
       cat("column_structure"),
       cat("pvalue_distribution"),
       cat("significant_genes"),
       cat("df_structure"),
       tabsetPanel(
-        tabPanel("Static", plotOutput("volcano_plot", width = "auto", height = "720px")),
-        tabPanel("Interactive", plotlyOutput("volcano_plotly", width = "auto", height = "720px"))
+        tabPanel("Uploded data preview", DT::dataTableOutput("dataset_summary")),
+        tabPanel("Static volcano", plotOutput("volcano_plot", width = "auto", height = "720px")),
+        tabPanel("Interactive volcano", plotlyOutput("volcano_plotly", width = "auto", height = "720px")),
+        tabPanel("GO Enrichment Table", gt_output("go_enrichment_gt")),
       ),
       # Add after the tabsetPanel in mainPanel
       hr(),  # Add a horizontal line for visual separation
@@ -408,6 +528,16 @@ server <- function(input, output, session) {
       } else {
         data.frame(Message = "No data available for downregulated enrichment.")
       }
+    })
+    
+    
+    output$go_enrichment_gt <- render_gt({
+      req(enrichment_results_list)
+      build_gt_table(
+        enrichment_results_list,
+        upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
+        downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+      )
     })
     
     
