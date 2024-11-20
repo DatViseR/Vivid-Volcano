@@ -71,26 +71,46 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
 
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
   cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
-  upregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% pull(!!sym(annotation_col))
-  downregulated_genes <- df %>% filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% pull(!!sym(annotation_col))
-  regulated_genes <- df %>% filter(adjusted_pvalues < alpha) %>% pull(!!sym(annotation_col))
   
-  cat("Upregulated genes:", paste(upregulated_genes, collapse = ", "), "\n")
-  cat("Downregulated genes:", paste(downregulated_genes, collapse = ", "), "\n")
-  cat("All regulated genes:", paste(regulated_genes, collapse = ", "), "\n")
+  # Get genes
+  upregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
+    pull(!!sym(annotation_col))
   
-  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data)
-  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data)
-  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data)
+  downregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
+    pull(!!sym(annotation_col))
+  
+  regulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha) %>% 
+    pull(!!sym(annotation_col))
+  
+  # Get GO IDs for categories
+  go_ids <- go_data %>% 
+    filter(name %in% go_categories) %>% 
+    distinct(name, id)
+  
+  # Calculate enrichment with added GO IDs
+  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
+  
+  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
+  
+  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data) %>%
+    left_join(go_ids, by = c("GO_Category" = "name"))
   
   enrichment_results_list <- list(
-    upregulated = upregulated_enrichment,
-    downregulated = downregulated_enrichment,
-    regulated = regulated_enrichment
+    upregulated = list(
+      data = upregulated_enrichment
+    ),
+    downregulated = list(
+      data = downregulated_enrichment
+    ),
+    regulated = list(
+      data = regulated_enrichment
+    )
   )
-  
-  cat("Structure of enrichment_results_list:\n")
-  str(enrichment_results_list)
   
   return(enrichment_results_list)
 }
@@ -166,13 +186,6 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
-  
-  # make soure data source not null
-  cat("INTERNAL TEST FOR build GT: \n ")
-  cat(enrichment_results_list$regulated$data)
-  cat(enrichment_results_list$upregulated$data)
-  cat(enrichment_results_list$downregulated$data)
-  
   # Prepare data frames with rounded values and formatted p-values
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
@@ -285,7 +298,6 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
   
   return(gt_table)
 }
-
 
 
 
