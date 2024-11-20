@@ -166,6 +166,13 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
 }
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
+  
+  # make soure data source not null
+  cat("INTERNAL TEST FOR build GT: \n ")
+  cat(enrichment_results_list$regulated$data)
+  cat(enrichment_results_list$upregulated$data)
+  cat(enrichment_results_list$downregulated$data)
+  
   # Prepare data frames with rounded values and formatted p-values
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
