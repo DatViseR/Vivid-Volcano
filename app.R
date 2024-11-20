@@ -8,6 +8,7 @@ library(arrow)
 library(DT)
 library(plotly)
 library(Cairo)
+library(gt)
 
 # Load the GO data once globally
 GO <- arrow::read_parquet("GO.parquet")
