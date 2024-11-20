@@ -158,7 +158,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       title = "Gene Ontology Enrichment Results",
       subtitle = paste(
         "three groups of regulated proteins and",
-        nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df),
+        nrow(regulated_df),
         "chosen GO terms"
       )
     ) %>%
@@ -174,14 +174,14 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Population_Enrichment_Ratio = "Genomic enrichment",
       Subpopulation_Enrichment_Ratio = "Regulated genes enrichment",
       P_Value = "Hypergeometric test p-value",
-      Adjusted_P_Value = "Bonferroni(n = 1160) adj-p value",
+      Adjusted_P_Value = "Bonferroni adj-p value",
       Success_Population_Size = "Genes in GO category",
       Sample_Size = "Number of regulated genes",
       Sample_Success_Size = "Regulated genes in GO category"
     ) %>%
     # Add footnote for Adjusted_P_Value column
     tab_footnote(
-      footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags.",
+      footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
       locations = cells_column_labels("Adjusted_P_Value")
     )
   
