@@ -165,10 +165,6 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
 }
 
 
-
-
-
-
 ################################### ----UI---#################################
 
 ui <- fluidPage(
@@ -313,7 +309,9 @@ server <- function(input, output, session) {
   })
   
   
-  color_palette <- c("#009688", "#8E44AD", "#F39C12", "#D35400", "#2C3E50", "#D4AC0D")
+  color_palette <- c("#440154FF", "darkblue","gold","darkorange","darkcyan","deeppink","black") 
+  
+  
   
   # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
