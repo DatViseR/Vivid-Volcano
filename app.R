@@ -359,14 +359,7 @@ ui <- fluidPage(
                style = "margin-bottom: 20px"
         )
       ),
-      h3("GO Enrichment for Regulated Genes"),
-      tableOutput("go_enrichment_regulated"),
-      h3("GO Enrichment for Upregulated Genes"),
-      tableOutput("go_enrichment_upregulated"),
-      h3("GO Enrichment for Downregulated Genes"),
-      tableOutput("go_enrichment_downregulated")
-    )
-  )
+        )  )
 )
 
 ##########################-----SERVER----####################################
@@ -529,31 +522,7 @@ server <- function(input, output, session) {
     cat("Structure of enrichment_results_list:\n")
     str(enrichment_results_list)
     
-    output$go_enrichment_regulated <- renderTable({
-      if (nrow(enrichment_results_list$regulated) > 0) {
-        enrichment_results_list$regulated
-      } else {
-        data.frame(Message = "No data available for regulated enrichment.")
-      }
-    })
-    
-    output$go_enrichment_upregulated <- renderTable({
-      if (nrow(enrichment_results_list$upregulated) > 0) {
-        enrichment_results_list$upregulated
-      } else {
-        data.frame(Message = "No data available for upregulated enrichment.")
-      }
-    })
-    
-    output$go_enrichment_downregulated <- renderTable({
-      if (nrow(enrichment_results_list$downregulated) > 0) {
-        enrichment_results_list$downregulated
-      } else {
-        data.frame(Message = "No data available for downregulated enrichment.")
-      }
-    })
-    
-    
+    # Render the GO enrichment table
     output$go_enrichment_gt <- render_gt({
       req(enrichment_results_list)
       build_gt_table(
