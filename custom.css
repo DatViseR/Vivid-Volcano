@@ -1,0 +1,8 @@
+/* custom.css */
+.ui.sidebar .menu .item {
+  font-size: 10px;  /* Adjust to desired font size */
+}
+
+.ui.sidebar .menu .segment .shiny-input-container {
+  margin-bottom: 10px;  /* Adjust the margin as needed */
+}
