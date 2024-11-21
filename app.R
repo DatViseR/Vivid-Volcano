@@ -311,94 +311,162 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 
 ################################### ----UI---#################################
 
-# Define UI
-ui <- semanticPage(
- 
-# header with title and github and linkedin links  
-   headerPanel(
-    title = "Vivid Volcano - crate publication ready volcano plots and GO analysis with ease",
-    icon = icon("chart line")
+
+  ui <- semanticPage(
+    # Include custom CSS
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+    ),
+    
+    # Navbar
+    div(class = "navbar",
+            
+            # Left Section: Title and Subtitle
+          
+            img(src = "Vivid_volcano_logo.png", alt = "Logo", class = "logo"),
+            
+              div(class = "left-section",
+                    
+                    
+                    h1("Vivid Volcano", class = "title"),
+                    h4("Publication-ready volcano plots and GO analysis with ease", class = "subtitle")
+            ),
+            
+            
+           
+           
+            div(class = "social-buttons",
+                h5("Source Code", class = "icon-header"),  
+                    a(
+                      href = "https://github.com/DatViseR",
+                      icon("github big"),
+                      class = "github",
+                      target = "_blank"
+                    ),
+                h5("Developer", class = "icon-header"),
+                    a(
+                      href = "https://www.linkedin.com/in/yourusername",
+                      icon("linkedin big"),
+                      class = "linkedin",
+                      target = "_blank"
+                    )
+            )
+    
+    ),
+
+    
+  # Main grid layout
+  div(class = "ui grid container",
+      # Sidebar (4 columns)
+      div(class = "six wide column",
+          # Upload controls
+          segment(class = "raised",
+                  h3(class = "ui header", "Data Upload"),
+                  div(class = "ui form",
+                      fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
+                      checkboxInput("header", "Header", TRUE),
+                      radioButtons("sep", "Separator", 
+                                   choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
+                                   selected = ","),
+                      radioButtons("dec", "Decimal Point", 
+                                   choices = c(Dot = ".", Comma = ","), 
+                                   selected = "."),
+                      actionButton("upload", "Upload", class = "ui primary button")
+                  )
+          ),
+          
+          # Analysis options
+          segment(class = "raised",
+                  h3(class = "ui header", "Analysis Options"),
+                  div(class = "ui form",
+                      uiOutput("column_select_ui"),
+                      radioButtons("adj", "P-value Adjustment",
+                                   choices = c(
+                                     None = "none",
+                                     Bonferroni = "bonferroni",
+                                     Hochberg = "hochberg",
+                                     `Benjamini-Hochberg` = "BH",
+                                     `Benjamini-Yekutieli` = "BY"
+                                   ), selected = "BH"),
+                      numericInput("alpha", "Significance Threshold", value = 0.05)
+                  )
+          ),
+          
+          # Plot options
+          segment(class = "raised",
+                  h3(class = "ui header", "Plot Options"),
+                  div(class = "ui form",
+                      checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
+                      uiOutput("color_highlight_ui"),
+                      checkboxInput("show_go_category", "Visualize GO Categories", FALSE),
+                      uiOutput("go_category_ui"),
+                      uiOutput("color_picker_ui"),
+                      numericInput("num_labels", "Number of Labels (0-100)", 
+                                   value = 10, min = 0, max = 100),
+                      checkboxInput("trim_gene_names", "Trim Gene Names to First Occurrence", FALSE),
+                      textInput("plot_title", "Plot Title", "Vivid Volcano"),
+                      textInput("x_axis_label", "X Axis Label", 
+                                "Log2 Fold Change (Condition X vs. Condition Y)"),
+                      actionButton("draw_volcano", "Draw Volcano Plot", 
+                                   class = "ui primary button")
+                  )
+          )
+      ),
+      
+      # Main content (12 columns)
+      div(class = "twelve wide column",
+          # Dataset preview
+          segment(class = "raised",
+                  h3(class = "ui header", "Dataset Preview"),
+                  DT::dataTableOutput("dataset_summary", height = "auto")
+          ),
+          
+          # Tabset for plots and results
+          segment(class = "raised",
+                  tabset(
+                    tabs = list(
+                      list(
+                        menu = "Static Volcano Plot and GO enrichment table",
+                        content = div(
+                          plotOutput("volcano_plot", height = "350px"),
+                          segment(class = "basic",
+                                  h4(class = "ui header", "Download Publication-Ready Plots"),
+                                  div(class = "ui buttons",
+                                      downloadButton("download_plot1", "85x85mm (1 column)", 
+                                                     class = "ui button"),
+                                      downloadButton("download_plot2", "114x114mm (1.5 column)", 
+                                                     class = "ui button"),
+                                      downloadButton("download_plot3", "114x65mm (1.5 column landscape)", 
+                                                     class = "ui button"),
+                                      downloadButton("download_plot4", "174x174mm (square)", 
+                                                     class = "ui button"),
+                                      downloadButton("download_plot5", "174x98mm (landscape)", 
+                                                     class = "ui button")
+                                  )
+                          ),
+                          segment(class = "basic",
+                                  h4(class = "ui header", "GO Enrichment Results"),
+                                  gt_output("go_enrichment_gt")
+                          )
+                        )
+                      ),
+                      list(
+                        menu = "Interactive Volcano Plot",
+                        content = div(
+                          plotlyOutput("volcano_plotly", height = "350px")
+                        )
+                      )
+                    )
+                  )
+          )
+      )
   ),
   
-# sidebarlayout with data upload and analysis options  
-  
-  sidebar_layout(
-   sidebarPanel(
-     segment(  # Use segment() for styling
-       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
-       checkboxInput("header", "Header", TRUE),
-       radioButtons("sep", "Separator", choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), selected = ","),
-       radioButtons("dec", "Decimal Point", choices = c(Dot = ".", Comma = ","), selected = "."),
-       actionButton("upload", "Upload")  # Removed trailing comma
-     ),
-     segment(
-       h4("Select Columns for Analysis"),
-       uiOutput("column_select_ui"),
-       radioButtons("adj", "P-value Adjustment",
-                    choices = c(
-                      None = "none",
-                      Bonferroni = "bonferroni",
-                      Hochberg = "hochberg",
-                      `Benjamini-Hochberg` = "BH",
-                      `Benjamini-Yekutieli` = "BY"
-                    ), selected = "BH"),
-       numericInput("alpha", "Significance Threshold", value = 0.05)),
-     segment(
-       h4("Volcano Plot Options"),
-       checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
-       uiOutput("color_highlight_ui"),
-       checkboxInput("show_go_category", "Visualize GO Categories", FALSE),
-       uiOutput("go_category_ui"),
-       uiOutput("color_picker_ui"),
-       numericInput("num_labels", "Number of Labels (0-100)", value = 10, min = 0, max = 100),
-       checkboxInput("trim_gene_names", "Trim Gene Names to First Occurrence", FALSE),
-       textInput("plot_title", "Plot Title", "Vivid Volcano"),
-       textInput("x_axis_label", "X Axis Label", "Log2 Fold Change (Condition X vs. Condition Y)"),
-       actionButton("draw_volcano", "Draw Volcano Plot")
-      )),
-# main panel with the results    
-   main_panel(
-        dataprev =  segment(
-       h3("Uploaded Dataset Preview"),
-       DT::dataTableOutput("dataset_summary", height = "auto")
-     ),
-     twotabs = segment(
-      tabset(
-        tabs = list(
-          list(
-            menu = "Static Volcano Plot and GO enrichment table",
-            content = div(
-              plotOutput("volcano_plot", height = "350px"),
-              segment(
-                class = "basic",
-                h4("Download Publication-Ready Plots"),
-                div(
-                  class = "ui buttons",
-                  downloadButton("download_plot1", "85x85mm (1 column)", class = "ui button"),
-                  downloadButton("download_plot2", "114x114mm (1.5 column)", class = "ui button"),
-                  downloadButton("download_plot3", "114x65mm (1.5 column landscape)", class = "ui button"),
-                  downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
-                  downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
-                )
-              ),
-              segment(
-                class = "basic",
-                h4("GO Enrichment Results"),
-                gt_output("go_enrichment_gt")
-              )
-            )
-          ),
-          list(
-            menu = "Interactive Volcano Plot",
-            content = div(
-              plotlyOutput("volcano_plotly", height = "350px")
-            )
-          )
-        )
-      )
-          
-        ),
-  includeCSS("custom.css")
+  # CSS inclusion
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+  )
+)
 
 
 
