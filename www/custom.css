@@ -1,12 +1,27 @@
 /*############NAVBAR############  */
 
-/* Common segment styles */
+
+
+/* Navbar styling */
 .navbar {
- display: flex;
- justify-content: left;
-  height: 150px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(90deg, #4a90e2, #9013fe);
+  color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Logo styling */
+.logo {
+  height: 120px;
+  width: auto;
+  border-radius: 8px;
+  margin-right: 1rem;
+}
+
+/* Left section styling */
 .left-section {
   display: flex;
   flex-direction: column;
@@ -14,44 +29,40 @@
 }
 
 .title {
-  font-size: 40px;
+  font-size: 2.5em;
+  font-weight: 700;
   margin: 0;
+  color: #fff;
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: 1.2em;
   margin: 0;
-}
-
-.logo {
-  height: 150px;
-  margin: 0;
-  padding: 0;
+  color: #d1d1d1;
 }
 
 /* Social buttons container styling */
 .social-buttons {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 1rem;
-  width: 100%;
 }
 
 /* Icon header styling */
 .icon-header {
   margin: 0;
-  font-size: 1em;
-  font-weight: normal;
-  color: #2c3e50;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #fff;
   line-height: 1.5em;
 }
 
 /* Social icons styling */
 .social-buttons .icon {
-  font-size: 2.5em; /* Larger size */
-  color: #2c3e50;
+  font-size: 2.5em;
+  color: #fff;
   transition: all 0.2s ease;
+  margin-left: 0.5rem;
 }
 
 .social-buttons .github:hover {
@@ -60,4 +71,26 @@
 
 .social-buttons .linkedin:hover {
   color: #0077b5;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .social-buttons {
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: 1rem;
+  }
+  .logo {
+    height: 100px;
+  }
+  .title {
+    font-size: 2em;
+  }
+  .subtitle {
+    font-size: 1em;
+  }
 }

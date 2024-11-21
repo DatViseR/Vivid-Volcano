@@ -323,7 +323,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
             
             # Left Section: Title and Subtitle
           
-            img(src = "Vivid_volcano_logo.png", alt = "Logo", class = "logo"),
+            img(src = "Vivid_volcano_logo3.svg", alt = "Logo", class = "logo"),
             
               div(class = "left-section",
                     
