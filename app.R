@@ -365,7 +365,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
                   div(class = "ui form",
                       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
                       checkboxInput("header", "Header", TRUE),
-                      radioButtons("sep", "Separator", 
+                     multiple_radio("sep", "Separator", 
                                    choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
                                    selected = ","),
                       radioButtons("dec", "Decimal Point", 
@@ -380,7 +380,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
                   h3(class = "ui header", "Analysis Options"),
                   div(class = "ui form",
                       uiOutput("column_select_ui"),
-                      radioButtons("adj", "P-value Adjustment",
+                      multiple_radio("adj", "P-value Adjustment",
                                    choices = c(
                                      None = "none",
                                      Bonferroni = "bonferroni",
