@@ -483,7 +483,7 @@ server <- function(input, output, session) {
   
   # Function to check and unlog p-values
   check_and_unlog_pvalues <- function(df, pvalue_col) {
-    pvalues <- df[[pvalue_col]]
+    pvalues <- as.numeric(df[[pvalue_col]])
     if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
       cat("P-values appear to be -log10 transformed. Unlogging...\n")
       pvalues <- 10^(-abs(pvalues))
@@ -595,7 +595,7 @@ server <- function(input, output, session) {
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     
     # Adjust p-values
-    pvalues <- df[[input$pvalue_col]]
+    pvalues <- as.numeric(df[[input$pvalue_col]])
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
