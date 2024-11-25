@@ -368,7 +368,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
                      multiple_radio("sep", "Separator", 
                                    choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
                                    selected = ","),
-                      radioButtons("dec", "Decimal Point", 
+                      multiple_radio("dec", "Decimal Point", 
                                    choices = c(Dot = ".", Comma = ","), 
                                    selected = "."),
                       actionButton("upload", "Upload", class = "ui primary button")
@@ -650,6 +650,12 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    
+    abs_min <- min(abs(df[[input$fold_col]]))
+    abs_max <- max(abs(df[[input$fold_col]]))
+    limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
+    
+   
     volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
                                    y = -log10(!!sym(input$pvalue_col)),
                                    text = paste("Gene:", !!sym(input$annotation_col),
@@ -668,7 +674,9 @@ server <- function(input, output, session) {
             axis.text = element_text(size = 14, color = "navy", face = "bold"),
              ) +  
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") +
-      scale_x_continuous(limits = c(-max(abs(df[[input$fold_col]])), max(abs(df[[input$fold_col]]))))  # Set x-axis limits
+      scale_x_continuous(
+        limits = c(-limit_for_x_scale, limit_for_x_scale)
+      )  # Set x-axis limits
    
     # Generate subtitle based on the input settings
     subtitle <- NULL
