@@ -654,7 +654,7 @@ server <- function(input, output, session) {
     abs_min <- min(abs(df[[input$fold_col]]))
     abs_max <- max(abs(df[[input$fold_col]]))
     limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
-    
+    cat("Limit for x scale: ", limit_for_x_scale, "\n")
    
     volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
                                    y = -log10(!!sym(input$pvalue_col)),
