@@ -360,17 +360,19 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       # Sidebar (4 columns)
       div(class = "six wide column",
           # Upload controls
-          segment(class = "raised",
+          segment(class = "raised data-upload",
                   h3(class = "ui header", "Data Upload"),
                   div(class = "ui form",
                       fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
-                      checkboxInput("header", "Header", TRUE),
-                     multiple_radio("sep", "Separator", 
-                                   choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
-                                   selected = ","),
-                      multiple_radio("dec", "Decimal Point", 
-                                   choices = c(Dot = ".", Comma = ","), 
-                                   selected = "."),
+                      div(class = "inline fields",
+                          div(class = "field", checkboxInput("header", "Header", TRUE)),
+                          div(class = "field", multiple_radio("sep", "Separator", 
+                                                              choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
+                                                              selected = ",")),
+                          div(class = "field", multiple_radio("dec", "Decimal Point", 
+                                                              choices = c(Dot = ".", Comma = ","), 
+                                                              selected = "."))
+                      ),
                       actionButton("upload", "Upload", class = "ui primary button")
                   )
           ),

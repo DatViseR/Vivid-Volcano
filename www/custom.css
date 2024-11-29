@@ -94,7 +94,55 @@
 }
 /********************* UPLOAD FORM **********************/
 
+/* Custom styling for Data Upload section */
+.data-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
 
+.data-upload .ui.form .field {
+  margin-bottom: 1rem;
+}
+
+.data-upload .ui.form .field .ui.radio.checkbox,
+.data-upload .ui.form .field .ui.checkbox {
+  margin-right: 1rem;
+}
+
+.data-upload .ui.header {
+  text-align: left;
+  color: #4a90e2;
+}
+
+.data-upload .ui.primary.button {
+  background-color: #4a90e2;
+  color: #fff;
+  transition: background-color 0.3s ease;
+}
+
+.data-upload .ui.primary.button:hover {
+  background-color: #357ab8;
+}
+
+/* Move the tabset to the upper left part of the screen */
+.ui.tabular.menu {
+  justify-content: flex-start;
+}
+
+/* Custom graphical effects */
+.ui.segment.raised {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.ui.segment.raised:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
 
 
 
