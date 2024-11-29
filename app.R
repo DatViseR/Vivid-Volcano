@@ -399,80 +399,77 @@ ui <- semanticPage(
         ),
       
         
-        # Main panel
-        main_panel(
-          width = 12,
-          # Dataset preview
-          segment(
-            class = "raised",
-            h3(class = "ui header", "Dataset Preview"),
-            DT::dataTableOutput("dataset_summary", height = "auto")
-          ),
-          
-          # Tabset for plots and results
-          segment(
-            class = "raised",
-            # ... previous code remains the same until tabset ...
-            
-            tabset(
-              tabs = list(
-                list(
-                  menu = "Static Volcano Plot and GO enrichment table",
-                  # Replace the grid_template with this simpler grid structure
-                  content = div(
-                    div(class = "ui three column grid",
-                        div(class = "eight wide column",
-                            segment(
-                              class = "basic",
-                              plotOutput("volcano_plot", height = "600px")
-                            )
-                        ),
-                        div(class = "three wide column",
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "Download Plots"),
-                              div(
-                                class = "ui vertical fluid tiny buttons",
-                                downloadButton("download_plot1", "85x85mm (1 col)", 
-                                               class = "ui fluid button"),
-                                downloadButton("download_plot2", "114x114mm (1.5 col)", 
-                                               class = "ui fluid button"),
-                                downloadButton("download_plot3", "114x65mm (landscape)", 
-                                               class = "ui fluid button"),
-                                downloadButton("download_plot4", "174x174mm (square)", 
-                                               class = "ui fluid button"),
-                                downloadButton("download_plot5", "174x98mm (landscape)", 
-                                               class = "ui fluid button")
+      main_panel(
+        width = 12,
+        # Dataset preview
+        segment(
+          class = "raised",
+          h3(class = "ui header", "Dataset Preview"),
+          DT::dataTableOutput("dataset_summary", height = "auto")
+        ),
+        
+        segment(
+          class = "raised",
+          tabset(
+            tabs = list(
+              list(
+                menu = "Static Volcano Plot and GO enrichment table",
+                content = div(
+                  div(class = "ui two column grid",
+                      # First column (50%) - Plot and Downloads
+                      div(class = "column",
+                        
+                              segment(
+                                class = "basic",
+                                plotOutput("volcano_plot", height = "600px")
+                              ),
+                              segment(
+                                class = "basic",
+                                h4(class = "ui header", "Download Plots"),
+                                div(
+                                  class = "ui tiny fluid buttons",
+                                  downloadButton("download_plot1", "85x85mm (1 col)", 
+                                                 class = "ui button"),
+                                  downloadButton("download_plot2", "114x114mm (1.5 col)", 
+                                                 class = "ui button"),
+                                  downloadButton("download_plot3", "114x65mm (landscape)", 
+                                                 class = "ui button")
+                                ),
+                                div(
+                                  style = "margin-top: 10px;",
+                                  class = "ui tiny fluid buttons",
+                                  downloadButton("download_plot4", "174x174mm (square)", 
+                                                 class = "ui button"),
+                                  downloadButton("download_plot5", "174x98mm (landscape)", 
+                                                 class = "ui button")
+                                )
                               )
-                            )
-                        ),
-                        div(class = "five wide column",
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "GO Enrichment Results"),
-                              gt_output("go_enrichment_gt")
-                            )
-                        )
-                    )
+                          
+                      ),
+                      # Second column (50%) - GO Table
+                      div(class = "column",
+                          segment(
+                            class = "basic",
+                            h4(class = "ui header", "GO Enrichment Results"),
+                            gt_output("go_enrichment_gt")
+                          )
+                      )
                   )
-                ),  # Added comma here
-                list(
-                  menu = "Interactive Volcano Plot",
-                  content = div(
-                    plotlyOutput("volcano_plotly", height = "350px")
-                  )
+                )
+              ),
+              list(
+                menu = "Interactive Volcano Plot",
+                content = div(
+                  plotlyOutput("volcano_plotly", height = "350px")
                 )
               )
             )
           )
         )
       )
+     )
   )
 )
-
-     
-  
- 
 
 ##########################-----SERVER----####################################
 
