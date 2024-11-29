@@ -511,18 +511,22 @@ server <- function(input, output, session) {
     })
     
     
-    output$dataset_summary <- DT::renderDataTable({ 
+    output$dataset_summary <- renderDT({
       cat("The following columns were uploaded: \n\n")
-      #show only first 3 entries
-     datatable(df, rownames = FALSE, options = list(pageLength = 3))
+      semantic_DT(
+        data.frame(df, check.names = FALSE),  # Convert to data.frame if not already
+        options = list(
+          pageLength = 3,
+          dom = 'lftp',
+          lengthMenu = list(c(3, 5, 10), c('3', '5', '10')),
+          rownames = FALSE
+        ),
+        style = "semanticui",
+        class = "ui small compact table",
+        selection = 'none'  # Disable row selection if needed
+      )
     })
-      output$uploaded_dataset_ui <- renderUI({
-       tagList(
-         h3("Uploaded Dataset Preview"),
-         semantic_DT("dataset_summary")
-       )
-     
-    })
+      
   })
   
   # Dynamic UI for color highlight options
