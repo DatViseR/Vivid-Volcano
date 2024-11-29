@@ -346,7 +346,7 @@ ui <- semanticPage(
       sidebar_layout(
         # Sidebar panel with controls
         sidebar_panel(
-          width = 4,
+          width = 3,
           # Data Upload Card
           h3("Data Upload"),
           file_input("file1", "Upload a CSV or TSV file", 
@@ -412,41 +412,50 @@ ui <- semanticPage(
           # Tabset for plots and results
           segment(
             class = "raised",
+            # ... previous code remains the same until tabset ...
+            
             tabset(
               tabs = list(
                 list(
                   menu = "Static Volcano Plot and GO enrichment table",
+                  # Replace the grid_template with this simpler grid structure
                   content = div(
-                    plotOutput("volcano_plot", height = "350px"),
-                    segment(
-                      class = "basic",
-                      h4(class = "ui header", "Download Publication-Ready Plots"),
-                      div(class = "ui grid",
-                          div(class = "row",
-                              div(class = "sixteen wide column",
-                                  div(class = "ui tiny buttons",
-                                      downloadButton("download_plot1", "85x85mm (1 column)", 
-                                                     class = "ui button"),
-                                      downloadButton("download_plot2", "114x114mm (1.5 column)", 
-                                                     class = "ui button"),
-                                      downloadButton("download_plot3", "114x65mm (1.5 column landscape)", 
-                                                     class = "ui button"),
-                                      downloadButton("download_plot4", "174x174mm (square)", 
-                                                     class = "ui button"),
-                                      downloadButton("download_plot5", "174x98mm (landscape)", 
-                                                     class = "ui button")
-                                  )
+                    div(class = "ui three column grid",
+                        div(class = "eight wide column",
+                            segment(
+                              class = "basic",
+                              plotOutput("volcano_plot", height = "600px")
+                            )
+                        ),
+                        div(class = "three wide column",
+                            segment(
+                              class = "basic",
+                              h4(class = "ui header", "Download Plots"),
+                              div(
+                                class = "ui vertical fluid tiny buttons",
+                                downloadButton("download_plot1", "85x85mm (1 col)", 
+                                               class = "ui fluid button"),
+                                downloadButton("download_plot2", "114x114mm (1.5 col)", 
+                                               class = "ui fluid button"),
+                                downloadButton("download_plot3", "114x65mm (landscape)", 
+                                               class = "ui fluid button"),
+                                downloadButton("download_plot4", "174x174mm (square)", 
+                                               class = "ui fluid button"),
+                                downloadButton("download_plot5", "174x98mm (landscape)", 
+                                               class = "ui fluid button")
                               )
-                          )
-                      )
-                    ),
-                    segment(
-                      class = "basic",
-                      h4(class = "ui header", "GO Enrichment Results"),
-                      gt_output("go_enrichment_gt")
+                            )
+                        ),
+                        div(class = "five wide column",
+                            segment(
+                              class = "basic",
+                              h4(class = "ui header", "GO Enrichment Results"),
+                              gt_output("go_enrichment_gt")
+                            )
+                        )
                     )
                   )
-                ),
+                ),  # Added comma here
                 list(
                   menu = "Interactive Volcano Plot",
                   content = div(
@@ -460,6 +469,7 @@ ui <- semanticPage(
       )
   )
 )
+
      
   
  
