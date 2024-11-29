@@ -351,34 +351,34 @@ ui <- semanticPage(
           h3("Data Upload"),
           file_input("file1", "Upload a CSV or TSV file", 
                      accept = c(".csv", ".tsv")),  # Added comma
-          # Create horizontal layout for header and radio buttons
-          div(class = "ui three column grid",
-              div(class = "column",
-                  checkboxInput("header", "Header", TRUE)
-              ),
-              div(class = "column",
-                  multiple_radio("sep", "Separator", 
-                                 choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
-                                 selected = ",")
-              ),
-              div(class = "column",
-                  multiple_radio("dec", "Decimal Point", 
-                                 choices = c(Dot = ".", Comma = ","), 
-                                 selected = ".")
-              )
-          ),
+         # Create horizontal layout for header and radio buttons
+      div(class = "ui three column grid",
+        div(class = "column",
+          checkboxInput("header", "Header", TRUE)
+        ),
+        div(class = "column",
+          multiple_radio("sep", "Separator", 
+                      choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
+                      selected = ",")
+        ),
+        div(class = "column",
+          multiple_radio("dec", "Decimal Point", 
+                      choices = c(Dot = ".", Comma = ","), 
+                      selected = ".")
+        )
+      ),
           actionButton("upload", "Upload", class = "ui primary fluid button"),
           
           # Analysis Options Card
-          h3("Analysis Options"),
+          h3("P value adjustment options"),
           uiOutput("column_select_ui"),
-          multiple_radio("adj", "P-value Adjustment",
+          dropdown_input("adj",
                          choices = c(None = "none",
                                      Bonferroni = "bonferroni",
                                      Hochberg = "hochberg",
                                      `Benjamini-Hochberg` = "BH",
                                      `Benjamini-Yekutieli` = "BY"
-                         ), selected = "BH"),
+                         ), value = "BH"),
           numericInput("alpha", "Significance Threshold", value = 0.05),
           
           # Plot Options Card
