@@ -405,7 +405,7 @@ ui <- semanticPage(
         segment(
           class = "raised",
           h3(class = "ui header", "Dataset Preview"),
-          DT::dataTableOutput("dataset_summary", height = "auto")
+          semantic_DTOutput("dataset_summary", height = "auto")
         ),
         
         segment(
@@ -519,7 +519,7 @@ server <- function(input, output, session) {
       output$uploaded_dataset_ui <- renderUI({
        tagList(
          h3("Uploaded Dataset Preview"),
-         DT::dataTableOutput("dataset_summary")
+         semantic_DT("dataset_summary")
        )
      
     })
