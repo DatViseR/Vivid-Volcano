@@ -6,8 +6,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(90deg, #4a90e2, #9013fe);
-  color: #fff;
+background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
+  color: #333333
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
  
 }
@@ -16,8 +16,15 @@
 .logo {
   height: 120px;
   width: auto;
-  border-radius: 8px;
   margin-right: 1rem;
+
+  /* let it grow inside the container*/ 
+  transform: scale(1.1);  /* Makes the logo 20% bigger */
+  transform-origin: left center;  /* Scales from left center point */
+  object-fit: contain;  /* Ensures the image maintains aspect ratio */
+}
+  
+  
 }
 
 /* Left section styling */
@@ -31,13 +38,13 @@
   font-size: 2.5em;
   font-weight: 700;
   margin: 0;
-  color: #fff;
+  color: #2D2D2D;
 }
 
 .subtitle {
   font-size: 1.2em;
   margin: 0;
-  color: #d1d1d1;
+  color: #4A4A4A;
 }
 
 /* Social buttons container styling */
@@ -52,20 +59,20 @@
   margin: 0;
   font-size: 1.1em;
   font-weight: 500;
-  color: #fff;
+  color: #4A4A4A;
   line-height: 1.5em;
 }
 
 /* Social icons styling */
 .social-buttons .icon {
   font-size: 2.5em;
-  color: #fff;
+  color: #4A4A4A;
   transition: all 0.2s ease;
   margin-left: 0.5rem;
 }
 
 .social-buttons .github:hover {
-  color: #24292e;
+  color: #000;
 }
 
 .social-buttons .linkedin:hover {
@@ -85,6 +92,7 @@
   }
   .logo {
     height: 100px;
+    margin-bottom: 10px;
   }
   .title {
     font-size: 2em;

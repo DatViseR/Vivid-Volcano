@@ -318,9 +318,8 @@ ui <- semanticPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
   ),
   
-  # Navbar
-  div(class = "navbar",
-      img(src = "Vivid_volcano_logo3.svg", alt = "Logo", class = "logo"),
+  segment(class = "navbar",
+        img(src = "Vivid_volcano_logo.png", alt = "Logo", class = "logo"),
       div(class = "left-section",
           h1("Vivid Volcano", class = "title"),
           h4("Publication-ready volcano plots and GO analysis with ease", class = "subtitle")
@@ -516,10 +515,15 @@ server <- function(input, output, session) {
       semantic_DT(
         data.frame(df, check.names = FALSE),  # Convert to data.frame if not already
         options = list(
-          pageLength = 3,
+          pageLength = 1,
           dom = 'lftp',
-          lengthMenu = list(c(3, 5, 10), c('3', '5', '10')),
-          rownames = FALSE
+          lengthMenu = list(c(1, 3, 5, 10), c('1','3', '5', '10')),
+          rownames = FALSE,
+          scrollX = TRUE,
+          columnDefs = list(list(
+            targets = '_all',  # Apply to all columns
+            className = 'dt-nowrap'  # Add nowrap class
+          ))
         ),
         style = "semanticui",
         class = "ui small compact table",
