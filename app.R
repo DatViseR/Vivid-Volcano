@@ -347,65 +347,57 @@ ui <- semanticPage(
         # Sidebar panel with controls
         sidebar_panel(
           width = 4,
-          card(
-            div(class = "content",
-                div(class = "header", "Data Upload"),
-                div(class = "ui form",
-                    fileInput("file1", "Upload a CSV or TSV file", accept = c(".csv", ".tsv")),
-                    div(class = "inline fields",
-                        div(class = "field", checkboxInput("header", "Header", TRUE)),
-                        div(class = "field", multiple_radio("sep", "Separator", 
-                                                            choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
-                                                            selected = ",")),
-                        div(class = "field", multiple_radio("dec", "Decimal Point", 
-                                                            choices = c(Dot = ".", Comma = ","), 
-                                                            selected = "."))
-                    ),
-                    actionButton("upload", "Upload", class = "ui primary fluid button")
-                )
-            )
+          # Data Upload Card
+          h3("Data Upload"),
+          file_input("file1", "Upload a CSV or TSV file", 
+                     accept = c(".csv", ".tsv")),  # Added comma
+          # Create horizontal layout for header and radio buttons
+          div(class = "ui three column grid",
+              div(class = "column",
+                  checkboxInput("header", "Header", TRUE)
+              ),
+              div(class = "column",
+                  multiple_radio("sep", "Separator", 
+                                 choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
+                                 selected = ",")
+              ),
+              div(class = "column",
+                  multiple_radio("dec", "Decimal Point", 
+                                 choices = c(Dot = ".", Comma = ","), 
+                                 selected = ".")
+              )
           ),
+          actionButton("upload", "Upload", class = "ui primary fluid button"),
           
-          # Analysis Options
-          card(
-            div(class = "content",
-                div(class = "header", "Analysis Options"),
-                div(class = "ui form",
-                    uiOutput("column_select_ui"),
-                    multiple_radio("adj", "P-value Adjustment",
-                                   choices = c(None = "none",
-                                               Bonferroni = "bonferroni",
-                                               Hochberg = "hochberg",
-                                               `Benjamini-Hochberg` = "BH",
-                                               `Benjamini-Yekutieli` = "BY"
-                                   ), selected = "BH"),
-                    numericInput("alpha", "Significance Threshold", value = 0.05)
-                )
-            )
-          ),
+          # Analysis Options Card
+          h3("Analysis Options"),
+          uiOutput("column_select_ui"),
+          multiple_radio("adj", "P-value Adjustment",
+                         choices = c(None = "none",
+                                     Bonferroni = "bonferroni",
+                                     Hochberg = "hochberg",
+                                     `Benjamini-Hochberg` = "BH",
+                                     `Benjamini-Yekutieli` = "BY"
+                         ), selected = "BH"),
+          numericInput("alpha", "Significance Threshold", value = 0.05),
           
-          # Plot Options
-          card(
-            div(class = "content",
-                div(class = "header", "Plot Options"),
-                div(class = "ui form",
-                    checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
-                    uiOutput("color_highlight_ui"),
-                    checkboxInput("show_go_category", "Visualize GO Categories", FALSE),
-                    uiOutput("go_category_ui"),
-                    uiOutput("color_picker_ui"),
-                    numericInput("num_labels", "Number of Labels (0-100)", 
-                                 value = 10, min = 0, max = 100),
-                    checkboxInput("trim_gene_names", "Trim Gene Names to First Occurrence", FALSE),
-                    textInput("plot_title", "Plot Title", "Vivid Volcano"),
-                    textInput("x_axis_label", "X Axis Label", 
-                              "Log2 Fold Change (Condition X vs. Condition Y)"),
-                    actionButton("draw_volcano", "Draw Volcano Plot", 
-                                 class = "ui primary fluid button")
-                )
-            )
-          )
+          # Plot Options Card
+          h3("Plot Options"),
+          checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
+          uiOutput("color_highlight_ui"),
+          checkboxInput("show_go_category", "Visualize GO Categories", FALSE),
+          uiOutput("go_category_ui"),
+          uiOutput("color_picker_ui"),
+          numericInput("num_labels", "Number of Labels (0-100)", 
+                       value = 10, min = 0, max = 100),
+          checkboxInput("trim_gene_names", "Trim Gene Names to First Occurrence", FALSE),
+          textInput("plot_title", "Plot Title", "Vivid Volcano"),
+          textInput("x_axis_label", "X Axis Label", 
+                    "Log2 Fold Change (Condition X vs. Condition Y)"),
+          actionButton("draw_volcano", "Draw Volcano Plot", 
+                       class = "ui primary fluid button")
         ),
+      
         
         # Main panel
         main_panel(
