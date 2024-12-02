@@ -104,7 +104,15 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 /********************* UPLOAD FORM **********************/
 /* Custom styling for Data Upload section */
 
-
+.controls{
+  background: linear-gradient(90deg, #989898 #767676) !important;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  
+  
+  
+} 
 
 
 

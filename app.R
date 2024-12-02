@@ -347,26 +347,75 @@ ui <- semanticPage(
         sidebar_panel(
           width = 3,
           # Data Upload Card
-          h3("Data Upload"),
-          file_input("file1", "Upload a CSV or TSV file", 
-                     accept = c(".csv", ".tsv")),  # Added comma
-         # Create horizontal layout for header and radio buttons
-      div(class = "ui three column grid",
-        div(class = "column",
-          checkboxInput("header", "Header", TRUE)
-        ),
-        div(class = "column",
-          multiple_radio("sep", "Separator", 
-                      choices = c(Comma = ",", Semicolon = ";", Tab = "\t"), 
-                      selected = ",")
-        ),
-        div(class = "column",
-          multiple_radio("dec", "Decimal Point", 
-                      choices = c(Dot = ".", Comma = ","), 
-                      selected = ".")
-        )
-      ),
-          actionButton("upload", "Upload", class = "ui primary fluid button"),
+          div(class = "ui raised segment",
+              div(class = "ui blue ribbon label", "Upload a CSV or TSV file"),
+              
+              div(class = "ui small input",
+                  fileInput("file1", 
+                            label = NULL, 
+                            accept = c(".csv", ".tsv"))
+              ),
+              
+              # Form layout for checkboxes and radio buttons
+              div(class = "ui form",
+                  div(class = "three fields",
+                      # Header Checkbox
+                      div(class = "field",
+                          div(class = "ui checkbox",
+                              tags$input(id = "header", type = "checkbox", checked = TRUE),
+                              tags$label("Header")
+                          )
+                      ),
+                      # Separator Radio Buttons
+                      div(class = "field",
+                          div(class = "grouped fields",
+                              tags$label("Separator"),
+                              div(class = "field",
+                                  tags$div(class = "ui radio checkbox",
+                                           tags$input(type = "radio", name = "sep", value = ",", checked = "checked"),
+                                           tags$label("Comma")
+                                  )
+                              ),
+                              div(class = "field",
+                                  tags$div(class = "ui radio checkbox",
+                                           tags$input(type = "radio", name = "sep", value = ";"),
+                                           tags$label("Semicolon")
+                                  )
+                              ),
+                              div(class = "field",
+                                  tags$div(class = "ui radio checkbox",
+                                           tags$input(type = "radio", name = "sep", value = "\t"),
+                                           tags$label("Tab")
+                                  )
+                              )
+                          )
+                      ),
+                      # Decimal Point Radio Buttons
+                      div(class = "field",
+                          div(class = "grouped fields",
+                              tags$label("Decimal Point"),
+                              div(class = "field",
+                                  tags$div(class = "ui radio checkbox",
+                                           tags$input(type = "radio", name = "dec", value = ".", checked = "checked"),
+                                           tags$label("Dot")
+                                  )
+                              ),
+                              div(class = "field",
+                                  tags$div(class = "ui radio checkbox",
+                                           tags$input(type = "radio", name = "dec", value = ","),
+                                           tags$label("Comma")
+                                  )
+                              )
+                          )
+                      )
+                  )
+              ),
+              
+              actionButton("upload", label = HTML('<i class="upload icon"></i> Upload'), 
+                           class = "ui primary button")
+          ),
+          
+     
           
           # Analysis Options Card
           h3("P value adjustment options"),
@@ -493,11 +542,30 @@ server <- function(input, output, session) {
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
-    df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
+    
+    # Get values from the custom HTML inputs
+    header_value <- input$header   # Checkbox input should still work with default Shiny binding
+    sep_value <- input$sep         # Radio buttons for separator
+    dec_value <- input$dec         # Radio buttons for decimal point
+    
+    # Ensure these values are captured correctly
+    if (is.null(sep_value)) sep_value <- ","
+    if (is.null(dec_value)) dec_value <- "."
+    
+    # Read the uploaded file
+    df <- read_delim(in_file$datapath, 
+                     delim = sep_value, 
+                     col_names = header_value, 
+                     locale = locale(decimal_mark = dec_value))
+    
+    # Save the dataframe to a reactive object
     uploaded_df(df)
-    #show structure of the uploaded dataset
-    cat("\n The structure of the uploaded dataset is: \n")
+    
+    # Show structure of the uploaded dataset
+    cat("\nThe structure of the uploaded dataset is:\n")
     str(df)
+  })
+  
     
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
