@@ -220,7 +220,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
       P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.3f", P_Value)),
-      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.3f", Adjusted_P_Value))
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.3f", Adjusted_P_Value)),
+      P_Value = as.character(P_Value),
+      Adjusted_P_Value = as.character(Adjusted_P_Value)
     )
   
   upregulated_df <- enrichment_results_list$upregulated$data %>%
@@ -228,7 +230,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
       P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
-      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value)),
+      P_Value = as.character(P_Value),
+      Adjusted_P_Value = as.character(Adjusted_P_Value)
     )
   
   downregulated_df <- enrichment_results_list$downregulated$data %>%
@@ -236,7 +240,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
       Subpopulation_Enrichment_Ratio = round(Sample_Success_Size / Sample_Size, 3),
       P_Value = ifelse(P_Value < 0.001, "<0.001", sprintf("%.2f", P_Value)),
-      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value))
+      Adjusted_P_Value = ifelse(Adjusted_P_Value < 0.001, "<0.001", sprintf("%.2f", Adjusted_P_Value)),
+      P_Value = as.character(P_Value),
+      Adjusted_P_Value = as.character(Adjusted_P_Value)
     )
   
   # Combine all data frames and remove "Population_Size" column
@@ -245,8 +251,11 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     upregulated_df,
     downregulated_df
   ) %>%
-    select(-Population_Size)   # 1. Remove "Number of human genes" column
-  #  select(-Sample_Size)   # 2. Remove "Number of regulated genes" column
+    select(-Population_Size) %>%  # Remove "Number of human genes" column
+    mutate(
+      P_Value = as.character(P_Value),
+      Adjusted_P_Value = as.character(Adjusted_P_Value)
+    )
   
   # Create the gt table with formatted numbers
   gt_table <- combined_df %>%
@@ -262,7 +271,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     fmt_markdown(
       columns = c(
         "Population_Enrichment_Ratio",
-        "Subpopulation_Enrichment_Ratio"
+        "Subpopulation_Enrichment_Ratio",
+        "P_Value",
+        "Adjusted_P_Value"
       )
     ) %>%
     cols_label(
@@ -280,12 +291,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     tab_footnote(
       footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
       locations = cells_column_labels("Adjusted_P_Value")
-    )%>%
+    ) %>%
     # Hide the Sample_Size column
     cols_hide(columns = "Sample_Size")
   
   # Add colored row groups
-  if(nrow(regulated_df) > 0) {
+  if (nrow(regulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
         label = paste0("Bidirectionally regulated n = ", regulated_df$Sample_Size[1]),
@@ -293,13 +304,13 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       ) %>%
       tab_style(
         style = list(
-          cell_fill(color = "#D3D3D3") # Light gray color
+          cell_fill(color = "#D3D3D3")  # Light gray color
         ),
         locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", regulated_df$Sample_Size[1]))
       )
   }
   
-  if(nrow(upregulated_df) > 0) {
+  if (nrow(upregulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
         label = paste0("Upregulated n = ", upregulated_df$Sample_Size[1]),
@@ -307,21 +318,21 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       ) %>%
       tab_style(
         style = list(
-          cell_fill(color = "#ADD8E6") # Light blue color
+          cell_fill(color = "#ADD8E6")  # Light blue color
         ),
-        locations = cells_row_groups(groups = paste0("Upregulated n = ",  upregulated_df$Sample_Size[1]))
+        locations = cells_row_groups(groups = paste0("Upregulated n = ", upregulated_df$Sample_Size[1]))
       )
   }
   
-  if(nrow(downregulated_df) > 0) {
+  if (nrow(downregulated_df) > 0) {
     gt_table <- gt_table %>%
       tab_row_group(
-        label = paste0("Downregulated n = ",  downregulated_df$Sample_Size[1]),
+        label = paste0("Downregulated n = ", downregulated_df$Sample_Size[1]),
         rows = (nrow(regulated_df) + nrow(upregulated_df) + 1):(nrow(regulated_df) + nrow(upregulated_df) + nrow(downregulated_df))
       ) %>%
       tab_style(
         style = list(
-          cell_fill(color = "#FFC0CB") # Light pink color
+          cell_fill(color = "#FFC0CB")  # Light pink color
         ),
         locations = cells_row_groups(groups = paste0("Downregulated n = ", downregulated_df$Sample_Size[1]))
       )
