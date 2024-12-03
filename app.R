@@ -534,7 +534,7 @@ ui <- semanticPage(
               list(
                 menu = "Interactive Volcano Plot",
                 content = div(
-                  plotlyOutput("volcano_plotly", width = "100%", height = "600px")
+                  plotlyOutput("volcano_plotly", width = "800px", height = "740px")
                 )
               )
             )
