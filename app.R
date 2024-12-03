@@ -484,7 +484,7 @@ ui <- semanticPage(
                         
                               segment(
                                 class = "basic",
-                                plotOutput("volcano_plot", height = "600px")
+                                plotOutput("volcano_plot",width = "100%", height = "600px")
                               ),
                               segment(
                                 class = "basic",
