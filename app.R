@@ -375,7 +375,7 @@ ui <- semanticPage(
           # Data Upload Card
           div(class = "ui raised segment",
               header(title = "Upload your data", description = "", icon = "upload"),
-              div(class = "ui blue ribbon label", "Upload a CSV or TSV file"),
+              div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
               
               div(class = "ui small input",
                   fileInput("file1", 
@@ -426,7 +426,7 @@ ui <- semanticPage(
           div( class = "ui raised segment",
           # ribbon
           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
-          div(class = "ui blue ribbon label", "Customize p value adjustment"),
+          div(class = "ui grey ribbon label", "Customize p value adjustment"),
           
           dropdown_input("adj",
                          choices = c("None",
@@ -440,7 +440,7 @@ ui <- semanticPage(
           numericInput("alpha", "Significance Threshold", value = 0.05),
          
           # Plot Options Card
-          div(class = "ui blue ribbon label", "Customize annotations"),
+          div(class = "ui grey ribbon label", "Customize annotations"),
           toggle("color_highlight", "Highlight Significant Hits", FALSE),
           uiOutput("color_highlight_ui"),
           toggle("show_go_category", "Visualize GO Categories", FALSE),
@@ -451,9 +451,9 @@ ui <- semanticPage(
           toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
           toggle("select_custom_labels", "Label your choosen genes", FALSE),
           uiOutput("custom_gene_labels_ui"),
-          div(class = "ui blue ribbon label", "Customize plot title"),
+          div(class = "ui grey ribbon label", "Customize plot title"),
           textInput("plot_title", "", "Vivid Volcano"),
-          div(class = "ui black ribbon label", "Customize X -axis label"),
+          div(class = "ui grey ribbon label", "Customize X -axis label"),
           textInput("x_axis_label", "", 
                     "Log2 Fold Change (Condition X vs. Condition Y)"),
           actionButton("draw_volcano", "Draw Volcano Plot", 
@@ -523,7 +523,7 @@ ui <- semanticPage(
               list(
                 menu = "Interactive Volcano Plot",
                 content = div(
-                  plotlyOutput("volcano_plotly", height = "350px")
+                  plotlyOutput("volcano_plotly", width = "100%", height = "600px")
                 )
               )
             )
@@ -567,7 +567,7 @@ server <- function(input, output, session) {
       if (is.null(df)) return(NULL)
       
       div(class = "ui raised segment",
-          div(class = "ui blue ribbon label", "Select Data"),
+          div(class = "ui grey ribbon label", "Select Data"),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
           selectInput("annotation_col", "Select human gene symbols column", choices = names(df))
@@ -611,7 +611,7 @@ server <- function(input, output, session) {
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Browse 18777 unique GO categories", choices = NULL, multiple = TRUE)
+      selectizeInput("go_category", "Select from 18777 unique GO categories", choices = NULL, multiple = TRUE)
     }
   })
   
@@ -705,13 +705,13 @@ server <- function(input, output, session) {
         )
       })
     } else {
-      # Clear or hide the GO enrichment table when the toggle is off
+     # Clear or hide the GO enrichment table when the toggle is off
       output$go_enrichment_gt <- render_gt({
-        # You can return an empty table or a message
-        gt(data.frame(Message = "GO Enrichment analysis is not selected."))
-      })
+     
+     gt(data.frame(Enrichment = "Select visualise GO categories to see the result"))
+     })
     }
-    
+
     
     
     # Draw the volcano plot
@@ -883,10 +883,43 @@ server <- function(input, output, session) {
       req(volcano_plot_rv())
       print(volcano_plot_rv()) 
     })
+    cat("\n=== Debug Information for Volcano Plot ===\n")
+    cat("1. Object Class:", class(volcano_plot), "\n")
+    cat("2. Structure:\n")
+    print(str(volcano_plot))
+    cat("3. Plot Layers:", length(volcano_plot$layers), "\n")
+    cat("4. Plot Data Dimensions:", dim(volcano_plot$data), "\n")
+    cat("================================\n")
+    
     
     output$volcano_plotly <- renderPlotly({ 
       req(volcano_plot_rv())
-      ggplotly(volcano_plot_rv(), tooltip = "text") 
+      
+      # Convert to plotly with proper layout
+      p <- ggplotly(volcano_plot_rv(), tooltip = "text") %>%
+        layout(
+          autosize = TRUE,
+          margin = list(l = 50, r = 50, b = 50, t = 50),
+          showlegend = TRUE
+        ) %>%
+        config(
+          displayModeBar = TRUE,
+          displaylogo = FALSE,
+          responsive = TRUE
+        )
+      
+      # Add try-catch for error handling
+      tryCatch({
+        return(p)
+      }, error = function(e) {
+        # Log the error and return a blank plot
+        message("Error in plotly rendering: ", e$message)
+        plot_ly() %>% 
+          add_annotations(
+            text = "Unable to render interactive plot. Please check your inputs.",
+            showarrow = FALSE
+          )
+      })
     })
     
     
