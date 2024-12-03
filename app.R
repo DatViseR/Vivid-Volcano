@@ -190,8 +190,13 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       layer$aes_params$size <- new_size
     }
     
-    # Handle text annotations
-    if(inherits(layer$geom, "GeomText") || inherits(layer$geom, "GeomTextRepel")) {
+  
+ 
+      # Handle text and label annotations
+      if (inherits(layer$geom, "GeomText") ||
+          inherits(layer$geom, "GeomTextRepel") ||
+          inherits(layer$geom, "GeomLabelRepel") ||
+          inherits(layer$geom, "GeomLabel"))  {
       # Check if this is an annotation text (positioned at Inf,Inf)
       is_annotation <- all(
         !is.null(layer$data),
