@@ -150,21 +150,29 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   width_in <- width_mm * 0.0393701
   height_in <- height_mm * 0.0393701
   
-  # Define fixed base sizes for different plot elements
-  title_size <- 12
-  text_size <- 8
-  
   # Define fixed point sizes for different plot dimensions
   point_sizes <- list(
     "85x85" = list(base = 0.6, highlight = 0.9, annotation = 1.5),
     "114x114" = list(base = 0.8, highlight = 1.2, annotation = 2),
     "114x65" = list(base = 0.7, highlight = 1.05, annotation = 1.75),
-    "174x174" = list(base = 1, highlight = 1.5,annotation = 2.5),
-    "174x98" = list(base = 0.9, highlight = 1.35, annotation = 2.25)) 
+    "174x174" = list(base = 1, highlight = 1.5, annotation = 2.5),
+    "174x98" = list(base = 0.9, highlight = 1.35, annotation = 2.25)
+  )
   
   # Determine which size configuration to use
   plot_key <- paste0(width_mm, "x", height_mm)
   point_size <- point_sizes[[plot_key]] %||% point_sizes[["85x85"]]
+  
+  # Adjust text sizes and margins based on plot dimensions
+  if (plot_key %in% c("85x85", "114x65")) {
+    title_size <- 10
+    text_size <- 6
+    plot_margin <- margin(t = 10, r = 10, b = 5, l = 5, unit = "pt")
+  } else {
+    title_size <- 12
+    text_size <- 8
+    plot_margin <- margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")
+  }
   
   # Modify the plot with publication-ready settings
   publication_plot <- base_plot +
@@ -175,29 +183,28 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       axis.text = element_text(size = text_size),
       legend.text = element_text(size = text_size),
       legend.title = element_text(size = text_size),
-      plot.margin = margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")
+      plot.margin = plot_margin
     )
   
   # Update all layers
-  for(i in seq_along(publication_plot$layers)) {
+  for (i in seq_along(publication_plot$layers)) {
     layer <- publication_plot$layers[[i]]
     
     # Handle point geometries
-    if(inherits(layer$geom, "GeomPoint")) {
+    if (inherits(layer$geom, "GeomPoint")) {
       is_highlight <- !is.null(layer$aes_params$color) &&
         layer$aes_params$color %in% c("darkgreen", "red")
-      new_size <- if(is_highlight) point_size$highlight else point_size$base
+      new_size <- if (is_highlight) point_size$highlight else point_size$base
       layer$aes_params$size <- new_size
     }
     
-  
- 
-      # Handle text and label annotations
-      if (inherits(layer$geom, "GeomText") ||
-          inherits(layer$geom, "GeomTextRepel") ||
-          inherits(layer$geom, "GeomLabelRepel") ||
-          inherits(layer$geom, "GeomLabel"))  {
-      # Check if this is an annotation text (positioned at Inf,Inf)
+    # Handle text and label annotations
+    if (inherits(layer$geom, "GeomText") ||
+        inherits(layer$geom, "GeomTextRepel") ||
+        inherits(layer$geom, "GeomLabelRepel") ||
+        inherits(layer$geom, "GeomLabel")) {
+      
+      # Check if this is an annotation text (positioned at Inf, Inf)
       is_annotation <- all(
         !is.null(layer$data),
         "x" %in% names(layer$data),
@@ -205,11 +212,11 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
         all(is.infinite(layer$data$x) & is.infinite(layer$data$y))
       )
       
-      if(is_annotation) {
-        # This is an annotation text (upregulated/downregulated counts or GO details)
+      if (is_annotation) {
+        # This is an annotation (e.g., counts or GO details)
         layer$aes_params$size <- point_size$annotation
       } else {
-        # This is a regular text label (gene names)
+        # This is a regular text label (e.g., gene names)
         layer$aes_params$size <- text_size * 0.25
       }
     }
