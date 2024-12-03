@@ -348,6 +348,7 @@ ui <- semanticPage(
           width = 3,
           # Data Upload Card
           div(class = "ui raised segment",
+              header(title = "Upload your data", description = "", icon = "upload"),
               div(class = "ui blue ribbon label", "Upload a CSV or TSV file"),
               
               div(class = "ui small input",
@@ -396,17 +397,22 @@ ui <- semanticPage(
     
           
            # Analysis Options Card
-          h3("P value adjustment options"),
+          div( class = "ui raised segment",
+          # ribbon
+          header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
+          div(class = "ui blue ribbon label", "Customize p value adjustment"),
           
           dropdown_input("adj",
-                         choices = c(None = "none",
-                                     Bonferroni = "bonferroni",
-                                     Hochberg = "hochberg",
-                                     `Benjamini-Hochberg` = "BH",
-                                     `Benjamini-Yekutieli` = "BY"
-                         ), value = "BH"),
+                         choices = c("None",
+                                     "Bonferroni",
+                                      "Hochberg",
+                                     "Benjamini-Hochberg",
+                                     "Benjamini-Yekutieli"),
+                        
+                         choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
+                                                  value = "BH"),
           numericInput("alpha", "Significance Threshold", value = 0.05),
-          
+         
           # Plot Options Card
           h3("Plot Options"),
           checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
@@ -423,7 +429,7 @@ ui <- semanticPage(
           actionButton("draw_volcano", "Draw Volcano Plot", 
                        class = "ui primary fluid button")
         ),
-      
+        ),
         
       main_panel(
         width = 12,
