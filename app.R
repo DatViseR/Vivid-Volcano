@@ -591,7 +591,7 @@ server <- function(input, output, session) {
       semantic_DT(
         data.frame(df, check.names = FALSE),  # Convert to data.frame if not already
         options = list(
-          pageLength = 1,
+          pageLength = 3,
           dom = 'lftp',
           lengthMenu = list(c(1, 3, 5, 10), c('1','3', '5', '10')),
           rownames = FALSE,
@@ -896,8 +896,9 @@ server <- function(input, output, session) {
     })
     cat("\n=== Debug Information for Volcano Plot ===\n")
     cat("1. Object Class:", class(volcano_plot), "\n")
-    cat("2. Structure:\n")
-    print(str(volcano_plot))
+    # cat("2. Structure:\n")
+    # print(str(volcano_plot))
+    cat("2. structure of the plot: output disabled \n")
     cat("3. Plot Layers:", length(volcano_plot$layers), "\n")
     cat("4. Plot Data Dimensions:", dim(volcano_plot$data), "\n")
     cat("================================\n")
