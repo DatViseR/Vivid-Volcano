@@ -414,20 +414,25 @@ ui <- semanticPage(
           numericInput("alpha", "Significance Threshold", value = 0.05),
          
           # Plot Options Card
-          h3("Plot Options"),
-          checkboxInput("color_highlight", "Highlight Significant Hits", FALSE),
+          div(class = "ui blue ribbon label", "Customize annotations"),
+          toggle("color_highlight", "Highlight Significant Hits", FALSE),
           uiOutput("color_highlight_ui"),
-          checkboxInput("show_go_category", "Visualize GO Categories", FALSE),
+          toggle("show_go_category", "Visualize GO Categories", FALSE),
           uiOutput("go_category_ui"),
           uiOutput("color_picker_ui"),
-          numericInput("num_labels", "Number of Labels (0-100)", 
+          numericInput("num_labels", "Number of Gene Labels (0-100)", 
                        value = 10, min = 0, max = 100),
-          checkboxInput("trim_gene_names", "Trim Gene Names to First Occurrence", FALSE),
-          textInput("plot_title", "Plot Title", "Vivid Volcano"),
-          textInput("x_axis_label", "X Axis Label", 
+          toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
+          toggle("select_custom_labels", "Label your choosen genes", FALSE),
+          uiOutput("custom_gene_labels_ui"),
+          div(class = "ui blue ribbon label", "Customize plot title"),
+          textInput("plot_title", "", "Vivid Volcano"),
+          div(class = "ui black ribbon label", "Customize X -axis label"),
+          textInput("x_axis_label", "", 
                     "Log2 Fold Change (Condition X vs. Condition Y)"),
           actionButton("draw_volcano", "Draw Volcano Plot", 
-                       class = "ui primary fluid button")
+                       class = "ui primary fluid button", 
+                       icon = icon("chart line icon"))
         ),
         ),
         
