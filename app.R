@@ -361,7 +361,10 @@ ui <- semanticPage(
                   div(class = "three fields",
                       # Header Checkbox
                       div(class = "field",
-                          toggle("header", "Header", is_marked = TRUE)
+                          div(style = "display: flex; flex-direction: column; gap: 5px;",
+                              div(style = "font-weight: bold;", "Header"),  # Styled label
+                              toggle("header", "", is_marked = TRUE)
+                          )
                       ),
                       # Separator Radio Buttons
                       div(class = "field",
@@ -388,12 +391,13 @@ ui <- semanticPage(
           ),
           
           
-          
+               uiOutput("column_select_ui"),
      
+    
           
-          # Analysis Options Card
+           # Analysis Options Card
           h3("P value adjustment options"),
-          uiOutput("column_select_ui"),
+          
           dropdown_input("adj",
                          choices = c(None = "none",
                                      Bonferroni = "bonferroni",
@@ -524,11 +528,12 @@ server <- function(input, output, session) {
     
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
-      colnames <- names(df)
-      tagList(
-        selectInput("pvalue_col", "Select p-value column", choices = colnames),
-        selectInput("fold_col", "Select regulation column - log2(fold)", choices = colnames),
-        selectInput("annotation_col", "Select human gene symbols column", choices = colnames)
+      
+      div(class = "ui raised segment",
+          div(class = "ui blue ribbon label", "Select Data"),
+          selectInput("pvalue_col", "Select p-value column", choices = names(df)),
+          selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
+          selectInput("annotation_col", "Select human gene symbols column", choices = names(df))
       )
     })
     
