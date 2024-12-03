@@ -356,57 +356,29 @@ ui <- semanticPage(
                             accept = c(".csv", ".tsv"))
               ),
               
-              # Form layout for checkboxes and radio buttons
+              # Form layout for checkbox and radio buttons
               div(class = "ui form",
                   div(class = "three fields",
                       # Header Checkbox
                       div(class = "field",
-                          div(class = "ui checkbox",
-                              tags$input(id = "header", type = "checkbox", checked = TRUE),
-                              tags$label("Header")
-                          )
+                          toggle("header", "Header", is_marked = TRUE)
                       ),
                       # Separator Radio Buttons
                       div(class = "field",
-                          div(class = "grouped fields",
-                              tags$label("Separator"),
-                              div(class = "field",
-                                  tags$div(class = "ui radio checkbox",
-                                           tags$input(type = "radio", name = "sep", value = ",", checked = "checked"),
-                                           tags$label("Comma")
-                                  )
-                              ),
-                              div(class = "field",
-                                  tags$div(class = "ui radio checkbox",
-                                           tags$input(type = "radio", name = "sep", value = ";"),
-                                           tags$label("Semicolon")
-                                  )
-                              ),
-                              div(class = "field",
-                                  tags$div(class = "ui radio checkbox",
-                                           tags$input(type = "radio", name = "sep", value = "\t"),
-                                           tags$label("Tab")
-                                  )
-                              )
-                          )
+                          multiple_radio("sep", "Separator", 
+                                         choices = list("Comma" , 
+                                                        "Semicolon", 
+                                                        "Tab"), 
+                                         choices_value = c(",", ";", "\t"),
+                                         selected = ",")
                       ),
                       # Decimal Point Radio Buttons
                       div(class = "field",
-                          div(class = "grouped fields",
-                              tags$label("Decimal Point"),
-                              div(class = "field",
-                                  tags$div(class = "ui radio checkbox",
-                                           tags$input(type = "radio", name = "dec", value = ".", checked = "checked"),
-                                           tags$label("Dot")
-                                  )
-                              ),
-                              div(class = "field",
-                                  tags$div(class = "ui radio checkbox",
-                                           tags$input(type = "radio", name = "dec", value = ","),
-                                           tags$label("Comma")
-                                  )
-                              )
-                          )
+                          multiple_radio("dec", "Decimal Point", 
+                                         choices = list("Dot" , 
+                                                        "Comma")
+                                         , choices_value = c(".", ","),
+                                         selected = ".")
                       )
                   )
               ),
@@ -414,6 +386,8 @@ ui <- semanticPage(
               actionButton("upload", label = HTML('<i class="upload icon"></i> Upload'), 
                            class = "ui primary button")
           ),
+          
+          
           
      
           
@@ -542,30 +516,11 @@ server <- function(input, output, session) {
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
-    
-    # Get values from the custom HTML inputs
-    header_value <- input$header   # Checkbox input should still work with default Shiny binding
-    sep_value <- input$sep         # Radio buttons for separator
-    dec_value <- input$dec         # Radio buttons for decimal point
-    
-    # Ensure these values are captured correctly
-    if (is.null(sep_value)) sep_value <- ","
-    if (is.null(dec_value)) dec_value <- "."
-    
-    # Read the uploaded file
-    df <- read_delim(in_file$datapath, 
-                     delim = sep_value, 
-                     col_names = header_value, 
-                     locale = locale(decimal_mark = dec_value))
-    
-    # Save the dataframe to a reactive object
+    df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
-    
-    # Show structure of the uploaded dataset
-    cat("\nThe structure of the uploaded dataset is:\n")
+    #show structure of the uploaded dataset
+    cat("\n The structure of the uploaded dataset is: \n")
     str(df)
-  })
-  
     
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
