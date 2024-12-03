@@ -24,6 +24,20 @@ perform_hypergeometric_test <- function(population_size, success_population_size
 }
 
 calculate_go_enrichment <- function(genes, go_categories, go_data) {
+  # Clean gene names
+  genes <- unlist(strsplit(genes, "[;|,\\s]+"))  # Split on semicolons, commas, or whitespace
+  genes <- trimws(genes)                         # Remove leading/trailing whitespace
+  genes <- genes[genes != ""]                    # Remove empty strings
+  genes <- toupper(genes)                        # Convert to uppercase
+  genes <- gsub("[^A-Z0-9]", "", genes)          # Remove any remaining special characters
+  genes <- unique(genes)                         # Remove duplicates
+  
+  # Check if the gene list is empty
+  if (length(genes) == 0) {
+    warning("No valid genes provided for GO enrichment.")
+    return(data.frame())  # Return an empty data frame
+  }
+  
   cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
   enrichment_results <- lapply(go_categories, function(go_category) {
     go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)%>% toupper()%>% unique()
@@ -63,13 +77,25 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   #This is only adjusting pvalue for the p values for the picked categories - i need to change this 
   # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
   
-  enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
+  enrichment_results <- bind_rows(enrichment_results)
   
-  cat("Enrichment results:\n")
-  print(enrichment_results)
+  # Check if enrichment_results is empty
+  if (nrow(enrichment_results) == 0) {
+    warning("No enrichment results found. Returning an empty data frame.")
+    return(data.frame(GO_Category = character(),
+                      P_Value = numeric(),
+                      Population_Size = numeric(),
+                      Success_Population_Size = numeric(),
+                      Sample_Size = numeric(),
+                      Sample_Success_Size = numeric()))
+  }
+  
+  # Adjust p-values
+  enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
   
   return(enrichment_results)
 }
+
 
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
   cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
@@ -632,6 +658,22 @@ server <- function(input, output, session) {
     print(str(chosen_go()))  # This will help verify that categories are selected correctly
   })
   
+  
+# Dynamic UI for custom gene labels input
+  output$custom_gene_labels_ui <- renderUI({
+    if (input$select_custom_labels) {
+      req(uploaded_df(), input$annotation_col)
+      gene_names <- unique(uploaded_df()[[input$annotation_col]])
+      selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE)
+    }
+  })
+  
+  # Reactive expression to track chosen custom gene labels
+  custom_genes <- reactive({
+    input$custom_gene_labels
+  })
+  
+  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
@@ -641,52 +683,34 @@ server <- function(input, output, session) {
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     
     # Adjust p-values
-    pvalues <- as.numeric(df[[input$pvalue_col]])
+    pvalues <- df[[input$pvalue_col]]
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
     
-    # Render the adjusted p-values summary
-    output$pvalue_distribution <- renderPrint({ 
-      req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Summary of the adjusted p-values: \n\n")
-      summary(adjusted_pvalues)
-    })
-    
-    # Render the significant genes/proteins
-    output$significant_genes <- renderPrint({
-      req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Significantly regulated genes/proteins: \n\n")
-      significant_genes <- df %>% filter(adjusted_pvalues < input$alpha)
-      non_significant_genes <- df %>% filter(adjusted_pvalues >= input$alpha)
-      cat("Number of significant genes/proteins: ", nrow(significant_genes), "\n")
-      cat("Number of non-significant genes/proteins: ", nrow(non_significant_genes), "\n")
-    })
-    
-    # Render the final data frame structure
-    output$df_structure <- renderPrint({
-      req(uploaded_df())  # Ensure output recalculates when df updates
-      cat("Final Data Frame Structure: \n")
-      updated_df <- uploaded_df()  # Re-fetch the updated dataframe
-      str(updated_df)  # Reflect the updated dataframe
-    })
-    
-    # Calculate GO tag enrichment
-    # modify so the arguments are described in the function
-    enrichment_results_list <- calculate_go_enrichment_table(df, input$annotation_col, input$go_category, GO, input$alpha, input$fold_col)
-    
-    cat("Structure of enrichment_results_list:\n")
-    str(enrichment_results_list)
-    
-    # Render the GO enrichment table
-    output$go_enrichment_gt <- render_gt({
-      req(enrichment_results_list)
-      build_gt_table(
-        enrichment_results_list,
-        upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
-        downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+    # Only perform GO enrichment calculations if the toggle is on
+    if (input$show_go_category) {
+      # Calculate GO enrichment
+      enrichment_results_list <- calculate_go_enrichment_table(
+        df, input$annotation_col, chosen_go(), GO, input$alpha, input$fold_col
       )
-    })
+      
+      # Render the GO enrichment table
+      output$go_enrichment_gt <- render_gt({
+        req(enrichment_results_list)
+        build_gt_table(
+          enrichment_results_list,
+          upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
+          downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+        )
+      })
+    } else {
+      # Clear or hide the GO enrichment table when the toggle is off
+      output$go_enrichment_gt <- render_gt({
+        # You can return an empty table or a message
+        gt(data.frame(Message = "GO Enrichment analysis is not selected."))
+      })
+    }
     
     
     
@@ -827,6 +851,32 @@ server <- function(input, output, session) {
         scale_color_identity()  # Use identity scale to apply the colors directly
     }
     
+    # NEW: Add custom gene labels if feature is enabled
+    if (input$select_custom_labels && !is.null(custom_genes())) {
+      custom_label_data <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes())
+      
+      # Use trimmed labels if applicable
+      if (input$trim_gene_names) {
+        custom_label_data$trimmed_labels <- sapply(custom_label_data[[input$annotation_col]], function(x) {
+          strsplit(as.character(x), "[,; :]+")[[1]][1]
+        })
+      } else {
+        custom_label_data$trimmed_labels <- custom_label_data[[input$annotation_col]]
+      }
+      
+      volcano_plot <- volcano_plot +
+        geom_label_repel(
+          data = custom_label_data,
+          aes(label = trimmed_labels),
+          size = 4,
+          color = "black",
+          fill = "white",
+          max.overlaps = Inf,
+          nudge_y = 0.3,
+          alpha = 0.7
+        )
+    }
+    
     volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
     
     output$volcano_plot <- renderPlot({ 
@@ -838,6 +888,7 @@ server <- function(input, output, session) {
       req(volcano_plot_rv())
       ggplotly(volcano_plot_rv(), tooltip = "text") 
     })
+    
     
 
     output$download_plot1 <- downloadHandler(
