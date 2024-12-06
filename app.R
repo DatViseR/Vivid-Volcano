@@ -393,7 +393,7 @@ ui <- semanticPage(
       # Main layout using sidebar
       sidebar_layout(
         # Sidebar panel with controls
-        sidebar_panel(
+        sidebar_panel(class = "custom-sidebar",
           width = 3,
           # Data Upload Card
           div(class = "ui raised segment",
