@@ -364,7 +364,9 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 ui <- semanticPage(
   # Include custom CSS
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+    tags$link(rel = "stylesheet", 
+              type = "text/css", 
+              href = paste0("custom.css?v=", Sys.time()))
   ),
   
   segment(class = "navbar",
@@ -451,7 +453,7 @@ ui <- semanticPage(
           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
           div(class = "ui grey ribbon label", "Customize p value adjustment"),
           
-          dropdown_input("adj",
+          dropdown_input("adj", "Adjustment Method",
                          choices = c("None",
                                      "Bonferroni",
                                       "Hochberg",
