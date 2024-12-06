@@ -401,12 +401,8 @@ ui <- semanticPage(
           div(class = "ui raised segment",
               header(title = "Upload your data", description = "", icon = "upload"),
               div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
-              
-              div(class = "ui small input",
-                  fileInput("file1", 
-                            label = NULL, 
-                            accept = c(".csv", ".tsv"))
-              ),
+              fileInput("file1",  label = NULL, 
+                            accept = c(".csv", ".tsv")),
               
               # Form layout for checkbox and radio buttons
               div(class = "ui form",
@@ -453,7 +449,7 @@ ui <- semanticPage(
           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
           div(class = "ui grey ribbon label", "Customize p value adjustment"),
           
-          dropdown_input("adj", "Adjustment Method",
+          dropdown_input("adj",
                          choices = c("None",
                                      "Bonferroni",
                                       "Hochberg",
