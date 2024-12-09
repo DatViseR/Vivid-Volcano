@@ -105,136 +105,156 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 /* Custom styling for Data Upload section */
 
 
-
-
-
 /* Base segment style */
 div.ui.raised.segment {
     background: linear-gradient(to bottom, #f8f9fa, #e9ecef) !important;
     border: 1px solid #dee2e6 !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-    padding: 0.8em !important;  /* Reduced overall padding */
-    margin-bottom: 1em !important;
+  
 }
 
 
 
 /* Compress the three fields layout */
 .ui.form .three.fields {
-    margin: 0 !important;
-    padding: 0.2em 0 !important;
+    
 }
 
 .ui.form .three.fields .field {
-    padding: 0 0.2em !important;
+   
 }
 
 /* Adjust toggle and radio spacing */
 .ui.toggle.checkbox {
-    margin: 0.1em 0 !important;
+   
 }
 
 .ui.radio.checkbox {
-    margin: 0.2em 0 !important;
-    display: block !important;
+ 
 }
 
 /* Header and label adjustments */
 .ui.raised.segment .header {
-    margin-bottom: 0.4em !important;
-    padding-bottom: 0.2em !important;
+
 }
 
 .ui.grey.ribbon.label {
-    margin: 0.3em 0 !important;
+    
 }
 
 /* Compress form elements */
 .ui.form .field {
-    margin-bottom: 0.3em !important;
+   
 }
 
 /* Upload button spacing */
 .ui.primary.button {
-    margin-top: 0.5em !important;
-    margin-bottom: 0.2em !important;
+  
 }
 
 /* Specific adjustments for the upload segment */
 div.ui.raised.segment:first-child {
-    padding: 0.6em !important;
+
 }
 
 /* Fix flex layout for header toggle */
 div[style*="display: flex; flex-direction: column"] {
-    gap: 2px !important;
+    
 }
 
 /* Make checkboxes more compact */
 .ui.checkbox {
-    padding: 0.2em 0 !important;
+    
 }
 
 /* Adjust field labels */
 .ui.form .field > label {
-    margin-bottom: 0.2em !important;
+   
 }
 
 /* Optional: Add hover effect */
 div.ui.raised.segment:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
     transition: box-shadow 0.3s ease;
+   
 }
 
 /* Add padding inside segments */
 .ui.raised.segment {
-    padding: 1em !important;
-    margin-bottom: 1em !important;
+   
 }
 
 /* Add spacing between elements inside segments */
-.ui.raised.segment > * {
-    margin-bottom: 1rem !important;
+.ui.raised.segment:not(:first-of-type) > * {
+    margin-bottom: 1rem;
 }
+
+.ui.raised.segment:first-of-type > * {
+  }
+
+
+
+.ui.raised.segment:first-of-type .ui.grey.ribbon.label {
+  margin-bottom: 0.5rem;
+ }
+ 
+ 
+ 
+ 
+ 
+.ui.raised.segment:first-of-type .form{
+  
+    }
 
 /* Specific spacing for form elements */
 .ui.form .field {
-    margin-bottom: 0.5rem !important;
+    
 }
 
 /* Add spacing after headers */
 .ui.raised.segment .header {
-    margin-bottom: 0.5rem !important;
+    
 }
 
 /* Add spacing after ribbon labels */
 .ui.raised.segment .ribbon.label {
-    margin-bottom: 0.4rem !important;
+ margin-right: 1rem;
+   
 }
 
 /* Add spacing between inputs */
-.ui.raised.segment .ui.input,
+
 .ui.raised.segment .ui.dropdown,
 .ui.raised.segment .numeric-input,
 .ui.raised.segment .text-input {
-    margin-bottom: 0.5rem !important;
+
 }
 
 /* Add spacing for toggle switches */
 .ui.raised.segment .ui.toggle.checkbox {
-    margin-bottom: 1rem !important;
-    display: block !important;
+
 }
 
 /* Add spacing for action buttons */
 .ui.raised.segment .ui.button {
-    margin-top: 0.2rem !important;
+
 }
 
 /* Adjust spacing for grouped elements */
 .ui.raised.segment .fields {
-    margin-bottom: 0.5rem !important;
+    
 }
 
+/**  COLOR PICKERS WERE SHOWING ALPHA CHANNEL, SO I made them narrower */
 
+ .ui.raised.segment .colourpicker {
+            width: 150px !important;
+        }
+        .ui.raised.segment .colourpicker input {
+            width: 100% !important;
+        }
+        .ui.raised.segment .colourpicker .colourpicker-input-container .colourpicker-swatch {
+            width: 20px !important;
+            height: 20px !important;
+        }
 

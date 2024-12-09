@@ -401,8 +401,9 @@ ui <- semanticPage(
           div(class = "ui raised segment",
               header(title = "Upload your data", description = "", icon = "upload"),
               div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
-              fileInput("file1",  label = NULL, 
-                            accept = c(".csv", ".tsv")),
+              div(class = "ui file input", 
+                  file_input("file1", label = NULL, accept = c(".csv", ".tsv"))
+              ),
               
               # Form layout for checkbox and radio buttons
               div(class = "ui form",
@@ -416,7 +417,7 @@ ui <- semanticPage(
                       ),
                       # Separator Radio Buttons
                       div(class = "field",
-                          multiple_radio("sep", "Separator", 
+                          multiple_radio(class = "radio", "sep", "Separator", 
                                          choices = list("Comma" , 
                                                         "Semicolon", 
                                                         "Tab"), 
