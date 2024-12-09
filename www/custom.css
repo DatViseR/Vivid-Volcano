@@ -248,7 +248,7 @@ div.ui.raised.segment:hover {
 /**  COLOR PICKERS WERE SHOWING ALPHA CHANNEL, SO I made them narrower */
 
  .ui.raised.segment .colourpicker {
-            width: 150px !important;
+            width: 100px !important;
         }
         .ui.raised.segment .colourpicker input {
             width: 100% !important;
