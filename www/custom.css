@@ -106,11 +106,10 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 
 
 /* Base segment style */
-div.ui.raised.segment {
-    background: linear-gradient(to bottom, #f8f9fa, #e9ecef) !important;
-    border: 1px solid #dee2e6 !important;
+div.ui.raised.segment:nth-child(-n+3) {
+    background: #ededed !important;
+    
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-  
 }
 
 
@@ -271,4 +270,12 @@ div.ui.raised.segment:hover {
         white-space: nowrap;
         margin: 0 !important;
     }
+
+/************* Results section segment ********************************/
+
+.ui.segment.placeholder {
+  background-color: linear-gradient(to bottom, #f8f9fa, #e9ecef) !important;
+  padding: 2em !important;
+}
+
 

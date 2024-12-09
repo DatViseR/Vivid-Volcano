@@ -492,9 +492,9 @@ ui <- semanticPage(
           div(class = "ui grey ribbon label", "Dataset Preview"),
           semantic_DTOutput("dataset_summary", height = "auto")
         ),
-        header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
         segment(
-          class = "raised",
+          class = "placeholder",
+          header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
           
           tabset(
             tabs = list(
