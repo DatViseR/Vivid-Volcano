@@ -479,7 +479,7 @@ ui <- semanticPage(
           textInput("x_axis_label", "", 
                     "Log2 Fold Change (Condition X vs. Condition Y)"),
           actionButton("draw_volcano", "Draw Volcano Plot", 
-                       class = "ui primary fluid button", 
+                       class = "ui primary button", 
                        icon = icon("chart line icon"))
         ),
         ),

@@ -258,3 +258,17 @@ div.ui.raised.segment:hover {
             height: 20px !important;
         }
 
+/** DOWNLOADERS BUTTONS*/
+.ui.tiny.fluid.buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .ui.tiny.fluid.buttons .button {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        margin: 0 !important;
+    }
+
