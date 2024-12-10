@@ -353,6 +353,52 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
   return(gt_table)
 }
 
+#This function creates GT tables for each GO category with columns for genes in the GO category,
+#downregulated genes, and upregulated genes, with detected genes in bold.
+
+build_gt_gene_lists <- function(go_data, regulated_genes_df, annotation_col, fold_col, alpha) {
+  gt_tables <- list()
+  
+  for (go in unique(go_data$name)) {
+    go_genes <- go_data %>% filter(name == go) %>% pull(gene) %>% unique()
+    
+    # Detected genes in bold
+    detected_genes <- sapply(go_genes, function(g) ifelse(g %in% regulated_genes_df[[annotation_col]], paste0("**", g, "**"), g))
+    
+    # Downregulated genes
+    downregulated_genes <- regulated_genes_df %>%
+      filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0 & !!sym(annotation_col) %in% go_genes) %>%
+      pull(!!sym(annotation_col))
+    
+    # Upregulated genes
+    upregulated_genes <- regulated_genes_df %>%
+      filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0 & !!sym(annotation_col) %in% go_genes) %>%
+      pull(!!sym(annotation_col))
+    
+    gt_table <- gt(data.frame(
+      Genes = detected_genes,
+      Downregulated = downregulated_genes,
+      Upregulated = upregulated_genes
+    )) %>%
+      tab_header(
+        title = paste("GO Category:", go)
+      ) %>%
+      cols_label(
+        Genes = "Genes in GO",
+        Downregulated = "Downregulated Genes",
+        Upregulated = "Upregulated Genes"
+      ) %>%
+      fmt_markdown(columns = vars(Genes))
+    
+    gt_tables[[go]] <- gt_table
+  }
+  
+  return(gt_tables)
+}
+
+
+
+
 
 
 
@@ -504,33 +550,26 @@ ui <- semanticPage(
                   div(class = "ui two column grid",
                       # First column (50%) - Plot and Downloads
                       div(class = "column",
-                        
-                              segment(
-                                class = "basic",
-                                plotOutput("volcano_plot",width = "100%", height = "600px")
-                              ),
-                              segment(
-                                class = "basic",
-                                h4(class = "ui header", "Download Plots"),
-                                div(
-                                  class = "ui tiny fluid buttons",
-                                  downloadButton("download_plot1", "85x85mm (1 col)", 
-                                                 class = "ui button"),
-                                  downloadButton("download_plot2", "114x114mm (1.5 col)", 
-                                                 class = "ui button"),
-                                  downloadButton("download_plot3", "114x65mm (landscape)", 
-                                                 class = "ui button")
-                                ),
-                                div(
-                                  style = "margin-top: 10px;",
-                                  class = "ui tiny fluid buttons",
-                                  downloadButton("download_plot4", "174x174mm (square)", 
-                                                 class = "ui button"),
-                                  downloadButton("download_plot5", "174x98mm (landscape)", 
-                                                 class = "ui button")
-                                )
-                              )
-                          
+                          segment(
+                            class = "basic",
+                            plotOutput("volcano_plot", width = "100%", height = "600px")
+                          ),
+                          segment(
+                            class = "basic",
+                            h4(class = "ui header", "Download Plots"),
+                            div(
+                              class = "ui tiny fluid buttons",
+                              downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
+                              downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
+                              downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
+                            ),
+                            div(
+                              style = "margin-top: 10px;",
+                              class = "ui tiny fluid buttons",
+                              downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
+                              downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
+                            )
+                          )
                       ),
                       # Second column (50%) - GO Table
                       div(class = "column",
@@ -548,15 +587,15 @@ ui <- semanticPage(
                 content = div(
                   plotlyOutput("volcano_plotly", width = "800px", height = "740px")
                 )
-              )
+              ),
+              list(
+                menu = "GO Category Details",
+                content = div(
+                  gt_output("go_gene_list_gt") 
+                )
+              )        
             )
           )
-        ),
-        # Placeholder segment for GO category details
-        segment(
-          class = "placeholder",
-          header(title = "Detected and regulated genes from the choosen GO", description = "", icon = "fa-solid fa-square-poll-vertical"),
-          uiOutput("go_details_ui")
         )
       )
       )
@@ -741,35 +780,6 @@ server <- function(input, output, session) {
      })
     }
 
-     output$go_details_ui <- renderUI({
-      req(enrichment_results_list)
-      do.call(tagList, lapply(chosen_go(), function(go) {
-        go_data <- GO %>% filter(name == go)
-        fluidRow(
-          column(12, h3(paste(go, "-", go_data$id[1]))),
-          column(4, h4("All detected genes"), verbatimTextOutput(paste0("detected_genes_", go))),
-          column(4, h4("Downregulated genes"), verbatimTextOutput(paste0("downregulated_genes_", go))),
-          column(4, h4("Upregulated genes"), verbatimTextOutput(paste0("upregulated_genes_", go)))
-        )
-      }))
-    })
-
-    lapply(chosen_go(), function(go) {
-      output[[paste0("detected_genes_", go)]] <- renderPrint({
-        GO %>% filter(name == go) %>% pull(gene) %>% unique()
-      })
-
-      output[[paste0("downregulated_genes_", go)]] <- renderPrint({
-        df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0 & !!sym(input$annotation_col) %in% (GO %>% filter(name == go) %>% pull(gene) %>% unique())) %>% pull(!!sym(input$annotation_col))
-      })
-
-      output[[paste0("upregulated_genes_", go)]] <- renderPrint({
-        df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0 & !!sym(input$annotation_col) %in% (GO %>% filter(name == go) %>% pull(gene) %>% unique())) %>% pull(!!sym(input$annotation_col))
-      })
-    })
-    
-    
-    
     
     
     
