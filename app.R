@@ -488,7 +488,7 @@ ui <- semanticPage(
         width = 12,
         # Dataset preview
         segment(
-          class = "raised",
+          class = "raised", 
           div(class = "ui grey ribbon label", "Dataset Preview"),
           semantic_DTOutput("dataset_summary", height = "auto")
         ),

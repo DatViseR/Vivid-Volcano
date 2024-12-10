@@ -279,3 +279,68 @@ div.ui.raised.segment:hover {
 }
 
 
+/************* Dataset preview ********************************/
+
+
+/* Add margin to the DataTable wrapper */
+.dataTables_wrapper.dt-semanticUI {
+  margin: 0.5rem;
+}
+
+/* Make the table background transparent */
+.dataTables_wrapper.dt-semanticUI table {
+  background-color: transparent;
+}
+
+/* Style the table headers specifically */
+.dataTables_wrapper.dt-semanticUI table thead th {
+  background-color: #E0E1E2; /* Green background for headers */
+  color: black; /* White text for contrast */
+  text-align: center; /* Center align the text */
+  font-weight: bold; /* Make the text bold */
+  padding: 10px; /* Add some padding for better spacing */
+  border-bottom: 2px solid #ddd; /* Add a subtle border below headers */
+}
+
+/* Add hover effect to headers for interactivity */
+.dataTables_wrapper.dt-semanticUI table thead th:hover {
+  background-color: #B0B1B2; /* Slightly darker green on hover */
+  cursor: pointer; /* Indicate interactivity */
+}
+
+
+/* Optional: Style the pagination menu */
+.dataTables_wrapper.dt-semanticUI .pagination.menu {
+  background-color: transparent;
+  border: none;
+}
+
+/* Adjust dropdown styles if necessary */
+.dataTables_wrapper.dt-semanticUI .ui.dropdown {
+  margin: 0.3rem;
+}
+
+/* Align Show Entries and Search in the same row */
+.dataTables_wrapper.dt-semanticUI .dataTables_length,
+.dataTables_wrapper.dt-semanticUI .dataTables_filter {
+  display: inline-flex; /* Place them inline */
+  align-items: center; /* Vertically align elements */
+  gap: 1rem; /* Space between label and input */
+}
+
+/* Wrap the length and filter into one container */
+.dataTables_wrapper.dt-semanticUI .dataTables_top {
+  display: flex;
+  justify-content: space-between; /* Push Show Entries to the left, Search to the right */
+  margin-bottom: 1rem; /* Add some spacing below */
+}
+
+/* Reset unnecessary spacing for consistent alignment */
+.dataTables_wrapper.dt-semanticUI .dataTables_length label,
+.dataTables_wrapper.dt-semanticUI .dataTables_filter label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* Space between text and input */
+}
+
+
