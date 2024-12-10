@@ -551,9 +551,15 @@ ui <- semanticPage(
               )
             )
           )
+        ),
+        # Placeholder segment for GO category details
+        segment(
+          class = "placeholder",
+          header(title = "Detected and regulated genes from the choosen GO", description = "", icon = "fa-solid fa-square-poll-vertical"),
+          uiOutput("go_details_ui")
         )
       )
-     )
+      )
   )
 )
 
@@ -735,6 +741,37 @@ server <- function(input, output, session) {
      })
     }
 
+     output$go_details_ui <- renderUI({
+      req(enrichment_results_list)
+      do.call(tagList, lapply(chosen_go(), function(go) {
+        go_data <- GO %>% filter(name == go)
+        fluidRow(
+          column(12, h3(paste(go, "-", go_data$id[1]))),
+          column(4, h4("All detected genes"), verbatimTextOutput(paste0("detected_genes_", go))),
+          column(4, h4("Downregulated genes"), verbatimTextOutput(paste0("downregulated_genes_", go))),
+          column(4, h4("Upregulated genes"), verbatimTextOutput(paste0("upregulated_genes_", go)))
+        )
+      }))
+    })
+
+    lapply(chosen_go(), function(go) {
+      output[[paste0("detected_genes_", go)]] <- renderPrint({
+        GO %>% filter(name == go) %>% pull(gene) %>% unique()
+      })
+
+      output[[paste0("downregulated_genes_", go)]] <- renderPrint({
+        df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0 & !!sym(input$annotation_col) %in% (GO %>% filter(name == go) %>% pull(gene) %>% unique())) %>% pull(!!sym(input$annotation_col))
+      })
+
+      output[[paste0("upregulated_genes_", go)]] <- renderPrint({
+        df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0 & !!sym(input$annotation_col) %in% (GO %>% filter(name == go) %>% pull(gene) %>% unique())) %>% pull(!!sym(input$annotation_col))
+      })
+    })
+    
+    
+    
+    
+    
     
     
     # Draw the volcano plot
