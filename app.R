@@ -765,8 +765,8 @@ server <- function(input, output, session) {
             panel.grid.minor = element_blank(),
             aspect.ratio = 0.75,
             plot.title = element_text(size = 18, face = "bold"),
-            axis.title = element_text(size = 16, color = "navy", face = "bold"),
-            axis.text = element_text(size = 14, color = "navy", face = "bold"),
+            axis.title = element_text(size = 16, color = "black", face = "bold"),
+            axis.text = element_text(size = 14, color = "black", face = "bold"),
              ) +  
       geom_hline(yintercept = -log10(input$alpha), linetype = "dashed", color = "red") +
       scale_x_continuous(

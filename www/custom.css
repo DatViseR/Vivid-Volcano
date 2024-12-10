@@ -107,7 +107,7 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 
 /* Base segment style */
 div.ui.raised.segment:nth-child(-n+3) {
-    background: #ededed !important;
+    background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
     
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
 }
@@ -274,7 +274,7 @@ div.ui.raised.segment:hover {
 /************* Results section segment ********************************/
 
 .ui.segment.placeholder {
-  background-color: linear-gradient(to bottom, #f8f9fa, #e9ecef) !important;
+  background: linear-gradient(to bottom, #f6f8fa, #ddf4ff ) !important;
   padding: 2em !important;
 }
 
