@@ -359,13 +359,23 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
 build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col) {
-  # Initialize result list to store gene lists for each GO category
+  # Initialize result list
   gene_list_for_gt_table <- list()
   
+  # Get total number of genes for subtitle (all genes in dataset)
+  total_genes <- df[[annotation_col]] %>%
+    toupper() %>%
+    gsub("[^A-Z0-9]", "", .) %>%
+    unique() %>%
+    .[. != ""]
+  
   # Get the lists of regulated genes
-  detected_genes <- df[[annotation_col]]
-  detected_genes <- toupper(gsub("[^A-Z0-9]", "", detected_genes))
-  detected_genes <- unique(detected_genes[detected_genes != ""])
+  detected_genes <- df %>%
+    filter(adjusted_pvalues < alpha) %>%
+    pull(!!sym(annotation_col)) %>%
+    toupper() %>%
+    gsub("[^A-Z0-9]", "", .) %>%
+    unique()
   
   downregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
@@ -406,11 +416,11 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     
     # Format gene lists
     all_genes_formatted <- category_data$all_genes
-    detected_genes <- category_data$detected_genes
+    detected_genes_in_category <- category_data$detected_genes
     
     # Bold the detected genes in all_genes list
     all_genes_with_bold <- sapply(all_genes_formatted, function(gene) {
-      if (gene %in% detected_genes) {
+      if (toupper(gene) %in% toupper(detected_genes)) {  # Using global detected_genes list
         paste0("**", gene, "**")
       } else {
         gene
@@ -435,14 +445,15 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     gt() %>%
     tab_header(
       title = "Gene Lists by GO Category",
-      subtitle = paste("Analysis includes", length(detected_genes), "detected genes")
+      subtitle = paste("Analysis includes", length(total_genes), "detected genes,",
+                       "of which", length(detected_genes), "are regulated")
     ) %>%
     fmt_markdown(
       columns = c(All_Genes, Downregulated, Upregulated)
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes (Detected in Bold)",
+      All_Genes = "All Genes (Regulated Genes in Bold)",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
     ) %>%
