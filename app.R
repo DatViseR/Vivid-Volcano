@@ -358,7 +358,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #This function creates GT tables for each GO category with columns for genes in the GO category,
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
-build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col) {
+build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight) {
   # Initialize result list
   gene_list_for_gt_table <- list()
   
@@ -401,10 +401,9 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
       gsub("[^A-Z0-9]", "", .) %>%
       unique()
     
-    # Store gene lists for this category
     gene_list_for_gt_table[[category]] <- list(
       all_genes = go_genes,
-      detected_genes = intersect(detected_genes, go_genes),
+      detected_genes = intersect(total_genes, go_genes),
       downregulated_genes = intersect(downregulated_genes, go_genes),
       upregulated_genes = intersect(upregulated_genes, go_genes)
     )
@@ -416,27 +415,36 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     
     # Format gene lists
     all_genes_formatted <- category_data$all_genes
-    detected_genes_in_category <- category_data$detected_genes
     
-    # Bold the detected genes in all_genes list
-    all_genes_with_bold <- sapply(all_genes_formatted, function(gene) {
-      if (toupper(gene) %in% toupper(detected_genes)) {  # Using global detected_genes list
+    # Format genes with bold and color information
+    all_genes_with_format <- sapply(all_genes_formatted, function(gene) {
+      gene_upper <- toupper(gene)
+      if (gene_upper %in% toupper(upregulated_genes)) {
+        paste0("**", gene, "**")  # Bold for now, color will be added via gt
+      } else if (gene_upper %in% toupper(downregulated_genes)) {
+        paste0("**", gene, "**")  # Bold for now, color will be added via gt
+      } else if (gene_upper %in% toupper(total_genes)) {
         paste0("**", gene, "**")
       } else {
         gene
       }
     })
     
-    # Create row data
+    # Format regulated genes lists
+    downregulated_formatted <- if(length(category_data$downregulated_genes) > 0) {
+      paste(paste0("**", category_data$downregulated_genes, "**"), collapse = ", ")
+    } else "No downregulated genes in the GO category"
+    
+    upregulated_formatted <- if(length(category_data$upregulated_genes) > 0) {
+      paste(paste0("**", category_data$upregulated_genes, "**"), collapse = ", ")
+    } else "No upregulated genes in the GO category"
+    
     data.frame(
       GO_Category = category,
-      All_Genes = paste(all_genes_with_bold, collapse = ", "),
-      Downregulated = if(length(category_data$downregulated_genes) > 0) 
-        paste(category_data$downregulated_genes, collapse = ", ") 
-      else "No downregulated genes in the GO category",
-      Upregulated = if(length(category_data$upregulated_genes) > 0) 
-        paste(category_data$upregulated_genes, collapse = ", ") 
-      else "No upregulated genes in the GO category"
+      All_Genes = paste(all_genes_with_format, collapse = ", "),
+      Downregulated = downregulated_formatted,
+      Upregulated = upregulated_formatted,
+      stringsAsFactors = FALSE
     )
   }) %>% bind_rows()
   
@@ -453,7 +461,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes (Regulated Genes in Bold)",
+      All_Genes = "All Genes (Detected in Bold, Regulated in Color)",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
     ) %>%
@@ -463,6 +471,26 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
       ),
       locations = cells_column_labels()
     ) %>%
+    # Add color styling for downregulated genes
+    tab_style(
+      style = list(
+        cell_text(color = color_highlight[1])
+      ),
+      locations = cells_body(
+        columns = c(All_Genes, Downregulated),
+        rows = str_detect(Downregulated, "[A-Z0-9]+")
+      )
+    ) %>%
+    # Add color styling for upregulated genes
+    tab_style(
+      style = list(
+        cell_text(color = color_highlight[2])
+      ),
+      locations = cells_body(
+        columns = c(All_Genes, Upregulated),
+        rows = str_detect(Upregulated, "[A-Z0-9]+")
+      )
+    ) %>%
     tab_options(
       table.width = pct(100),
       table.font.size = px(12)
@@ -470,7 +498,6 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
   
   return(gt_table_genes)
 }
-
 
 ################################### ----UI---#################################
 
@@ -846,7 +873,8 @@ server <- function(input, output, session) {
         chosen_go = input$go_category,
         go_data = GO,
         alpha = input$alpha,
-        fold_col = input$fold_col
+        fold_col = input$fold_col,
+        color_highlight = input$color_highlight
       )
       
       # Render tables
