@@ -359,38 +359,24 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
 build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight) {
-  # Debug print to see incoming colors
-  # Debug prints with cat() for better visibility
-  cat("\n----------------------------------------\n")
-  cat("Debug Color Information:\n")
-  cat("----------------------------------------\n")
-  cat("Incoming color_highlight values:\n")
-  cat("color_highlight[1]:", color_highlight[1], "\n")
-  cat("color_highlight[2]:", color_highlight[2], "\n")
-  cat("----------------------------------------\n")
-  cat("Color types:\n")
-  cat("Type of color_highlight:", class(color_highlight), "\n")
-  cat("Type of color_highlight[1]:", class(color_highlight[1]), "\n")
-  cat("Type of color_highlight[2]:", class(color_highlight[2]), "\n")
-  cat("----------------------------------------\n\n")
+  # Debug color inputs
+  cat("\n==== Color Values Received ====\n")
+  cat("Down-regulated color:", color_highlight[1], "\n")
+  cat("Up-regulated color:", color_highlight[2], "\n")
+  cat("================================\n\n")
   
+  # Extract colors
+  down_color <- color_highlight[1]
+  up_color <- color_highlight[2]
   
-  # Validate color inputs
-  down_color <- if(is.null(color_highlight[1]) || !is.character(color_highlight[1])) "#0000FF" else color_highlight[1]
-  up_color <- if(is.null(color_highlight[2]) || !is.character(color_highlight[2])) "#FF0000" else color_highlight[2]
-  
-  # Initialize result list
-  gene_list_for_gt_table <- list()
-  
-  # Get total number of genes for subtitle (all genes in dataset)
-  total_genes <- df[[annotation_col]] %>%
+  # Get gene lists - corrected classification
+  detected_genes <- df[[annotation_col]] %>%  # All genes in the experiment
     toupper() %>%
     gsub("[^A-Z0-9]", "", .) %>%
     unique() %>%
     .[. != ""]
   
-  # Get the lists of regulated genes
-  detected_genes <- df %>%
+  regulated_genes <- df %>%  # All significantly regulated genes
     filter(adjusted_pvalues < alpha) %>%
     pull(!!sym(annotation_col)) %>%
     toupper() %>%
@@ -411,114 +397,104 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     gsub("[^A-Z0-9]", "", .) %>%
     unique()
   
-  # Process each GO category
-  for (category in chosen_go) {
-    # Get genes for current GO category
-    go_genes <- go_data %>% 
-      filter(name == category) %>% 
+  # Process each GO category and prepare data for color-coded display
+  table_data <- lapply(chosen_go, function(category) {
+    category_data <- go_data %>% 
+      filter(name == category)
+    
+    go_genes <- category_data %>%
       pull(gene) %>%
       toupper() %>%
       gsub("[^A-Z0-9]", "", .) %>%
       unique()
     
-    gene_list_for_gt_table[[category]] <- list(
-      all_genes = go_genes,
-      detected_genes = intersect(total_genes, go_genes),
-      downregulated_genes = intersect(downregulated_genes, go_genes),
-      upregulated_genes = intersect(upregulated_genes, go_genes)
-    )
-  }
-  
-  # Create the GT table
-  table_data <- lapply(names(gene_list_for_gt_table), function(category) {
-    category_data <- gene_list_for_gt_table[[category]]
+    go_id <- unique(category_data$id)[1]  # Get the GO ID
     
-    # Format gene lists
-    all_genes_formatted <- category_data$all_genes
+    # Create separate strings for different regulation states
+    down_genes <- intersect(downregulated_genes, go_genes)
+    up_genes <- intersect(upregulated_genes, go_genes)
+    detected_only_genes <- setdiff(intersect(detected_genes, go_genes), c(down_genes, up_genes))
+    non_detected_genes <- setdiff(go_genes, detected_genes)
     
-    # Format genes with bold
-    all_genes_with_format <- sapply(all_genes_formatted, function(gene) {
-      gene_upper <- toupper(gene)
-      if (gene_upper %in% toupper(detected_genes)) {
-        paste0("**", gene, "**")
-      } else {
-        gene
+    all_genes_formatted <- c(
+      # Format downregulated genes
+      if(length(down_genes) > 0) {
+        paste0("<span style='color: ", down_color, "'><strong>", down_genes, "</strong></span>")
+      },
+      # Format upregulated genes
+      if(length(up_genes) > 0) {
+        paste0("<span style='color: ", up_color, "'><strong>", up_genes, "</strong></span>")
+      },
+      # Format detected but not regulated genes
+      if(length(detected_only_genes) > 0) {
+        paste0("<strong>", detected_only_genes, "</strong>")
+      },
+      # Add non-detected genes without formatting
+      if(length(non_detected_genes) > 0) {
+        non_detected_genes
       }
-    })
-    
-    # Format regulated genes lists
-    downregulated_formatted <- if(length(category_data$downregulated_genes) > 0) {
-      paste(paste0("**", category_data$downregulated_genes, "**"), collapse = ", ")
-    } else "No downregulated genes in the GO category"
-    
-    upregulated_formatted <- if(length(category_data$upregulated_genes) > 0) {
-      paste(paste0("**", category_data$upregulated_genes, "**"), collapse = ", ")
-    } else "No upregulated genes in the GO category"
+    )
     
     data.frame(
-      GO_Category = category,
-      All_Genes = paste(all_genes_with_format, collapse = ", "),
-      Downregulated = downregulated_formatted,
-      Upregulated = upregulated_formatted,
+      GO_Category = paste0(category, " GO:", go_id),  # Combined name and ID
+      All_Genes = if(length(all_genes_formatted) > 0) {
+        paste(all_genes_formatted, collapse = ", ")
+      } else {
+        "No genes found"
+      },
+      Downregulated = if(length(down_genes) > 0) {
+        paste(down_genes, collapse = ", ")
+      } else {
+        "No downregulated genes found"
+      },
+      Upregulated = if(length(up_genes) > 0) {
+        paste(up_genes, collapse = ", ")
+      } else {
+        "No upregulated genes found"
+      },
       stringsAsFactors = FALSE
     )
   }) %>% bind_rows()
   
-  # Create and format GT table
+  # Create GT table with styling
   gt_table_genes <- table_data %>%
     gt() %>%
     tab_header(
       title = "Gene Lists by GO Category",
-      subtitle = paste("Analysis includes", length(total_genes), "detected genes,",
-                       "of which", length(detected_genes), "are regulated")
-    ) %>%
-    fmt_markdown(
-      columns = c(All_Genes, Downregulated, Upregulated)
+      subtitle = paste("Analysis includes", length(detected_genes), "detected genes,",
+                       "of which", length(regulated_genes), "are regulated")
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes (Detected in Bold, Regulated in Color)",
+      All_Genes = "All Genes",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
-    )
-  
-  # Add styling for downregulated genes if there are any
-  if(length(downregulated_genes) > 0) {
-    gt_table_genes <- gt_table_genes %>%
-      tab_style(
-        style = list(
-          cell_text(color = down_color)
-        ),
-        locations = cells_body(
-          columns = c(Downregulated)
-        )
-      )
-  }
-  
-  # Add styling for upregulated genes if there are any
-  if(length(upregulated_genes) > 0) {
-    gt_table_genes <- gt_table_genes %>%
-      tab_style(
-        style = list(
-          cell_text(color = up_color)
-        ),
-        locations = cells_body(
-          columns = c(Upregulated)
-        )
-      )
-  }
-  
-  # Add final styling
-  gt_table_genes <- gt_table_genes %>%
+    ) %>%
+    # Style for downregulated genes
     tab_style(
       style = list(
-        cell_text(weight = "bold")
+        cell_text(color = down_color, weight = "bold")
       ),
-      locations = cells_column_labels()
+      locations = cells_body(
+        columns = "Downregulated",
+        rows = !grepl("No downregulated genes found", table_data$Downregulated)
+      )
     ) %>%
+    # Style for upregulated genes
+    tab_style(
+      style = list(
+        cell_text(color = up_color, weight = "bold")
+      ),
+      locations = cells_body(
+        columns = "Upregulated",
+        rows = !grepl("No upregulated genes found", table_data$Upregulated)
+      )
+    ) %>%
+    fmt_markdown(columns = "All_Genes") %>%
     tab_options(
       table.width = pct(100),
-      table.font.size = px(12)
+      table.font.size = px(12),
+      column_labels.font.weight = "bold"
     )
   
   return(gt_table_genes)
