@@ -38,7 +38,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     return(data.frame())  # Return an empty data frame
   }
   
-  cat("Calculating GO enrichment for genes:\n", paste(genes, collapse = ", "), "\n")
+  cat("Calculating GO enrichment for \n", "n=" , length(genes), "detected genes" ,     "\n")
   enrichment_results <- lapply(go_categories, function(go_category) {
     go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)%>% toupper()%>% unique()
     cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
@@ -92,7 +92,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   
   # Adjust p-values
   enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
-  
+  cat("The structure of the enrichment_results is: \n" , str(enrichment_results), "\n")
   return(enrichment_results)
 }
 
@@ -140,7 +140,9 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     )
   )
   
+  cat("--------------\n", "Structure of the enrichment_results_list \n", str(enrichment_results_list),"\n", "--------------\n")
   return(enrichment_results_list)
+  
 }
 
 
@@ -356,52 +358,107 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #This function creates GT tables for each GO category with columns for genes in the GO category,
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
-build_gt_gene_lists <- function(go_data, regulated_genes_df, annotation_col, fold_col, alpha) {
-  gt_tables <- list()
+build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col) {
+  # Initialize result list to store gene lists for each GO category
+  gene_list_for_gt_table <- list()
   
-  for (go in unique(go_data$name)) {
-    go_genes <- go_data %>% filter(name == go) %>% pull(gene) %>% unique()
+  # Get the lists of regulated genes
+  detected_genes <- df[[annotation_col]]
+  detected_genes <- toupper(gsub("[^A-Z0-9]", "", detected_genes))
+  detected_genes <- unique(detected_genes[detected_genes != ""])
+  
+  downregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
+    pull(!!sym(annotation_col)) %>%
+    toupper() %>%
+    gsub("[^A-Z0-9]", "", .) %>%
+    unique()
+  
+  upregulated_genes <- df %>% 
+    filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
+    pull(!!sym(annotation_col)) %>%
+    toupper() %>%
+    gsub("[^A-Z0-9]", "", .) %>%
+    unique()
+  
+  # Process each GO category
+  for (category in chosen_go) {
+    # Get genes for current GO category
+    go_genes <- go_data %>% 
+      filter(name == category) %>% 
+      pull(gene) %>%
+      toupper() %>%
+      gsub("[^A-Z0-9]", "", .) %>%
+      unique()
     
-    # Detected genes in bold
-    detected_genes <- sapply(go_genes, function(g) ifelse(g %in% regulated_genes_df[[annotation_col]], paste0("**", g, "**"), g))
-    
-    # Downregulated genes
-    downregulated_genes <- regulated_genes_df %>%
-      filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0 & !!sym(annotation_col) %in% go_genes) %>%
-      pull(!!sym(annotation_col))
-    
-    # Upregulated genes
-    upregulated_genes <- regulated_genes_df %>%
-      filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0 & !!sym(annotation_col) %in% go_genes) %>%
-      pull(!!sym(annotation_col))
-    
-    gt_table <- gt(data.frame(
-      Genes = detected_genes,
-      Downregulated = downregulated_genes,
-      Upregulated = upregulated_genes
-    )) %>%
-      tab_header(
-        title = paste("GO Category:", go)
-      ) %>%
-      cols_label(
-        Genes = "Genes in GO",
-        Downregulated = "Downregulated Genes",
-        Upregulated = "Upregulated Genes"
-      ) %>%
-      fmt_markdown(columns = vars(Genes))
-    
-    gt_tables[[go]] <- gt_table
+    # Store gene lists for this category
+    gene_list_for_gt_table[[category]] <- list(
+      all_genes = go_genes,
+      detected_genes = intersect(detected_genes, go_genes),
+      downregulated_genes = intersect(downregulated_genes, go_genes),
+      upregulated_genes = intersect(upregulated_genes, go_genes)
+    )
   }
   
-  return(gt_tables)
+  # Create the GT table
+  table_data <- lapply(names(gene_list_for_gt_table), function(category) {
+    category_data <- gene_list_for_gt_table[[category]]
+    
+    # Format gene lists
+    all_genes_formatted <- category_data$all_genes
+    detected_genes <- category_data$detected_genes
+    
+    # Bold the detected genes in all_genes list
+    all_genes_with_bold <- sapply(all_genes_formatted, function(gene) {
+      if (gene %in% detected_genes) {
+        paste0("**", gene, "**")
+      } else {
+        gene
+      }
+    })
+    
+    # Create row data
+    data.frame(
+      GO_Category = category,
+      All_Genes = paste(all_genes_with_bold, collapse = ", "),
+      Downregulated = if(length(category_data$downregulated_genes) > 0) 
+        paste(category_data$downregulated_genes, collapse = ", ") 
+      else "No downregulated genes in the GO category",
+      Upregulated = if(length(category_data$upregulated_genes) > 0) 
+        paste(category_data$upregulated_genes, collapse = ", ") 
+      else "No upregulated genes in the GO category"
+    )
+  }) %>% bind_rows()
+  
+  # Create and format GT table
+  gt_table_genes <- table_data %>%
+    gt() %>%
+    tab_header(
+      title = "Gene Lists by GO Category",
+      subtitle = paste("Analysis includes", length(detected_genes), "detected genes")
+    ) %>%
+    fmt_markdown(
+      columns = c(All_Genes, Downregulated, Upregulated)
+    ) %>%
+    cols_label(
+      GO_Category = "GO Category",
+      All_Genes = "All Genes (Detected in Bold)",
+      Downregulated = "Downregulated Genes",
+      Upregulated = "Upregulated Genes"
+    ) %>%
+    tab_style(
+      style = list(
+        cell_text(weight = "bold")
+      ),
+      locations = cells_column_labels()
+    ) %>%
+    tab_options(
+      table.width = pct(100),
+      table.font.size = px(12)
+    )
+  
+  return(gt_table_genes)
 }
-
-
-
-
-
-
-
 
 
 ################################### ----UI---#################################
@@ -756,14 +813,37 @@ server <- function(input, output, session) {
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
     
+    cat("----------------\n", "Structure of the uploaded dataset after unlogging and adjusting p-values \n", str(df), "\n", "----------------\n")
+    
     # Only perform GO enrichment calculations if the toggle is on
-    if (input$show_go_category) {
-      # Calculate GO enrichment
+    # GO enrichment and gene lists section
+    if (input$show_go_category && length(input$go_category) > 0) {
+      # Calculate enrichment results
       enrichment_results_list <- calculate_go_enrichment_table(
-        df, input$annotation_col, chosen_go(), GO, input$alpha, input$fold_col
+        df = df,
+        annotation_col = input$annotation_col,
+        go_categories = input$go_category,
+        go_data = GO,
+        alpha = input$alpha,
+        fold_col = input$fold_col
       )
       
-      # Render the GO enrichment table
+      # Generate gene lists GT table
+      gt_table <- build_gt_gene_lists(
+        df = df,
+        annotation_col = input$annotation_col,
+        chosen_go = input$go_category,
+        go_data = GO,
+        alpha = input$alpha,
+        fold_col = input$fold_col
+      )
+      
+      # Render tables
+      output$go_gene_list_gt <- render_gt({
+        req(gt_table)
+        gt_table
+      })
+      
       output$go_enrichment_gt <- render_gt({
         req(enrichment_results_list)
         build_gt_table(
@@ -773,16 +853,15 @@ server <- function(input, output, session) {
         )
       })
     } else {
-     # Clear or hide the GO enrichment table when the toggle is off
       output$go_enrichment_gt <- render_gt({
-     
-     gt(data.frame(Enrichment = "Select visualise GO categories to see the result"))
-     })
+        gt(data.frame(Enrichment = "Select visualize GO categories to see the result"))
+      })
+      
+      output$go_gene_list_gt <- render_gt({
+        gt(data.frame(Genes = "No GO category selected"))
+      })
     }
-
-    
-    
-    
+ 
     
     # Draw the volcano plot
     if (!"adjusted_pvalues" %in% names(df)) {
