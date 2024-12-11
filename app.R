@@ -359,6 +359,26 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
 build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight) {
+  # Debug print to see incoming colors
+  # Debug prints with cat() for better visibility
+  cat("\n----------------------------------------\n")
+  cat("Debug Color Information:\n")
+  cat("----------------------------------------\n")
+  cat("Incoming color_highlight values:\n")
+  cat("color_highlight[1]:", color_highlight[1], "\n")
+  cat("color_highlight[2]:", color_highlight[2], "\n")
+  cat("----------------------------------------\n")
+  cat("Color types:\n")
+  cat("Type of color_highlight:", class(color_highlight), "\n")
+  cat("Type of color_highlight[1]:", class(color_highlight[1]), "\n")
+  cat("Type of color_highlight[2]:", class(color_highlight[2]), "\n")
+  cat("----------------------------------------\n\n")
+  
+  
+  # Validate color inputs
+  down_color <- if(is.null(color_highlight[1]) || !is.character(color_highlight[1])) "#0000FF" else color_highlight[1]
+  up_color <- if(is.null(color_highlight[2]) || !is.character(color_highlight[2])) "#FF0000" else color_highlight[2]
+  
   # Initialize result list
   gene_list_for_gt_table <- list()
   
@@ -416,14 +436,10 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     # Format gene lists
     all_genes_formatted <- category_data$all_genes
     
-    # Format genes with bold and color information
+    # Format genes with bold
     all_genes_with_format <- sapply(all_genes_formatted, function(gene) {
       gene_upper <- toupper(gene)
-      if (gene_upper %in% toupper(upregulated_genes)) {
-        paste0("**", gene, "**")  # Bold for now, color will be added via gt
-      } else if (gene_upper %in% toupper(downregulated_genes)) {
-        paste0("**", gene, "**")  # Bold for now, color will be added via gt
-      } else if (gene_upper %in% toupper(total_genes)) {
+      if (gene_upper %in% toupper(detected_genes)) {
         paste0("**", gene, "**")
       } else {
         gene
@@ -464,32 +480,41 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
       All_Genes = "All Genes (Detected in Bold, Regulated in Color)",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
-    ) %>%
+    )
+  
+  # Add styling for downregulated genes if there are any
+  if(length(downregulated_genes) > 0) {
+    gt_table_genes <- gt_table_genes %>%
+      tab_style(
+        style = list(
+          cell_text(color = down_color)
+        ),
+        locations = cells_body(
+          columns = c(Downregulated)
+        )
+      )
+  }
+  
+  # Add styling for upregulated genes if there are any
+  if(length(upregulated_genes) > 0) {
+    gt_table_genes <- gt_table_genes %>%
+      tab_style(
+        style = list(
+          cell_text(color = up_color)
+        ),
+        locations = cells_body(
+          columns = c(Upregulated)
+        )
+      )
+  }
+  
+  # Add final styling
+  gt_table_genes <- gt_table_genes %>%
     tab_style(
       style = list(
         cell_text(weight = "bold")
       ),
       locations = cells_column_labels()
-    ) %>%
-    # Add color styling for downregulated genes
-    tab_style(
-      style = list(
-        cell_text(color = color_highlight[1])
-      ),
-      locations = cells_body(
-        columns = c(All_Genes, Downregulated),
-        rows = str_detect(Downregulated, "[A-Z0-9]+")
-      )
-    ) %>%
-    # Add color styling for upregulated genes
-    tab_style(
-      style = list(
-        cell_text(color = color_highlight[2])
-      ),
-      locations = cells_body(
-        columns = c(All_Genes, Upregulated),
-        rows = str_detect(Upregulated, "[A-Z0-9]+")
-      )
     ) %>%
     tab_options(
       table.width = pct(100),
@@ -866,23 +891,37 @@ server <- function(input, output, session) {
         fold_col = input$fold_col
       )
       
-      # Generate gene lists GT table
-      gt_table <- build_gt_gene_lists(
-        df = df,
-        annotation_col = input$annotation_col,
-        chosen_go = input$go_category,
-        go_data = GO,
-        alpha = input$alpha,
-        fold_col = input$fold_col,
-        color_highlight = input$color_highlight
-      )
-      
-      # Render tables
+      # Render GO gene list table
       output$go_gene_list_gt <- render_gt({
-        req(gt_table)
-        gt_table
+        # First check if color highlighting is enabled
+        req(input$color_highlight)
+        
+        # Get the colors from the proper inputs when color highlighting is enabled
+        colors_to_use <- if(input$color_highlight) {
+          req(input$up_color, input$down_color)
+          c(input$down_color, input$up_color)
+        } else {
+          c("#000000", "#000000")  # default black if highlighting is disabled
+        }
+        
+        # Debug the actual colors being passed
+        cat("\n==== Color Values Being Passed ====\n")
+        cat("Down-regulated color:", colors_to_use[1], "\n")
+        cat("Up-regulated color:", colors_to_use[2], "\n")
+        cat("================================\n\n")
+        
+        build_gt_gene_lists(
+          df = df,  # Use the actual df from the parent scope
+          annotation_col = input$annotation_col,
+          chosen_go = input$go_category,
+          go_data = GO,
+          alpha = input$alpha,
+          fold_col = input$fold_col,
+          color_highlight = colors_to_use
+        )
       })
       
+      # Render GO enrichment table
       output$go_enrichment_gt <- render_gt({
         req(enrichment_results_list)
         build_gt_table(
@@ -892,12 +931,21 @@ server <- function(input, output, session) {
         )
       })
     } else {
-      output$go_enrichment_gt <- render_gt({
-        gt(data.frame(Enrichment = "Select visualize GO categories to see the result"))
+      # Handle both outputs in the else block
+      output$go_gene_list_gt <- render_gt({
+        gt(data.frame(Message = if(!input$show_go_category) {
+          "Enable GO category visualization to see results"
+        } else {
+          "Select at least one GO category to see results"
+        }))
       })
       
-      output$go_gene_list_gt <- render_gt({
-        gt(data.frame(Genes = "No GO category selected"))
+      output$go_enrichment_gt <- render_gt({
+        gt(data.frame(Message = if(!input$show_go_category) {
+          "Enable GO category visualization to see results"
+        } else {
+          "Select at least one GO category to see results"
+        }))
       })
     }
  
@@ -951,6 +999,30 @@ server <- function(input, output, session) {
       volcano_plot <- volcano_plot +
         annotate("text", x = -Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = -0.1 ,vjust = 2, size = 5.5 ) +
         annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.2, vjust = 1, size = 5.5)
+      # Detailed debug analysis of input$color_highlight
+      cat("\n==== Color Input Debug Analysis ====\n")
+      cat("Current Time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+      cat("\n1. Basic Information:\n")
+      cat("- Is input$color_highlight NULL?:", is.null(input$color_highlight), "\n")
+      cat("- Class of input$color_highlight:", class(input$color_highlight), "\n")
+      cat("- Length of input$color_highlight:", length(input$color_highlight), "\n")
+      
+      cat("\n2. Value Details:\n")
+      cat("- Raw value of input$color_highlight:\n")
+      print(input$color_highlight)  # Using print() for structured output
+      
+      cat("\n3. Individual Elements:\n")
+      cat("- First element:", input$color_highlight[1], 
+          " (class:", class(input$color_highlight[1]), ")\n")
+      cat("- Second element:", input$color_highlight[2],
+          " (class:", class(input$color_highlight[2]), ")\n")
+      
+      cat("\n4. Structure Information:\n")
+      str(input$color_highlight)
+      
+      cat("\n================================\n\n")
+      
+      
     }
     
     # Add annotations for chosen GO categories
