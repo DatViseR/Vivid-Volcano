@@ -801,8 +801,8 @@ server <- function(input, output, session) {
   output$color_highlight_ui <- renderUI({
     if (input$color_highlight) {
       tagList(
-        colourInput("up_color", "Up-regulated color", value = "darkgreen"),
-        colourInput("down_color", "Down-regulated color", value = "red")
+        colourInput("up_color", "Up-regulated color", value = "#FF7081"),
+        colourInput("down_color", "Down-regulated color", value ="#7973FA")
       )
     }
   })
@@ -948,7 +948,8 @@ server <- function(input, output, session) {
         build_gt_table(
           enrichment_results_list,
           upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
-          downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+          downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
+          color_highlight = colors_to_use
         )
       })
     } else {
