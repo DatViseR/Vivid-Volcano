@@ -13,7 +13,10 @@ library(shiny.semantic)
 library(semantic.dashboard)
 
 # Load the GO data once globally
-GO <- arrow::read_parquet("GO.parquet")
+# The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data  and in the script
+# Parquet_GO_source_data_preparation_srcipt.R
+# This newfile contains around 8000 non-obsolete unique GO categories with at least 6 annotated genes in the category
+GO <- arrow::read_parquet("GO.parquet2")
 
 ##################---CRUCIAL FUNCTION DEFINITIONS---- ###########################
 
