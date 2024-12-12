@@ -1279,7 +1279,13 @@ server <- function(input, output, session) {
         paste0("GO_Enrichment_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
       },
       content = function(file) {
-        req(enrichment_results_list)
+        req(enrichment_results_list, input$color_highlight)
+        colors_to_use <- if(input$color_highlight) {
+          req(input$up_color, input$down_color)
+          c(input$down_color, input$up_color)
+        } else {
+          c("#000000", "#000000")  # default black if highlighting is disabled
+        }
         gt_table <- build_gt_table(
           enrichment_results_list,
           upregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
