@@ -316,7 +316,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       locations = cells_column_labels("Adjusted_P_Value")
     ) %>%
     # Hide the Sample_Size column
-    cols_hide(columns = "Sample_Size")
+    cols_hide(columns = "Sample_Size") %>%
+    tab_options(
+      table.width = pct(100),
+      table.font.size = px(12),
+      column_labels.font.weight = "bold"
+    )
   
   # Add colored row groups
   if (nrow(regulated_df) > 0) {
