@@ -11,14 +11,20 @@ library(Cairo)
 library(gt)
 library(shiny.semantic)
 library(semantic.dashboard)
+library(gridExtra)
+library(webshot2)
 
 # Load the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data  and in the script
-# Parquet_GO_source_data_preparation_srcipt.R
+# Parquet_GO_source_data_preparation_script.R
+# The file is also available in the data folder of this repository
 # This newfile contains around 8000 non-obsolete unique GO categories with at least 6 annotated genes in the category
 GO <- arrow::read_parquet("GO.parquet2")
 
-##################---CRUCIAL FUNCTION DEFINITIONS---- ###########################
+
+
+
+##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
 
 perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
   cat("Performing hypergeometric test with parameters:\n")
@@ -503,6 +509,9 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
   return(gt_table_genes)
 }
 
+
+
+
 ################################### ----UI---#################################
 
 
@@ -541,162 +550,174 @@ ui <- semanticPage(
       sidebar_layout(
         # Sidebar panel with controls
         sidebar_panel(class = "custom-sidebar",
-          width = 3,
-          # Data Upload Card
-          div(class = "ui raised segment",
-              header(title = "Upload your data", description = "", icon = "upload"),
-              div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
-              div(class = "ui file input", 
-                  file_input("file1", label = NULL, accept = c(".csv", ".tsv"))
-              ),
-              
-              # Form layout for checkbox and radio buttons
-              div(class = "ui form",
-                  div(class = "three fields",
-                      # Header Checkbox
-                      div(class = "field",
-                          div(style = "display: flex; flex-direction: column; gap: 5px;",
-                              div(style = "font-weight: bold;", "Header"),  # Styled label
-                              toggle("header", "", is_marked = TRUE)
-                          )
+                      width = 3,
+                      # Data Upload Card
+                      div(class = "ui raised segment",
+                          header(title = "Upload your data", description = "", icon = "upload"),
+                          div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
+                          div(class = "ui file input", 
+                              file_input("file1", label = NULL, accept = c(".csv", ".tsv"))
+                          ),
+                          
+                          # Form layout for checkbox and radio buttons
+                          div(class = "ui form",
+                              div(class = "three fields",
+                                  # Header Checkbox
+                                  div(class = "field",
+                                      div(style = "display: flex; flex-direction: column; gap: 5px;",
+                                          div(style = "font-weight: bold;", "Header"),  # Styled label
+                                          toggle("header", "", is_marked = TRUE)
+                                      )
+                                  ),
+                                  # Separator Radio Buttons
+                                  div(class = "field",
+                                      multiple_radio(class = "radio", "sep", "Separator", 
+                                                     choices = list("Comma" , 
+                                                                    "Semicolon", 
+                                                                    "Tab"), 
+                                                     choices_value = c(",", ";", "\t"),
+                                                     selected = ",")
+                                  ),
+                                  # Decimal Point Radio Buttons
+                                  div(class = "field",
+                                      multiple_radio("dec", "Decimal Point", 
+                                                     choices = list("Dot" , 
+                                                                    "Comma")
+                                                     , choices_value = c(".", ","),
+                                                     selected = ".")
+                                  )
+                              )
+                          ),
+                          
+                          actionButton("upload", label = HTML('<i class="upload icon"></i> Upload'), 
+                                       class = "ui primary button")
                       ),
-                      # Separator Radio Buttons
-                      div(class = "field",
-                          multiple_radio(class = "radio", "sep", "Separator", 
-                                         choices = list("Comma" , 
-                                                        "Semicolon", 
-                                                        "Tab"), 
-                                         choices_value = c(",", ";", "\t"),
-                                         selected = ",")
+                      
+                      
+                      uiOutput("column_select_ui"),
+                      
+                      
+                      
+                      # Analysis Options Card
+                      div( class = "ui raised segment",
+                           # ribbon
+                           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
+                           div(class = "ui grey ribbon label", "Customize p value adjustment"),
+                           
+                           dropdown_input("adj",
+                                          choices = c("None",
+                                                      "Bonferroni",
+                                                      "Hochberg",
+                                                      "Benjamini-Hochberg",
+                                                      "Benjamini-Yekutieli"),
+                                          
+                                          choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
+                                          value = "BH"),
+                           numericInput("alpha", "Significance Threshold", value = 0.05),
+                           
+                           # Plot Options Card
+                           div(class = "ui grey ribbon label", "Customize annotations"),
+                           toggle("color_highlight", "Highlight Significant Hits", FALSE),
+                           uiOutput("color_highlight_ui"),
+                           toggle("show_go_category", "Visualize GO Categories", FALSE),
+                           uiOutput("go_category_ui"),
+                           uiOutput("color_picker_ui"),
+                           numericInput("num_labels", "Number of Gene Labels (0-100)", 
+                                        value = 10, min = 0, max = 100),
+                           toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
+                           toggle("select_custom_labels", "Label your choosen genes", FALSE),
+                           uiOutput("custom_gene_labels_ui"),
+                           div(class = "ui grey ribbon label", "Customize plot title"),
+                           textInput("plot_title", "", "Vivid Volcano"),
+                           div(class = "ui grey ribbon label", "Customize X -axis label"),
+                           textInput("x_axis_label", "", 
+                                     "Log2 Fold Change (Condition X vs. Condition Y)"),
+                           actionButton("draw_volcano", "Draw Volcano Plot", 
+                                        class = "ui primary button", 
+                                        icon = icon("chart line icon"))
                       ),
-                      # Decimal Point Radio Buttons
-                      div(class = "field",
-                          multiple_radio("dec", "Decimal Point", 
-                                         choices = list("Dot" , 
-                                                        "Comma")
-                                         , choices_value = c(".", ","),
-                                         selected = ".")
-                      )
-                  )
-              ),
-              
-              actionButton("upload", label = HTML('<i class="upload icon"></i> Upload'), 
-                           class = "ui primary button")
-          ),
-          
-          
-               uiOutput("column_select_ui"),
-     
-    
-          
-           # Analysis Options Card
-          div( class = "ui raised segment",
-          # ribbon
-          header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
-          div(class = "ui grey ribbon label", "Customize p value adjustment"),
-          
-          dropdown_input("adj",
-                         choices = c("None",
-                                     "Bonferroni",
-                                      "Hochberg",
-                                     "Benjamini-Hochberg",
-                                     "Benjamini-Yekutieli"),
-                        
-                         choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
-                                                  value = "BH"),
-          numericInput("alpha", "Significance Threshold", value = 0.05),
-         
-          # Plot Options Card
-          div(class = "ui grey ribbon label", "Customize annotations"),
-          toggle("color_highlight", "Highlight Significant Hits", FALSE),
-          uiOutput("color_highlight_ui"),
-          toggle("show_go_category", "Visualize GO Categories", FALSE),
-          uiOutput("go_category_ui"),
-          uiOutput("color_picker_ui"),
-          numericInput("num_labels", "Number of Gene Labels (0-100)", 
-                       value = 10, min = 0, max = 100),
-          toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
-          toggle("select_custom_labels", "Label your choosen genes", FALSE),
-          uiOutput("custom_gene_labels_ui"),
-          div(class = "ui grey ribbon label", "Customize plot title"),
-          textInput("plot_title", "", "Vivid Volcano"),
-          div(class = "ui grey ribbon label", "Customize X -axis label"),
-          textInput("x_axis_label", "", 
-                    "Log2 Fold Change (Condition X vs. Condition Y)"),
-          actionButton("draw_volcano", "Draw Volcano Plot", 
-                       class = "ui primary button", 
-                       icon = icon("chart line icon"))
-        ),
         ),
         
-      main_panel(
-        width = 12,
-        # Dataset preview
-        segment(
-          class = "raised", 
-          div(class = "ui grey ribbon label", "Dataset Preview"),
-          semantic_DTOutput("dataset_summary", height = "auto")
-        ),
-        segment(
-          class = "placeholder",
-          header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
-          
-          tabset(
-            tabs = list(
-              list(
-                menu = "Static Volcano Plot and GO enrichment table",
-                content = div(
-                  div(class = "ui two column grid",
-                      # First column (50%) - Plot and Downloads
-                      div(class = "column",
-                          segment(
-                            class = "basic",
-                            plotOutput("volcano_plot", width = "100%", height = "600px")
-                          ),
-                          segment(
-                            class = "basic",
-                            h4(class = "ui header", "Download Plots"),
-                            div(
-                              class = "ui tiny fluid buttons",
-                              downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
-                              downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
-                              downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
+        main_panel(
+          width = 12,
+          # Dataset preview
+          segment(
+            class = "raised", 
+            div(class = "ui grey ribbon label", "Dataset Preview"),
+            semantic_DTOutput("dataset_summary", height = "auto")
+          ),
+          segment(
+            class = "placeholder",
+            header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
+            
+            tabset(
+              tabs = list(
+                list(
+                  menu = "Static Volcano Plot and GO enrichment table",
+                  content = div(
+                    div(class = "ui two column grid",
+                        # First column (50%) - Plot and Downloads
+                        div(class = "column",
+                            segment(
+                              class = "basic",
+                              plotOutput("volcano_plot", width = "100%", height = "600px")
                             ),
-                            div(
-                              style = "margin-top: 10px;",
-                              class = "ui tiny fluid buttons",
-                              downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
-                              downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
+                            segment(
+                              class = "basic",
+                              h4(class = "ui header", "Download Plots"),
+                              div(
+                                class = "ui tiny fluid buttons",
+                                downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
+                                downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
+                                downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
+                              ),
+                              div(
+                                style = "margin-top: 10px;",
+                                class = "ui tiny fluid buttons",
+                                downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
+                                downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
+                              )
                             )
-                          )
-                      ),
-                      # Second column (50%) - GO Table
-                      div(class = "column",
-                          segment(
-                            class = "basic",
-                            h4(class = "ui header", "GO Enrichment Results"),
-                            gt_output("go_enrichment_gt")
-                          )
-                      )
+                        ),
+                        # Second column (50%) - GO Table
+                        div(class = "column",
+                            segment(
+                              class = "basic",
+                              h4(class = "ui header", "Download GO Enrichment Table"),
+                              div(
+                                class = "ui tiny fluid buttons",
+                                downloadButton("download_go_enrichment", "Download GO Table as PDF", class = "ui button")
+                              ),
+                              gt_output("go_enrichment_gt")
+                            )
+                        )
+                    )
                   )
-                )
-              ),
-              list(
-                menu = "Interactive Volcano Plot",
-                content = div(
-                  plotlyOutput("volcano_plotly", width = "800px", height = "740px")
-                )
-              ),
-              list(
-                menu = "GO Category Details",
-                content = div(
-                  gt_output("go_gene_list_gt") 
-                )
-              )        
+                ),
+                list(
+                  menu = "Interactive Volcano Plot",
+                  content = div(
+                    plotlyOutput("volcano_plotly", width = "800px", height = "740px")
+                  )
+                ),
+                list(
+                  menu = "GO Category Details",
+                  content = div(
+                    segment(
+                      class = "basic",
+                      h4(class = "ui header", "Download GO Gene List Table"),
+                      div(
+                        class = "ui tiny fluid buttons",
+                        downloadButton("download_go_gene_list", "Download GO Gene List as PDF", class = "ui button")
+                      ),
+                      gt_output("go_gene_list_gt")
+                    )
+                  )
+                )        
+              )
             )
           )
         )
-      )
       )
   )
 )
@@ -1229,7 +1250,50 @@ server <- function(input, output, session) {
                units = "mm", device = cairo_pdf)
       }
     )
-  
+    
+    # Download handler for GO enrichment table
+    output$download_go_enrichment <- downloadHandler(
+      filename = function() {
+        paste0("GO_Enrichment_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(enrichment_results_list)
+        gt_table <- build_gt_table(
+          enrichment_results_list,
+          upregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
+          downregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+        )
+        gtsave(gt_table, file)
+      }
+    )
+    
+    # Download handler for GO gene list table
+    output$download_go_gene_list <- downloadHandler(
+      filename = function() {
+        paste0("GO_Gene_List_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(input$color_highlight, enrichment_results_list)
+        colors_to_use <- if(input$color_highlight) {
+          req(input$up_color, input$down_color)
+          c(input$down_color, input$up_color)
+        } else {
+          c("#000000", "#000000")  # default black if highlighting is disabled
+        }
+        gt_table <- build_gt_gene_lists(
+          df = uploaded_df(),  # Use the actual df from the parent scope
+          annotation_col = input$annotation_col,
+          chosen_go = input$go_category,
+          go_data = GO,
+          alpha = input$alpha,
+          fold_col = input$fold_col,
+          color_highlight = colors_to_use
+        )
+        gtsave(gt_table, file)
+      }
+    )
+    
+    
 })
 }
 shinyApp(ui = ui, server = server)
