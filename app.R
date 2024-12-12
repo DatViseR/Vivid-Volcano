@@ -236,7 +236,10 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   return(publication_plot)
 }
 
-build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count) {
+build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight) {
+  down_color <- color_highlight[1]
+  up_color <- color_highlight[2]
+  
   # Prepare data frames with rounded values and formatted p-values
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
@@ -332,6 +335,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       ) %>%
       tab_style(
         style = list(
+          cell_text(weight = "bold"),
           cell_fill(color = "#D3D3D3")  # Light gray color
         ),
         locations = cells_row_groups(groups = paste0("Bidirectionally regulated n = ", regulated_df$Sample_Size[1]))
@@ -346,7 +350,8 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       ) %>%
       tab_style(
         style = list(
-          cell_fill(color = "#ADD8E6")  # Light blue color
+          cell_text(weight = "bold"),
+          cell_fill(color = up_color)  # Use up_color from input
         ),
         locations = cells_row_groups(groups = paste0("Upregulated n = ", upregulated_df$Sample_Size[1]))
       )
@@ -360,7 +365,8 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       ) %>%
       tab_style(
         style = list(
-          cell_fill(color = "#FFC0CB")  # Light pink color
+          cell_text(weight = "bold"),
+          cell_fill(color = down_color)  # Use down_color from input
         ),
         locations = cells_row_groups(groups = paste0("Downregulated n = ", downregulated_df$Sample_Size[1]))
       )
@@ -929,6 +935,16 @@ server <- function(input, output, session) {
       # Render GO enrichment table
       output$go_enrichment_gt <- render_gt({
         req(enrichment_results_list)
+        
+        # Get the colors from the proper inputs when color highlighting is enabled
+        colors_to_use <- if(input$color_highlight) {
+          req(input$up_color, input$down_color)
+          c(input$down_color, input$up_color)
+        } else {
+          c("#000000", "#000000")  # default black if highlighting is disabled
+        }
+        
+        
         build_gt_table(
           enrichment_results_list,
           upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
