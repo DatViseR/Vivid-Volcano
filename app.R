@@ -1283,7 +1283,8 @@ server <- function(input, output, session) {
         gt_table <- build_gt_table(
           enrichment_results_list,
           upregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
-          downregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0))
+          downregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
+          color_highlight = colors_to_use
         )
         gtsave(gt_table, file)
       }
