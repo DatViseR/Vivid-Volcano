@@ -526,11 +526,10 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 # Function defined outside server
-# Define log_event function
 log_event <- function(log_messages_rv, message, type = "INFO") {
   # Check if log_messages_rv is a reactive value
-  if (!is.function(log_messages_rv) || !("reactivevalues" %in% class(environment(log_messages_rv)))) {
-    stop("log_messages_rv must be a reactiveVal")
+  if (!shiny::is.reactive(log_messages_rv)) {
+    stop("log_messages_rv must be a reactiveVal or reactive expression")
   }
   
   timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
@@ -545,6 +544,8 @@ log_event <- function(log_messages_rv, message, type = "INFO") {
   # Also print to console
   cat(formatted_msg)
 }
+
+
 
 # Function to check and unlog p-values
 check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv) {
@@ -917,7 +918,7 @@ server <- function(input, output, session) {
     df <- uploaded_df()
     
     # Check and unlog p-values
-    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages())
+    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     
     # Adjust p-values
