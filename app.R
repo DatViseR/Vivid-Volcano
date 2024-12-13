@@ -526,10 +526,10 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 # Function defined outside server
+# Define log_event function
 log_event <- function(log_messages_rv, message, type = "INFO") {
-  # Check if log_messages_rv is a valid reactive value
-  if (!inherits(log_messages_rv, "reactivevalues") && 
-      !exists("impl", where = log_messages_rv, inherits = FALSE)) {
+  # Check if log_messages_rv is a reactive value
+  if (!is.function(log_messages_rv) || !("reactivevalues" %in% class(environment(log_messages_rv)))) {
     stop("log_messages_rv must be a reactiveVal")
   }
   
@@ -770,7 +770,9 @@ ui <- semanticPage(
                 )        
               )
             )
-          )
+          ),
+          # In ui
+          verbatimTextOutput("log_output")
         )
       )
   )
@@ -915,7 +917,7 @@ server <- function(input, output, session) {
     df <- uploaded_df()
     
     # Check and unlog p-values
-    df <- check_and_unlog_pvalues(df, input$pvalue_col)
+    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages())
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     
     # Adjust p-values
@@ -1391,7 +1393,10 @@ server <- function(input, output, session) {
         writeLines(log_messages(), file)
       }
     )
-    
+    # In server
+output$log_output <- renderText({
+  log_messages()
+})
   
 })
 }
