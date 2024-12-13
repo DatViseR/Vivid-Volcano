@@ -14,6 +14,7 @@ library(semantic.dashboard)
 library(gridExtra)
 library(webshot2)
 
+
 # Load the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data  and in the script
 # Parquet_GO_source_data_preparation_script.R
@@ -521,6 +522,22 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 }
 
 
+# Capture console output
+sink_console <- function() {
+  con <- textConnection("console_output", "w")
+  sink(con, type = "output")
+  console_log(con)
+}
+
+# Stop capturing console output
+stop_sink_console <- function() {
+  sink(type = "output")
+  con <- console_log()
+  close(con)
+  console_log(paste(console_output, collapse = "\n"))
+}
+
+
 
 
 ################################### ----UI---#################################
@@ -645,7 +662,8 @@ ui <- semanticPage(
                                      "Log2 Fold Change (Condition X vs. Condition Y)"),
                            actionButton("draw_volcano", "Draw Volcano Plot", 
                                         class = "ui primary button", 
-                                        icon = icon("chart line icon"))
+                                        icon = icon("chart line icon")),
+                           uiOutput("download_log_button") 
                       ),
         ),
         
@@ -740,7 +758,11 @@ server <- function(input, output, session) {
   
   uploaded_df <- reactiveVal()
   volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
+  # Reactive value to store the console log
+  console_log <- reactiveVal("")
   
+  # Start capturing console output
+  sink_console()
   
   # Function to check and unlog p-values
   check_and_unlog_pvalues <- function(df, pvalue_col) {
@@ -1209,6 +1231,16 @@ server <- function(input, output, session) {
             showarrow = FALSE
           )
       })
+      # Render the download button
+      output$download_log_button <- renderUI({
+        downloadButton("download_log", "Download Analysis Log", class = "ui gray button")
+      })
+      
+      # Render the download button only after draw_volcano is clicked
+      outputOptions(output, "download_log_button", suspendWhenHidden = FALSE)
+      
+      
+      
     })
     
     
@@ -1321,6 +1353,23 @@ server <- function(input, output, session) {
         gtsave(gt_table, file)
       }
     )
+    
+    # Download handler for the console log
+    output$download_log <- downloadHandler(
+      filename = function() {
+        paste0("analysis_log_", Sys.Date(), ".txt")
+      },
+      content = function(file) {
+        writeLines(console_log(), file)
+      }
+    )
+    
+    
+    
+    
+    # Stop capturing console output after the plot is drawn
+    stop_sink_console()
+    
     
     
 })
