@@ -522,19 +522,33 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 }
 
 
-# Capture console output
-sink_console <- function() {
-  con <- textConnection("console_output", "w")
-  sink(con, type = "output")
-  console_log(con)
+
+
+# Enhanced logging function that captures both cat() and custom messages
+log_event <- function(message, type = "INFO") {
+  # Capture regular cat() output
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  
+  # Format the message
+  formatted_msg <- sprintf("[%s] %s: %s\n", timestamp, type, message)
+  
+  # Update the log
+  current_log <- log_messages()
+  log_messages(paste0(current_log, formatted_msg))
+  
+  # Also print to console (similar to cat())
+  cat(formatted_msg)
 }
 
-# Stop capturing console output
-stop_sink_console <- function() {
-  sink(type = "output")
-  con <- console_log()
-  close(con)
-  console_log(paste(console_output, collapse = "\n"))
+# Function to check and unlog p-values
+check_and_unlog_pvalues <- function(df, pvalue_col) {
+  pvalues <- as.numeric(df[[pvalue_col]])
+  if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
+    cat("P-values appear to be -log10 transformed. Unlogging...\n")
+    pvalues <- 10^(-abs(pvalues))
+    df[[pvalue_col]] <- pvalues
+  }
+  return(df)
 }
 
 
@@ -663,7 +677,7 @@ ui <- semanticPage(
                            actionButton("draw_volcano", "Draw Volcano Plot", 
                                         class = "ui primary button", 
                                         icon = icon("chart line icon")),
-                           uiOutput("download_log_button") 
+                           uiOutput("download_log_ui")
                       ),
         ),
         
@@ -759,22 +773,11 @@ server <- function(input, output, session) {
   uploaded_df <- reactiveVal()
   volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
   # Reactive value to store the console log
-  console_log <- reactiveVal("")
+  # Create a more comprehensive logging system
+  log_messages <- reactiveVal("")
   
-  # Start capturing console output
-  sink_console()
   
-  # Function to check and unlog p-values
-  check_and_unlog_pvalues <- function(df, pvalue_col) {
-    pvalues <- as.numeric(df[[pvalue_col]])
-    if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
-      cat("P-values appear to be -log10 transformed. Unlogging...\n")
-      pvalues <- 10^(-abs(pvalues))
-      df[[pvalue_col]] <- pvalues
-    }
-    return(df)
-  }
-  
+
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
@@ -793,6 +796,18 @@ server <- function(input, output, session) {
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
           selectInput("annotation_col", "Select human gene symbols column", choices = names(df))
       )
+    })
+    
+  )
+    # Add the download log UI
+    output$download_log_ui <- renderUI({
+      if (!is.null(uploaded_df())) {
+        tags$div(
+          style = "margin-top: 20px;",
+          downloadButton("download_log", "Download Process Log")
+        )
+      }
+    
     })
     
     
@@ -1354,22 +1369,17 @@ server <- function(input, output, session) {
       }
     )
     
-    # Download handler for the console log
+    # Download handler
     output$download_log <- downloadHandler(
       filename = function() {
-        paste0("analysis_log_", Sys.Date(), ".txt")
+        paste0("vivid_volcano_log_", format(Sys.time(), "%Y%m%d_%H%M"), ".txt")
       },
       content = function(file) {
-        writeLines(console_log(), file)
+        writeLines(log_messages(), file)
       }
     )
     
-    
-    
-    
-    # Stop capturing console output after the plot is drawn
-    stop_sink_console()
-    
+  
     
     
 })
