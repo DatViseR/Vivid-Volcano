@@ -456,7 +456,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     )
     
     data.frame(
-      GO_Category = paste0(category, " GO:", go_id),  # Combined name and ID
+      GO_Category = paste0(category, go_id),  # Combined name and ID
       All_Genes = if(length(all_genes_formatted) > 0) {
         paste(all_genes_formatted, collapse = ", ")
       } else {
@@ -548,7 +548,7 @@ ui <- semanticPage(
             target = "_blank"
           ),
           h5("Developer", class = "icon-header"),
-          a(href = "https://www.linkedin.com/in/yourusername",
+          a(href = "https://www.linkedin.com/in/tomasz-st%C4%99pkowski/",
             icon("linkedin big"),
             class = "linkedin",
             target = "_blank"
@@ -810,7 +810,7 @@ server <- function(input, output, session) {
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Select from 18777 unique GO categories", choices = NULL, multiple = TRUE)
+      selectizeInput("go_category", "Select from ~8000 unique GO categories", choices = NULL, multiple = TRUE)
     }
   })
   
@@ -1104,7 +1104,7 @@ server <- function(input, output, session) {
           geom_point(
             data = df %>% filter(toupper(!!sym(input$annotation_col)) %in% genes),
             aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col))),
-            size = 1.8, color = color, alpha = 0.5
+            size = 1.8, color = color, alpha = 0.7
           )
       }
     }
