@@ -457,7 +457,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     )
     
     data.frame(
-      GO_Category = paste0(category, go_id),  # Combined name and ID
+      GO_Category = paste0(category,"\n",  go_id),  # Combined name and ID
       All_Genes = if(length(all_genes_formatted) > 0) {
         paste(all_genes_formatted, collapse = ", ")
       } else {
@@ -524,34 +524,45 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 
-# Enhanced logging function that captures both cat() and custom messages
-log_event <- function(message, type = "INFO") {
-  # Capture regular cat() output
-  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
+# Function defined outside server
+log_event <- function(log_messages_rv, message, type = "INFO") {
+  # Check if log_messages_rv is a valid reactive value
+  if (!inherits(log_messages_rv, "reactivevalues") && 
+      !exists("impl", where = log_messages_rv, inherits = FALSE)) {
+    stop("log_messages_rv must be a reactiveVal")
+  }
   
-  # Format the message
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   formatted_msg <- sprintf("[%s] %s: %s\n", timestamp, type, message)
   
-  # Update the log
-  current_log <- log_messages()
-  log_messages(paste0(current_log, formatted_msg))
+  # Update the log using isolate to prevent reactive dependencies
+  isolate({
+    current_log <- log_messages_rv()
+    log_messages_rv(paste0(current_log, formatted_msg))
+  })
   
-  # Also print to console (similar to cat())
+  # Also print to console
   cat(formatted_msg)
 }
 
 # Function to check and unlog p-values
-check_and_unlog_pvalues <- function(df, pvalue_col) {
+check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv) {
+  log_event(log_messages_rv, "Starting p-value range check", "PVALUE")
   pvalues <- as.numeric(df[[pvalue_col]])
+  
   if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
+    log_event(log_messages_rv, "P-values appear to be -log10 transformed", "PVALUE")
     cat("P-values appear to be -log10 transformed. Unlogging...\n")
     pvalues <- 10^(-abs(pvalues))
     df[[pvalue_col]] <- pvalues
+    log_event(log_messages_rv, "P-value transformation complete", "SUCCESS")
+  } else {
+    log_event(log_messages_rv, "P-values are in correct range [0,1]", "VALIDATION")
   }
+  
   return(df)
 }
-
-
 
 
 ################################### ----UI---#################################
@@ -798,18 +809,7 @@ server <- function(input, output, session) {
       )
     })
     
-  )
-    # Add the download log UI
-    output$download_log_ui <- renderUI({
-      if (!is.null(uploaded_df())) {
-        tags$div(
-          style = "margin-top: 20px;",
-          downloadButton("download_log", "Download Process Log")
-        )
-      }
-    
-    })
-    
+ 
     
     output$dataset_summary <- renderDT({
       cat("The following columns were uploaded: \n\n")
@@ -1369,6 +1369,19 @@ server <- function(input, output, session) {
       }
     )
     
+    # Add the download log UI
+    output$download_log_ui <- renderUI({
+      if (!is.null(uploaded_df())) {
+        tags$div(
+          style = "margin-top: 20px;",
+          downloadButton("download_log", "Download Process Log")
+        )
+      }
+      
+    })
+    
+    
+    
     # Download handler
     output$download_log <- downloadHandler(
       filename = function() {
@@ -1380,8 +1393,6 @@ server <- function(input, output, session) {
     )
     
   
-    
-    
 })
 }
 shinyApp(ui = ui, server = server)
