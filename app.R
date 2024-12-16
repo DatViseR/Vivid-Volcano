@@ -545,6 +545,21 @@ log_event <- function(log_messages_rv, message, type = "INFO") {
   cat(formatted_msg)
 }
 
+# The wrapper to properly print the structures of objects in the log
+
+log_structure <- function(log_messages_rv, obj, message = "Object structure:", type = "INFO") {
+  # Capture the structure output using dplyr::glimpse()
+  structure_info <- paste(capture.output(dplyr::glimpse(obj)), collapse = "\n")
+  
+  # Combine the message and structure info
+  full_message <- paste0(message, "\n", structure_info)
+  
+  # Call log_event with the combined message
+  log_event(log_messages_rv, full_message, type)
+}
+
+
+
 
 
 # Function to check and unlog p-values
@@ -802,7 +817,7 @@ server <- function(input, output, session) {
     log_event(log_messages, "Reactive value uploaded_df initialized successfully", "INFO")   
     
     # Log the structure of the uploaded dataset
-    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", paste(capture.output(dplyr::glimpse(df)),collapse = "\n")), "INFO")
+    log_structure(log_messages, df, "The structure of the uploaded dataset is:", "INFO")
     log_event(log_messages, "Dataset uploaded successfully", "SUCCESS")
     
   
@@ -844,7 +859,7 @@ server <- function(input, output, session) {
       if (!is.null(table)) {
         log_event(log_messages, "Dataset summary table created successfully", "INFO")
         # check the structure of the table  
-        log_event(log_messages, paste("The structure of the dataset summary table is:\n", capture.output(str(table))), "INFO")
+        log_structure(log_messages, table, "The structure of the dataset summary table is:\n")
       } else {
         log_event(log_messages, "Failed to create dataset summary table", "ERROR")
       }
@@ -854,36 +869,52 @@ server <- function(input, output, session) {
       
   })
   
+  # Observe changes to the color_highlight input
+  observeEvent(input$color_highlight, {
+    if (input$color_highlight) {
+      log_event(log_messages, "Color highlighting enabled", "INFO")
+    } else {
+      log_event(log_messages, "Color highlighting disabled", "INFO")
+    }
+  })
+  
   # Dynamic UI for color highlight options
   output$color_highlight_ui <- renderUI({
     if (input$color_highlight) {
-     log_event(log_messages, "Color highlighting enabled", "INFO") 
       tagList(
         colourInput("up_color", "Up-regulated color", value = "#FF7081"),
-        colourInput("down_color", "Down-regulated color", value ="#7973FA"),
-             )
-      
-          }
+        colourInput("down_color", "Down-regulated color", value = "#7973FA")
+      )
+    }
   })
   
-  # Dynamic UI for GO Category Input
-  output$go_category_ui <- renderUI({
+  # Observe changes to the show_go_category input
+  observeEvent(input$show_go_category, {
     if (input$show_go_category) {
       log_event(log_messages, "GO categories selection enabled", "INFO")
+    } else {
+      log_event(log_messages, "GO categories selection disabled", "INFO")
+    }
+  })
+  
+  # Render the UI based on the toggle
+  output$go_category_ui <- renderUI({
+    if (input$show_go_category) {
       selectizeInput("go_category", "Select from ~8000 unique GO categories", choices = NULL, multiple = TRUE)
-      
     }
   })
   
   observe({
     if (input$show_go_category) {
-      updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
       log_event(log_messages, "GO categories updated", "INFO")
+      updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
+      
     }
   })
   
   # Reactive expression to track chosen GO categories
   chosen_go <- reactive({
+    log_event(log_messages, "Reactive to track choosen GO categories initialized - input should be null", "INFO")
     input$go_category
     
   })
@@ -896,6 +927,7 @@ server <- function(input, output, session) {
   # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
+      log_event(log_messages, "Color pickers for GO categories are disabled", "INFO")
       return(NULL)
     }
     
@@ -919,24 +951,29 @@ server <- function(input, output, session) {
   
   observe({
     print(str(chosen_go()))
-    log_event(log_messages, paste("Chosen GO categories: ", paste(input$go_category, collapse = ", ")), "INFO") 
-    
+    log_structure(log_messages, input$go_category, "Chosen GO categories modified:") 
   
   })
   
   
-# Dynamic UI for custom gene labels input
+  # Observe changes to the select_custom_labels input
+  observeEvent(input$select_custom_labels, {
+    state <- if (input$select_custom_labels) "ENABLED" else "DISABLED"
+    log_event(log_messages, paste("Custom gene labels selection", state), "INFO")
+  })
+  
+  # Dynamic UI for custom gene labels input
   output$custom_gene_labels_ui <- renderUI({
     if (input$select_custom_labels) {
       req(uploaded_df(), input$annotation_col)
       gene_names <- unique(uploaded_df()[[input$annotation_col]])
       selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE)
-      log_event(log_messages, "Custom gene labels selection enabled", "INFO")
     }
   })
   
   # Reactive expression to track chosen custom gene labels
   custom_genes <- reactive({
+    log_event(log_messages, "Reactive to track choosen custom gene labels initialized or modified", "INFO")
     input$custom_gene_labels
   })
   
