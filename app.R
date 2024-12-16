@@ -557,7 +557,7 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv) {
     cat("P-values appear to be -log10 transformed. Unlogging...\n")
     pvalues <- 10^(-abs(pvalues))
     df[[pvalue_col]] <- pvalues
-    log_event(log_messages_rv, "P-value transformation complete", "SUCCESS")
+    log_event(log_messages_rv, "P-value transformation completed", "SUCCESS")
   } else {
     log_event(log_messages_rv, "P-values are in correct range [0,1]", "VALIDATION")
   }
@@ -797,10 +797,12 @@ server <- function(input, output, session) {
     in_file <- input$file1
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
-    #show structure of the uploaded dataset
-    cat("\n The structure of the uploaded dataset is: \n")
-    str(df)
     
+    # Log the structure of the uploaded dataset
+    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", capture.output(str(df))), "INFO")
+    log_event(log_messages, "Dataset uploaded successfully", "SUCCESS")
+    
+  
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       
@@ -815,8 +817,9 @@ server <- function(input, output, session) {
  
     
     output$dataset_summary <- renderDT({
-      cat("The following columns were uploaded: \n\n")
-      semantic_DT(
+      log_event(log_messages, "Rendering dataset summary table", "INFO")
+      
+      table <- semantic_DT(
         data.frame(df, check.names = FALSE),  # Convert to data.frame if not already
         options = list(
           pageLength = 3,
@@ -833,6 +836,16 @@ server <- function(input, output, session) {
         class = "ui small compact table",
         selection = 'none'  # Disable row selection if needed
       )
+      
+      if (!is.null(table)) {
+        log_event(log_messages, "Dataset summary table created successfully", "INFO")
+        # check the structure of the table  
+        log_event(log_messages, paste("The structure of the dataset summary table is:\n", capture.output(str(table))), "INFO")
+      } else {
+        log_event(log_messages, "Failed to create dataset summary table", "ERROR")
+      }
+      
+      table
     })
       
   })
@@ -843,6 +856,7 @@ server <- function(input, output, session) {
       tagList(
         colourInput("up_color", "Up-regulated color", value = "#FF7081"),
         colourInput("down_color", "Down-regulated color", value ="#7973FA")
+       
       )
     }
   })
