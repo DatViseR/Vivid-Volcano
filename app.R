@@ -853,19 +853,21 @@ server <- function(input, output, session) {
   # Dynamic UI for color highlight options
   output$color_highlight_ui <- renderUI({
     if (input$color_highlight) {
+     log_event(log_messages, "Color highlighting enabled", "INFO") 
       tagList(
         colourInput("up_color", "Up-regulated color", value = "#FF7081"),
         colourInput("down_color", "Down-regulated color", value ="#7973FA"),
              )
-      log_event(log_messages, "Color highlighting enabled", "INFO")
+      
           }
   })
   
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
-      selectizeInput("go_category", "Select from ~8000 unique GO categories", choices = NULL, multiple = TRUE)
       log_event(log_messages, "GO categories selection enabled", "INFO")
+      selectizeInput("go_category", "Select from ~8000 unique GO categories", choices = NULL, multiple = TRUE)
+      
     }
   })
   
@@ -913,7 +915,7 @@ server <- function(input, output, session) {
   
   observe({
     print(str(chosen_go()))
-    log_event(log_messages, "the structure of the chosen GO categories is: ", str(chosen_go()), "INFO")
+    log_event(log_messages, paste("Chosen GO categories: ", paste(input$go_category, collapse = ", ")), "INFO") 
     
   
   })
@@ -939,7 +941,7 @@ server <- function(input, output, session) {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
     log_event(log_messages, "Starting volcano plot generation", "INFO")
-    log_event(log_messages, "The structue of the uploaded_df before creating volcano plot is", str(df), "INFO")
+    log_event(log_messages, paste("The structure of the uploaded_df before creating volcano plot is:\n", capture.output(str(df))), "INFO")
     
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
@@ -953,7 +955,7 @@ server <- function(input, output, session) {
     
     cat("----------------\n", "Structure of the uploaded dataset after unlogging and adjusting p-values \n", str(df), "\n", "----------------\n")
     log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
-    log_event(log_messages, "The structure of the uploaded_df after adjusting pvalue is", str(df), "INFO")
+    log_event(log_messages, paste("The structure of the uploaded_df after adjusting pvalue is", capture.output(str(df))), "INFO")
     
     # Only perform GO enrichment calculations if the toggle is on
     # GO enrichment and gene lists section
