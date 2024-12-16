@@ -35,7 +35,7 @@ perform_hypergeometric_test <- function(log_messages_rv, population_size, succes
                     success_population_size, 
                     sample_size, 
                     sample_success_size), 
-            "INFO")
+            "INFO from perform_hypergeometric_test()")
   
   # Calculate the result
   result <- phyper(sample_success_size - 1, 
@@ -47,51 +47,75 @@ perform_hypergeometric_test <- function(log_messages_rv, population_size, succes
   # Log the result
   log_event(log_messages_rv, 
             sprintf("Hypergeometric test result: %g", result), 
-            "INFO")
+            "INFO from perform_hypergeometric_test()")
   
   return(result)
 }
 
 calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv) {
+  # Initial gene processing logging
+  log_event(log_messages_rv, 
+            sprintf("Starting gene preprocessing with %d raw entries", length(unlist(genes))),
+            "INFO from calculate_go_enrichment()")
+  
   # Clean gene names
-  genes <- unlist(strsplit(genes, "[;|,\\s]+"))  # Split on semicolons, commas, or whitespace
-  genes <- trimws(genes)                         # Remove leading/trailing whitespace
-  genes <- genes[genes != ""]                    # Remove empty strings
-  genes <- toupper(genes)                        # Convert to uppercase
-  genes <- gsub("[^A-Z0-9]", "", genes)          # Remove any remaining special characters
-  genes <- unique(genes)                         # Remove duplicates
+  genes <- unlist(strsplit(genes, "[;|,\\s]+"))  
+  genes <- trimws(genes)                         
+  genes <- genes[genes != ""]                    
+  genes <- toupper(genes)                        
+  genes <- gsub("[^A-Z0-9]", "", genes)          
+  genes <- unique(genes)                         
+  
+  # Log gene cleaning results
+  log_event(log_messages_rv, 
+            sprintf("Gene preprocessing complete: %d unique genes after cleaning", length(genes)),
+            "INFO from calculate_go_enrichment()")
   
   # Check if the gene list is empty
   if (length(genes) == 0) {
-    warning("No valid genes provided for GO enrichment.")
-    return(data.frame())  # Return an empty data frame
+    log_event(log_messages_rv, 
+              "No valid genes found after preprocessing. Returning empty data frame",
+              "WARNING from calculate_go_enrichment()")
+    return(data.frame())
   }
   
-  cat("Calculating GO enrichment for \n", "n=" , length(genes), "detected genes" ,     "\n")
+  # Log start of enrichment analysis
+  log_event(log_messages_rv, 
+            sprintf("Starting GO enrichment analysis for %d genes across %d GO categories", 
+                    length(genes), length(go_categories)),
+            "INFO from calculate_go_enrichment()")
+  
   enrichment_results <- lapply(go_categories, function(go_category) {
-    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene)%>% toupper()%>% unique()
-    cat("GO category:", go_category, "GO genes:", paste(go_genes, collapse = ", "), "\n")
+    go_genes <- go_data %>% filter(name == go_category) %>% pull(gene) %>% toupper() %>% unique()
+    
+    # Log category processing
+    log_event(log_messages_rv, 
+              sprintf("Processing GO category: %s (%d genes in category)", 
+                      go_category, length(go_genes)),
+              "INFO from calculate_go_enrichment()")
     
     population_size <- 19689  # Number of human coding genes after pseudogene exclusion
     success_population_size <- length(go_genes)
     sample_size <- length(genes)
-    # Check if each gene name has at least one exact match after cleaning and splitting
     sample_success_size <- sum(sapply(genes, function(gene) {
-      # Remove special characters commonly surrounding genes
       cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
-      
-      # Split by spaces, commas, semicolons, or colons
-      gene_parts <- toupper(unlist(strsplit(cleaned_gene, "[ ,;:]+")) )
-      
-      # Check if any of the cleaned parts match exactly with go_genes
+      gene_parts <- toupper(unlist(strsplit(cleaned_gene, "[ ,;:]+")))
       any(gene_parts %in% go_genes)
     }))
     
-    cat("Computed values - population_size:", population_size, "success_population_size:", success_population_size,
-        "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
+    # Log hypergeometric test parameters
+    log_event(log_messages_rv, 
+              sprintf("GO category %s statistics:\n Population: %d\n Category size: %d\n Sample size: %d\n Matches: %d", 
+                      go_category, population_size, success_population_size, sample_size, sample_success_size),
+              "INFO from calculate_go_enrichment()")
     
-    p_value <- perform_hypergeometric_test( log_messages_rv, population_size, success_population_size, sample_size, sample_success_size)
-    cat("Calculated p_value for category", go_category, "is:", p_value, "\n")
+    p_value <- perform_hypergeometric_test(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size)
+    
+    # Log p-value result
+    log_event(log_messages_rv, 
+              sprintf("GO category %s: p-value = %g", go_category, p_value),
+              "INFO from calculate_go_enrichment()")
+    
     data.frame(
       GO_Category = go_category,
       P_Value = p_value,
@@ -103,14 +127,12 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
   })
   
   enrichment_results <- bind_rows(enrichment_results)
-  #This was only adjusting pvalue for the p values for the picked categories and not for all the categories
-  # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
-  
-  enrichment_results <- bind_rows(enrichment_results)
   
   # Check if enrichment_results is empty
   if (nrow(enrichment_results) == 0) {
-    warning("No enrichment results found. Returning an empty data frame.")
+    log_event(log_messages_rv, 
+              "No enrichment results found. Returning empty data frame",
+              "WARNING from calculate_go_enrichment()")
     return(data.frame(GO_Category = character(),
                       P_Value = numeric(),
                       Population_Size = numeric(),
@@ -119,9 +141,19 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
                       Sample_Success_Size = numeric()))
   }
   
-  # Adjust p-values
+  # Log p-value adjustment
+  log_event(log_messages_rv, 
+           "Applying Bonferroni correction n = 1160 (estimate for level 4 hierarchy GO tags)", "INFO from calculate_go_enrichment()")
+  
   enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
-  cat("The structure of the enrichment_results is: \n" , str(enrichment_results), "\n")
+  
+  # Log final results summary
+  log_event(log_messages_rv, 
+            sprintf("GO enrichment analysis complete: processed %d categories, found %d significant results (p < 0.05)", 
+                    nrow(enrichment_results),
+                     sum(enrichment_results$Adjusted_P_Value < 0.05)),
+            "INFO from calculate_go_enrichment()")
+  
   return(enrichment_results)
 }
 
