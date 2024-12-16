@@ -799,7 +799,7 @@ server <- function(input, output, session) {
     uploaded_df(df)
     
     # Log the structure of the uploaded dataset
-    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", capture.output(str(df))), "INFO")
+    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", paste( capture.output(dplyr::glimpse(df)),collapse = "\n")), "INFO")
     log_event(log_messages, "Dataset uploaded successfully", "SUCCESS")
     
   
