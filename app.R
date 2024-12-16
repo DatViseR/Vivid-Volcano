@@ -855,28 +855,31 @@ server <- function(input, output, session) {
     if (input$color_highlight) {
       tagList(
         colourInput("up_color", "Up-regulated color", value = "#FF7081"),
-        colourInput("down_color", "Down-regulated color", value ="#7973FA")
-       
-      )
-    }
+        colourInput("down_color", "Down-regulated color", value ="#7973FA"),
+             )
+      log_event(log_messages, "Color highlighting enabled", "INFO")
+          }
   })
   
   # Dynamic UI for GO Category Input
   output$go_category_ui <- renderUI({
     if (input$show_go_category) {
       selectizeInput("go_category", "Select from ~8000 unique GO categories", choices = NULL, multiple = TRUE)
+      log_event(log_messages, "GO categories selection enabled", "INFO")
     }
   })
   
   observe({
     if (input$show_go_category) {
       updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
+      log_event(log_messages, "GO categories updated", "INFO")
     }
   })
   
   # Reactive expression to track chosen GO categories
   chosen_go <- reactive({
     input$go_category
+    
   })
   
   
@@ -893,6 +896,7 @@ server <- function(input, output, session) {
     req(chosen_go())
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
+    log_event(log_messages, "Creating color inputs for GO categories", "INFO")
     
     # Iterate over indices, not values, to correctly access both `chosen[i]` and `color_palette[i]`
     color_inputs <- lapply(seq_along(chosen), function(i) {
@@ -908,7 +912,10 @@ server <- function(input, output, session) {
   })
   
   observe({
-    print(str(chosen_go()))  # This will help verify that categories are selected correctly
+    print(str(chosen_go()))
+    log_event(log_messages, "the structure of the chosen GO categories is: ", str(chosen_go()), "INFO")
+    
+  
   })
   
   
@@ -918,6 +925,7 @@ server <- function(input, output, session) {
       req(uploaded_df(), input$annotation_col)
       gene_names <- unique(uploaded_df()[[input$annotation_col]])
       selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE)
+      log_event(log_messages, "Custom gene labels selection enabled", "INFO")
     }
   })
   
@@ -930,6 +938,8 @@ server <- function(input, output, session) {
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
+    log_event(log_messages, "Starting volcano plot generation", "INFO")
+    log_event(log_messages, "The structue of the uploaded_df before creating volcano plot is", str(df), "INFO")
     
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
@@ -942,6 +952,8 @@ server <- function(input, output, session) {
     uploaded_df(df)  # Ensure reactive value is updated
     
     cat("----------------\n", "Structure of the uploaded dataset after unlogging and adjusting p-values \n", str(df), "\n", "----------------\n")
+    log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
+    log_event(log_messages, "The structure of the uploaded_df after adjusting pvalue is", str(df), "INFO")
     
     # Only perform GO enrichment calculations if the toggle is on
     # GO enrichment and gene lists section
