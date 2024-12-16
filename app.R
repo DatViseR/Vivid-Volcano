@@ -797,15 +797,19 @@ server <- function(input, output, session) {
     in_file <- input$file1
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
+    # create log event for successful initialisations of reactive values
+    
+    log_event(log_messages, "Reactive value uploaded_df initialized successfully", "INFO")   
     
     # Log the structure of the uploaded dataset
-    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", paste( capture.output(dplyr::glimpse(df)),collapse = "\n")), "INFO")
+    log_event(log_messages, paste("The structure of the uploaded dataset is:\n", paste(capture.output(dplyr::glimpse(df)),collapse = "\n")), "INFO")
     log_event(log_messages, "Dataset uploaded successfully", "SUCCESS")
     
   
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
-      
+      # Log event to indicate that the UI has been rendered
+      log_event(log_messages, "Reactive UI for column selection rendered", "INFO")
       div(class = "ui raised segment",
           div(class = "ui grey ribbon label", "Select Data"),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
