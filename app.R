@@ -27,13 +27,32 @@ GO <- arrow::read_parquet("GO.parquet2")
 
 ##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
 
-perform_hypergeometric_test <- function(population_size, success_population_size, sample_size, sample_success_size) {
-  cat("Performing hypergeometric test with parameters:\n")
-  cat("population_size:", population_size, "success_population_size:", success_population_size, "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
-  phyper(sample_success_size - 1, success_population_size, population_size - success_population_size, sample_size, lower.tail = FALSE)
+perform_hypergeometric_test <- function(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size) {
+  # Log the input parameters
+  log_event(log_messages_rv, 
+            sprintf("Performing hypergeometric test with parameters: \npopulation_size: %d \nsuccess_population_size: %d \nsample_size: %d \nsample_success_size: %d",
+                    population_size, 
+                    success_population_size, 
+                    sample_size, 
+                    sample_success_size), 
+            "INFO")
+  
+  # Calculate the result
+  result <- phyper(sample_success_size - 1, 
+                   success_population_size, 
+                   population_size - success_population_size, 
+                   sample_size, 
+                   lower.tail = FALSE)
+  
+  # Log the result
+  log_event(log_messages_rv, 
+            sprintf("Hypergeometric test result: %g", result), 
+            "INFO")
+  
+  return(result)
 }
 
-calculate_go_enrichment <- function(genes, go_categories, go_data) {
+calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv) {
   # Clean gene names
   genes <- unlist(strsplit(genes, "[;|,\\s]+"))  # Split on semicolons, commas, or whitespace
   genes <- trimws(genes)                         # Remove leading/trailing whitespace
@@ -71,7 +90,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
     cat("Computed values - population_size:", population_size, "success_population_size:", success_population_size,
         "sample_size:", sample_size, "sample_success_size:", sample_success_size, "\n")
     
-    p_value <- perform_hypergeometric_test(population_size, success_population_size, sample_size, sample_success_size)
+    p_value <- perform_hypergeometric_test( log_messages_rv, population_size, success_population_size, sample_size, sample_success_size)
     cat("Calculated p_value for category", go_category, "is:", p_value, "\n")
     data.frame(
       GO_Category = go_category,
@@ -84,7 +103,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
   })
   
   enrichment_results <- bind_rows(enrichment_results)
-  #This is only adjusting pvalue for the p values for the picked categories - i need to change this 
+  #This was only adjusting pvalue for the p values for the picked categories and not for all the categories
   # changed to bonferroni using n = 1160 which is an estimate for the number of GO categories at level 3 of hierarchy
   
   enrichment_results <- bind_rows(enrichment_results)
@@ -107,7 +126,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data) {
 }
 
 
-calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col) {
+calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv) {
   cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
   
   # Get genes
@@ -129,13 +148,13 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     distinct(name, id)
   
   # Calculate enrichment with added GO IDs
-  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data) %>%
+  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
-  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data) %>%
+  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
-  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data) %>%
+  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
   enrichment_results_list <- list(
@@ -572,7 +591,7 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv) {
     cat("P-values appear to be -log10 transformed. Unlogging...\n")
     pvalues <- 10^(-abs(pvalues))
     df[[pvalue_col]] <- pvalues
-    log_event(log_messages_rv, "P-value transformation completed", "SUCCESS")
+    log_event(log_messages_rv, "P-value unlogging completed", "SUCCESS")
   } else {
     log_event(log_messages_rv, "P-values are in correct range [0,1]", "VALIDATION")
   }
@@ -987,16 +1006,20 @@ server <- function(input, output, session) {
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
     uploaded_df(df)  # Update the reactive value with unlogged p-values
+    log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO")
     
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
+    log_event(log_messages, paste(input$adj, "method choosen for p-value adjustment", "INFO"))
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
-    
-    cat("----------------\n", "Structure of the uploaded dataset after unlogging and adjusting p-values \n", str(df), "\n", "----------------\n")
     log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
-    log_event(log_messages, paste("The structure of the uploaded_df after adjusting pvalue is", capture.output(str(df))), "INFO")
+    log_structure(log_messages, df, "The structure of the uploaded dataset after adjusting p-values is:", "INFO")
+    
+   
+    
+    
     
     # Only perform GO enrichment calculations if the toggle is on
     # GO enrichment and gene lists section
@@ -1008,7 +1031,8 @@ server <- function(input, output, session) {
         go_categories = input$go_category,
         go_data = GO,
         alpha = input$alpha,
-        fold_col = input$fold_col
+        fold_col = input$fold_col,
+        log_messages_rv = log_messages
       )
       
       # Render GO gene list table
