@@ -365,9 +365,24 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   return(publication_plot)
 }
 
-build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight) {
-  down_color <- color_highlight[1]
+build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv) {
+ 
+  
+  # Log function start and parameters
+  log_event(log_messages_rv,
+            sprintf("Starting GT table build with parameters:\n Colors: %s, %s\n Counts - Up: %d, Down: %d",
+                    color_highlight[1], color_highlight[2],
+                    upregulated_count, downregulated_count),
+            "INFO from build_gt_table()")
+  
+  
+   down_color <- color_highlight[1]
   up_color <- color_highlight[2]
+  
+  # Log data preparation start
+  log_event(log_messages_rv,
+            "Processing regulated genes data",
+            "INFO from build_gt_table()")
   
   # Prepare data frames with rounded values and formatted p-values
   regulated_df <- enrichment_results_list$regulated$data %>%
@@ -400,6 +415,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       Adjusted_P_Value = as.character(Adjusted_P_Value)
     )
   
+  # Combine data frames
+  log_event(log_messages_rv,
+            "Combining data frames and formatting table",
+            "INFO from build_gt_table()")
+  
+  
   # Combine all data frames and remove "Population_Size" column
   combined_df <- bind_rows(
     regulated_df,
@@ -411,6 +432,12 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
       P_Value = as.character(P_Value),
       Adjusted_P_Value = as.character(Adjusted_P_Value)
     )
+  
+  # Create GT table
+  log_event(log_messages_rv,
+            sprintf("Creating GT table with %d total rows", nrow(combined_df)),
+            "INFO from build_gt_table()")
+  
   
   # Create the gt table with formatted numbers
   gt_table <- combined_df %>%
@@ -500,6 +527,11 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
         locations = cells_row_groups(groups = paste0("Downregulated n = ", downregulated_df$Sample_Size[1]))
       )
   }
+  
+  log_event(log_messages_rv,
+            "GT table build completed successfully",
+            "INFO from build_gt_table()")
+  
   
   return(gt_table)
 }
@@ -1191,7 +1223,8 @@ server <- function(input, output, session) {
           enrichment_results_list,
           upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
           downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
-          color_highlight = colors_to_use
+          color_highlight = colors_to_use,
+          log_messages_rv = log_messages
         )
       })
     } else {
@@ -1542,8 +1575,10 @@ server <- function(input, output, session) {
           enrichment_results_list,
           upregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
           downregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
-          color_highlight = colors_to_use
+          color_highlight = colors_to_use,
+          log_messages_rv = log_messages
         )
+        log_event(log_messages, "GO enrichment table created successfully and ready for saving as pdf", "SUCCESS from output$download_go_enrichment")
         gtsave(gt_table, file)
       }
     )
