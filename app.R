@@ -539,12 +539,20 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #This function creates GT tables for each GO category with columns for genes in the GO category,
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
-build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight) {
+build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight, log_messages_rv) {
   # Debug color inputs
   cat("\n==== Color Values Received ====\n")
   cat("Down-regulated color:", color_highlight[1], "\n")
   cat("Up-regulated color:", color_highlight[2], "\n")
   cat("================================\n\n")
+  
+  # Log function start with key parameters
+  log_event(log_messages_rv,
+            sprintf("Building gene lists table\n Alpha: %g\nChosen GO terms: %d\nAnnotation column: %s",
+                    alpha,
+                    length(chosen_go),
+                    annotation_col),
+            "INFO from build_gt_gene_lists()")
   
   # Extract colors
   down_color <- color_highlight[1]
@@ -577,6 +585,21 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     toupper() %>%
     gsub("[^A-Z0-9]", "", .) %>%
     unique()
+  
+  # Log gene counts
+  log_event(log_messages_rv,
+            sprintf("Gene counts:\nTotal detected: %d\nTotal regulated: %d\nUpregulated: %d\nDownregulated: %d",
+                    length(detected_genes),
+                    length(regulated_genes),
+                    length(upregulated_genes),
+                    length(downregulated_genes)),
+            "INFO from build_gt_gene_lists()")
+  
+  # Process GO categories
+  log_event(log_messages_rv,
+            sprintf("Processing %d GO categories", length(chosen_go)),
+            "INFO from build_gt_gene_lists()")
+  
   
   # Process each GO category and prepare data for color-coded display
   table_data <- lapply(chosen_go, function(category) {
@@ -637,6 +660,12 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     )
   }) %>% bind_rows()
   
+  
+  # Log table creation
+  log_event(log_messages_rv,
+            sprintf("Creating GT table with %d rows", nrow(table_data)),
+            "INFO from build_gt_gene_lists()")
+  
   # Create GT table with styling
   gt_table_genes <- table_data %>%
     gt() %>%
@@ -677,6 +706,10 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
       table.font.size = px(12),
       column_labels.font.weight = "bold"
     )
+  
+  log_event(log_messages_rv,
+            "Gene lists table creation completed successfully",
+            "SUCCESS from build_gt_gene_lists()")
   
   return(gt_table_genes)
 }
@@ -974,17 +1007,17 @@ server <- function(input, output, session) {
     uploaded_df(df)
     # create log event for successful initialisations of reactive values
     
-    log_event(log_messages, "Reactive value uploaded_df initialized successfully", "INFO")   
+    log_event(log_messages, "Reactive value uploaded_df initialized successfully", "INFO from upload observer")   
     
     # Log the structure of the uploaded dataset
-    log_structure(log_messages, df, "The structure of the uploaded dataset is:", "INFO")
-    log_event(log_messages, "Dataset uploaded successfully", "SUCCESS")
+    log_structure(log_messages, df, "The structure of the uploaded dataset is:", "INFO from upload observer")
+    log_event(log_messages, "Dataset uploaded successfully", "SUCCESS from upload observer")
     
   
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
-      log_event(log_messages, "Reactive UI for column selection rendered", "INFO")
+      log_event(log_messages, "Reactive UI for column selection rendered", "INFO from output$column_select_ui")
       div(class = "ui raised segment",
           div(class = "ui grey ribbon label", "Select Data"),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
@@ -996,7 +1029,7 @@ server <- function(input, output, session) {
  
     
     output$dataset_summary <- renderDT({
-      log_event(log_messages, "Rendering dataset summary table", "INFO")
+      log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
       
       table <- semantic_DT(
         data.frame(df, check.names = FALSE),  # Convert to data.frame if not already
@@ -1017,11 +1050,11 @@ server <- function(input, output, session) {
       )
       
       if (!is.null(table)) {
-        log_event(log_messages, "Dataset summary table created successfully", "INFO")
+        log_event(log_messages, "Dataset summary table created successfully", "INFO from output$dataset_summary")
         # check the structure of the table  
         log_structure(log_messages, table, "The structure of the dataset summary table is:\n")
       } else {
-        log_event(log_messages, "Failed to create dataset summary table", "ERROR")
+        log_event(log_messages, "Failed to create dataset summary table", "ERROR from output$dataset_summary")
       }
       
       table
@@ -1032,9 +1065,9 @@ server <- function(input, output, session) {
   # Observe changes to the color_highlight input
   observeEvent(input$color_highlight, {
     if (input$color_highlight) {
-      log_event(log_messages, "Color highlighting enabled", "INFO")
+      log_event(log_messages, "Color highlighting enabled", "INFO from input$color_highlight")
     } else {
-      log_event(log_messages, "Color highlighting disabled", "INFO")
+      log_event(log_messages, "Color highlighting disabled", "INFO from input$color_highlight")
     }
   })
   
@@ -1051,9 +1084,9 @@ server <- function(input, output, session) {
   # Observe changes to the show_go_category input
   observeEvent(input$show_go_category, {
     if (input$show_go_category) {
-      log_event(log_messages, "GO categories selection enabled", "INFO")
+      log_event(log_messages, "GO categories selection enabled", "INFO from input$show_go_category")
     } else {
-      log_event(log_messages, "GO categories selection disabled", "INFO")
+      log_event(log_messages, "GO categories selection disabled", "INFO from input$show_go_category")
     }
   })
   
@@ -1066,7 +1099,7 @@ server <- function(input, output, session) {
   
   observe({
     if (input$show_go_category) {
-      log_event(log_messages, "GO categories updated", "INFO")
+      log_event(log_messages, "GO categories updated", "INFO from input$show_go_category")
       updateSelectizeInput(session, "go_category", choices = unique(GO$name), server = TRUE)
       
     }
@@ -1087,14 +1120,14 @@ server <- function(input, output, session) {
   # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
-      log_event(log_messages, "Color pickers for GO categories are disabled", "INFO")
+      log_event(log_messages, "Color pickers for GO categories are disabled", "INFO from output$color_picker_ui")
       return(NULL)
     }
     
     req(chosen_go())
     chosen <- chosen_go()
     cat("Chosen GO categories: ", paste(chosen, collapse = ", "), "\n")  # Debug statement
-    log_event(log_messages, "Creating color inputs for GO categories", "INFO")
+    log_event(log_messages, "Creating color inputs for GO categories", "INFO from output$color_picker_ui")
     
     # Iterate over indices, not values, to correctly access both `chosen[i]` and `color_palette[i]`
     color_inputs <- lapply(seq_along(chosen), function(i) {
@@ -1119,7 +1152,7 @@ server <- function(input, output, session) {
   # Observe changes to the select_custom_labels input
   observeEvent(input$select_custom_labels, {
     state <- if (input$select_custom_labels) "ENABLED" else "DISABLED"
-    log_event(log_messages, paste("Custom gene labels selection", state), "INFO")
+    log_event(log_messages, paste("Custom gene labels selection", state), "INFO input$select_custom_labels")
   })
   
   # Dynamic UI for custom gene labels input
@@ -1141,18 +1174,19 @@ server <- function(input, output, session) {
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     df <- uploaded_df()
-    log_event(log_messages, "Starting volcano plot generation", "INFO")
+    log_messages <- log_messages()
+    log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_event(log_messages, paste("The structure of the uploaded_df before creating volcano plot is:\n", capture.output(str(df))), "INFO")
     
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
     uploaded_df(df)  # Update the reactive value with unlogged p-values
-    log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO")
+    log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO pvalues module")
     
     # Adjust p-values
     pvalues <- df[[input$pvalue_col]]
     adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
-    log_event(log_messages, paste(input$adj, "method choosen for p-value adjustment", "INFO"))
+    log_event(log_messages, paste(input$adj, "method choosen for p-value adjustment", "INFO adjusting pvalues"))
     df$adjusted_pvalues <- adjusted_pvalues
     uploaded_df(df)  # Ensure reactive value is updated
     log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
@@ -1318,6 +1352,40 @@ server <- function(input, output, session) {
       str(input$color_highlight)
       
       cat("\n================================\n\n")
+      
+      log_event(log_messages,
+                sprintf(
+                  "Color Input Debug Analysis2
+Time: %s UTC
+
+1. Basic Information:
+- Is NULL?: %s
+- Class: %s
+- Length: %d
+
+2. Value Details:
+Raw value: %s
+
+3. Individual Elements:
+- Down color (element 1): %s (class: %s)
+- Up color (element 2): %s (class: %s)
+
+4. Structure Information:
+%s",
+                  format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                  ifelse(is.null(input$color_highlight), "Yes", "No"),
+                  paste(class(input$color_highlight), collapse = ", "),
+                  length(input$color_highlight),
+                  paste(capture.output(print(input$color_highlight)), collapse = "\n"),
+                  input$color_highlight[1],
+                  class(input$color_highlight[1]),
+                  input$color_highlight[2],
+                  class(input$color_highlight[2]),
+                  paste(capture.output(str(input$color_highlight)), collapse = "\n")
+                ),
+                "DEBUG from color_input_analysis")
+      
+      
       
       
     }
