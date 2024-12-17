@@ -676,14 +676,14 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes",
+      All_Genes = "All Genes (detected in bold, detected and regulated in color)",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
     ) %>%
     # Style for downregulated genes
     tab_style(
       style = list(
-        cell_text(color = down_color, weight = "bold")
+        cell_text(color = down_color, weight = "bold", v_align = "top")
       ),
       locations = cells_body(
         columns = "Downregulated",
@@ -693,11 +693,18 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     # Style for upregulated genes
     tab_style(
       style = list(
-        cell_text(color = up_color, weight = "bold")
+        cell_text(color = up_color, weight = "bold", v_align = "top")
       ),
       locations = cells_body(
         columns = "Upregulated",
         rows = !grepl("No upregulated genes found", table_data$Upregulated)
+      )
+    ) %>%
+    # Align text in GO_Category column to the top
+    tab_style(
+      style = cell_text(v_align = "top"),
+      locations = cells_body(
+        columns = "GO_Category"
       )
     ) %>%
     fmt_markdown(columns = "All_Genes") %>%
@@ -712,9 +719,8 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
             "SUCCESS from build_gt_gene_lists()")
   
   return(gt_table_genes)
+
 }
-
-
 
 
 
@@ -1199,7 +1205,8 @@ server <- function(input, output, session) {
     # Only perform GO enrichment calculations if the toggle is on
     # GO enrichment and gene lists section
     if (input$show_go_category && length(input$go_category) > 0) {
-      # Calculate enrichment results
+     
+       # Calculate enrichment results
       enrichment_results_list <- calculate_go_enrichment_table(
         df = df,
         annotation_col = input$annotation_col,
@@ -1214,6 +1221,7 @@ server <- function(input, output, session) {
       output$go_gene_list_gt <- render_gt({
         # First check if color highlighting is enabled
         req(input$color_highlight)
+        log_event(log_messages, "Rendering GO gene list table", "INFO from output$go_gene_list_gt")
         
         # Get the colors from the proper inputs when color highlighting is enabled
         colors_to_use <- if(input$color_highlight) {
@@ -1264,6 +1272,7 @@ server <- function(input, output, session) {
       })
     } else {
       # Handle both outputs in the else block
+      log_event(log_messages, "GO categories not selected or no categories chosen", "INFO output$go_enrichment_gt")
       output$go_gene_list_gt <- render_gt({
         gt(data.frame(Message = if(!input$show_go_category) {
           "Enable GO category visualization to see results"
@@ -1273,6 +1282,7 @@ server <- function(input, output, session) {
       })
       
       output$go_enrichment_gt <- render_gt({
+        log_event(log_messages, "GO categories not selected or no categories chosen", "INFO output$go_enrichment_gt")
         gt(data.frame(Message = if(!input$show_go_category) {
           "Enable GO category visualization to see results"
         } else {
@@ -1296,6 +1306,7 @@ server <- function(input, output, session) {
     limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
     cat(paste("Limits for x scale are:", limit_for_x_scale, "\n"))
    
+    log_event(log_messages, "Creating volcano plot", "INFO input$draw_volcano")
     volcano_plot <- ggplot(df, aes(x = round(!!sym(input$fold_col), 4), 
                                    y = -log10(!!sym(input$pvalue_col)),
                                    text = paste("Gene:", !!sym(input$annotation_col),
@@ -1326,11 +1337,12 @@ server <- function(input, output, session) {
     subtitle <- NULL
     
     if (input$color_highlight) {
+      log_event(log_messages, "Color highlighting enabled", "INFO input$draw_volcano")
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
       downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
       volcano_plot <- volcano_plot +
         annotate("text", x = -Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = -0.1 ,vjust = 2, size = 5.5 ) +
-        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.2, vjust = 1, size = 5.5)
+        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)
       # Detailed debug analysis of input$color_highlight
       cat("\n==== Color Input Debug Analysis ====\n")
       cat("Current Time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
@@ -1385,6 +1397,7 @@ server <- function(input, output, session) {
   
     
     if (input$color_highlight) {
+      log_event(log_messages, "Adding color point layers from color_highlight input", "INFO input$draw_volcano")
       volcano_plot <- volcano_plot +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0), aes(color = "Up"), size = 2, color = input$up_color, alpha = 0.5) +
         geom_point(data = df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0), aes(color = "Down"), size = 2, color = input$down_color, alpha = 0.5)
@@ -1392,6 +1405,7 @@ server <- function(input, output, session) {
     
     # Highlighting genes belonging to chosen GO categories
     if (!is.null(chosen_go())) {
+      log_event(log_messages, "Coloring genes belonging to chosen GO categories", "INFO input$draw_volcano")
       selected_GO <- GO %>% filter(name %in% chosen_go())
       for (go in chosen_go()) {
         color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
@@ -1420,6 +1434,7 @@ server <- function(input, output, session) {
     
     # Create a new column for trimmed labels if input$trim_gene_names is TRUE
     if (input$trim_gene_names) {
+      log_event(log_messages, "Trimming gene names to first occurrence", "INFO input$draw_volcano")
       df$trimmed_labels <- sapply(df[[input$annotation_col]], function(x) {
         strsplit(as.character(x), "[,; :]+")[[1]][1]
       })
@@ -1450,6 +1465,7 @@ server <- function(input, output, session) {
     
     # NEW: Add custom gene labels if feature is enabled
     if (input$select_custom_labels && !is.null(custom_genes())) {
+      log_event(log_messages, "Adding custom gene labels", "INFO input$draw_volcano")
       custom_label_data <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes())
       
       # Use trimmed labels if applicable
@@ -1477,6 +1493,7 @@ server <- function(input, output, session) {
     volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
     
     output$volcano_plot <- renderPlot({ 
+      log_event(log_messages, "Rendering static volcano plot", "INFO output$volcano_plot")
       req(volcano_plot_rv())
       print(volcano_plot_rv()) 
     })
@@ -1492,7 +1509,7 @@ server <- function(input, output, session) {
     
     output$volcano_plotly <- renderPlotly({ 
       req(volcano_plot_rv())
-      
+      log_event(log_messages, "Rendering interactive volcano plot", "INFO output$volcano_plotly")
       # Convert to plotly with proper layout
       p <- ggplotly(volcano_plot_rv(), tooltip = "text") %>%
         layout(
