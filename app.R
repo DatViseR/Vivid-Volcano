@@ -158,10 +158,16 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 }
 
 
+
+
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv) {
-  cat("Calculating GO enrichment table with alpha:", alpha, "fold_col:", fold_col, "\n")
+  # Log start of analysis with parameters
+  log_event(log_messages_rv,
+            sprintf("Starting GO enrichment analysis with parameters:\n Alpha: %g\n Fold change column: %s\n Annotation column: %s",
+                    alpha, fold_col, annotation_col),
+            "INFO from calculate_go_enrichment_table()")
   
-  # Get genes
+  # Get genes and log counts
   upregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
     pull(!!sym(annotation_col))
@@ -174,21 +180,39 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     filter(adjusted_pvalues < alpha) %>% 
     pull(!!sym(annotation_col))
   
+  # Log gene counts
+  log_event(log_messages_rv,
+            sprintf("Filtered gene counts:\n Upregulated: %d\n Downregulated: %d\n Total regulated: %d",
+                    length(upregulated_genes),
+                    length(downregulated_genes),
+                    length(regulated_genes)),
+            "INFO from calculate_go_enrichment_table()")
+  
   # Get GO IDs for categories
   go_ids <- go_data %>% 
     filter(name %in% go_categories) %>% 
     distinct(name, id)
   
+  # Log GO categories information
+  log_event(log_messages_rv,
+            sprintf("Processing %d GO categories for enrichment analysis",
+                    nrow(go_ids)),
+            "INFO from calculate_go_enrichment_table()")
+  
   # Calculate enrichment with added GO IDs
+  log_event(log_messages_rv, "Starting upregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
   upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
+  log_event(log_messages_rv, "Starting downregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
   downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
+  log_event(log_messages_rv, "Starting all regulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
   regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
+  # Create results list
   enrichment_results_list <- list(
     upregulated = list(
       data = upregulated_enrichment
@@ -201,11 +225,19 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     )
   )
   
-  cat("--------------\n", "Structure of the enrichment_results_list \n", str(enrichment_results_list),"\n", "--------------\n")
-  return(enrichment_results_list)
+  # Log summary of results
+  log_event(log_messages_rv,
+            sprintf("GO enrichment analysis completed:\n Upregulated categories: %d\n Downregulated categories: %d\n Total regulated categories: %d\n",
+                    nrow(upregulated_enrichment),
+                    nrow(downregulated_enrichment),
+                    nrow(regulated_enrichment)),
+                   
+            "INFO from calculate_go_enrichment_table()")
   
+  log_structure(log_messages_rv, enrichment_results_list, "Final enrichment results structure", "INFO from calculate_go_enrichment_table()")
+  
+  return(enrichment_results_list)
 }
-
 
 
 create_publication_plot <- function(base_plot, width_mm, height_mm) {
