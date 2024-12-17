@@ -368,4 +368,28 @@ div.ui.raised.segment:hover {
   gap: 0.5rem; /* Space between text and input */
 }
 
+/************* DISPLAY FOR MOBILE *****************************/
+
+/* Responsive design for mobile devices */
+
+@media screen and (max-width: 768px) {
+    /* Parent container switches to column layout */
+    #vytcp {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1rem; /* Adds spacing between panels */
+    }
+
+    /* Sidebar panel takes full width */
+    #vytcp-sidebar_panel {
+        width: 100% !important;
+        order: 1; /* Sidebar comes first */
+    }
+
+    /* Main panel takes full width */
+    #vytcp-main_panel {
+        width: 100% !important;
+        order: 2; /* Main panel comes second */
+    }
+}
 

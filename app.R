@@ -817,7 +817,7 @@ ui <- semanticPage(
       # Main layout using sidebar
       sidebar_layout(
         # Sidebar panel with controls
-        sidebar_panel(class = "custom-sidebar",
+        sidebar_panel(
                       width = 3,
                       # Data Upload Card
                       div(class = "ui raised segment",
@@ -911,7 +911,7 @@ ui <- semanticPage(
           width = 12,
           # Dataset preview
           segment(
-            class = "raised", 
+            class = "raised",
             div(class = "ui grey ribbon label", "Dataset Preview"),
             semantic_DTOutput("dataset_summary", height = "auto")
           ),
