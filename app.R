@@ -240,10 +240,20 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 
-create_publication_plot <- function(base_plot, width_mm, height_mm) {
+create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv) {
+  # Log start of plot creation with dimensions
+  log_event(log_messages_rv,
+            sprintf("Creating publication plot with dimensions: %dmm x %dmm", width_mm, height_mm),
+            "INFO from create_publication_plot()")
+  
   # Convert mm to inches for ggsave compatibility
   width_in <- width_mm * 0.0393701
   height_in <- height_mm * 0.0393701
+  
+  # Log conversion to inches
+  log_event(log_messages_rv,
+            sprintf("Converted dimensions to inches: %.2f\" x %.2f\"", width_in, height_in),
+            "INFO from create_publication_plot()")
   
   # Define fixed point sizes for different plot dimensions
   point_sizes <- list(
@@ -258,15 +268,30 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
   plot_key <- paste0(width_mm, "x", height_mm)
   point_size <- point_sizes[[plot_key]] %||% point_sizes[["85x85"]]
   
+  # Log selected size configuration
+  log_event(log_messages_rv,
+            sprintf("Using size configuration for '%s' (base: %.2f, highlight: %.2f, annotation: %.2f)",
+                    plot_key,
+                    point_size$base,
+                    point_size$highlight,
+                    point_size$annotation),
+            "INFO from create_publication_plot()")
+  
   # Adjust text sizes and margins based on plot dimensions
   if (plot_key %in% c("85x85", "114x65")) {
     title_size <- 10
     text_size <- 6
     plot_margin <- margin(t = 10, r = 10, b = 5, l = 5, unit = "pt")
+    log_event(log_messages_rv,
+              sprintf("Using compact layout (title: %d, text: %d)", title_size, text_size),
+              "INFO from create_publication_plot()")
   } else {
     title_size <- 12
     text_size <- 8
     plot_margin <- margin(t = 30, r = 85, b = 10, l = 10, unit = "pt")
+    log_event(log_messages_rv,
+              sprintf("Using standard layout (title: %d, text: %d)", title_size, text_size),
+              "INFO from create_publication_plot()")
   }
   
   # Modify the plot with publication-ready settings
@@ -281,7 +306,13 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       plot.margin = plot_margin
     )
   
+  # Log layer modifications
+  log_event(log_messages_rv,
+            sprintf("Modifying %d plot layers", length(publication_plot$layers)),
+            "INFO from create_publication_plot()")
+  
   # Update all layers
+  layer_modifications <- list()
   for (i in seq_along(publication_plot$layers)) {
     layer <- publication_plot$layers[[i]]
     
@@ -291,6 +322,9 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
         layer$aes_params$color %in% c("darkgreen", "red")
       new_size <- if (is_highlight) point_size$highlight else point_size$base
       layer$aes_params$size <- new_size
+      layer_modifications[[i]] <- sprintf("Layer %d: Point geometry %s", 
+                                          i, 
+                                          if(is_highlight) "highlighted" else "base")
     }
     
     # Handle text and label annotations
@@ -299,7 +333,6 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
         inherits(layer$geom, "GeomLabelRepel") ||
         inherits(layer$geom, "GeomLabel")) {
       
-      # Check if this is an annotation text (positioned at Inf, Inf)
       is_annotation <- all(
         !is.null(layer$data),
         "x" %in% names(layer$data),
@@ -308,14 +341,26 @@ create_publication_plot <- function(base_plot, width_mm, height_mm) {
       )
       
       if (is_annotation) {
-        # This is an annotation (e.g., counts or GO details)
         layer$aes_params$size <- point_size$annotation
+        layer_modifications[[i]] <- sprintf("Layer %d: Annotation text", i)
       } else {
-        # This is a regular text label (e.g., gene names)
         layer$aes_params$size <- text_size * 0.25
+        layer_modifications[[i]] <- sprintf("Layer %d: Regular text label", i)
       }
     }
   }
+  
+  # Log layer modification summary
+  if (length(layer_modifications) > 0) {
+    log_event(log_messages_rv,
+              sprintf("Layer modifications completed:\n%s", 
+                      paste(unlist(layer_modifications), collapse = "\n")),
+              "INFO from create_publication_plot()")
+  }
+  
+  log_event(log_messages_rv,
+            "Publication plot creation completed",
+            "INFO from create_publication_plot()")
   
   return(publication_plot)
 }
@@ -1426,7 +1471,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages)
         ggsave(file, publication_plot, width = 85, height = 85, 
                units = "mm", device = cairo_pdf)
       }
@@ -1438,7 +1483,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages)
         ggsave(file, publication_plot, width = 114, height = 114, 
                units = "mm", device = cairo_pdf)
       }
@@ -1450,7 +1495,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages)
         ggsave(file, publication_plot, width = 114, height = 65, 
                units = "mm", device = cairo_pdf)
       }
@@ -1462,7 +1507,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages)
         ggsave(file, publication_plot, width = 174, height = 174, 
                units = "mm", device = cairo_pdf)
       }
@@ -1474,7 +1519,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages)
         ggsave(file, publication_plot, width = 174, height = 98, 
                units = "mm", device = cairo_pdf)
       }
