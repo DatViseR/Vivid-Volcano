@@ -1176,7 +1176,7 @@ server <- function(input, output, session) {
     df <- uploaded_df()
     log_messages <- log_messages()
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
-    log_event(log_messages, paste("The structure of the uploaded_df before creating volcano plot is:\n", capture.output(str(df))), "INFO")
+    log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
     
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
@@ -1236,7 +1236,8 @@ server <- function(input, output, session) {
           go_data = GO,
           alpha = input$alpha,
           fold_col = input$fold_col,
-          color_highlight = colors_to_use
+          color_highlight = colors_to_use,
+          log_messages_rv = log_messages
         )
       })
       
@@ -1353,42 +1354,7 @@ server <- function(input, output, session) {
       
       cat("\n================================\n\n")
       
-      log_event(log_messages,
-                sprintf(
-                  "Color Input Debug Analysis2
-Time: %s UTC
-
-1. Basic Information:
-- Is NULL?: %s
-- Class: %s
-- Length: %d
-
-2. Value Details:
-Raw value: %s
-
-3. Individual Elements:
-- Down color (element 1): %s (class: %s)
-- Up color (element 2): %s (class: %s)
-
-4. Structure Information:
-%s",
-                  format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                  ifelse(is.null(input$color_highlight), "Yes", "No"),
-                  paste(class(input$color_highlight), collapse = ", "),
-                  length(input$color_highlight),
-                  paste(capture.output(print(input$color_highlight)), collapse = "\n"),
-                  input$color_highlight[1],
-                  class(input$color_highlight[1]),
-                  input$color_highlight[2],
-                  class(input$color_highlight[2]),
-                  paste(capture.output(str(input$color_highlight)), collapse = "\n")
-                ),
-                "DEBUG from color_input_analysis")
-      
-      
-      
-      
-    }
+          }
     
     # Add annotations for chosen GO categories
     if (input$show_go_category) {
@@ -1671,7 +1637,8 @@ Raw value: %s
           go_data = GO,
           alpha = input$alpha,
           fold_col = input$fold_col,
-          color_highlight = colors_to_use
+          color_highlight = colors_to_use,
+          log_messages_rv = log_messages
         )
         gtsave(gt_table, file)
       }
