@@ -788,7 +788,11 @@ ui <- semanticPage(
   tags$head(
     tags$link(rel = "stylesheet", 
               type = "text/css", 
-              href = paste0("custom.css?v=", Sys.time()))
+              href = paste0("custom.css?v=", Sys.time())),
+  tags$link(rel = "stylesheet", href = "https://cdn.datatables.net/responsive/2.2.9/css/responsive.semanticui.min.css"),
+  tags$script(src = "https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js")
+    
+    
   ),
   
   segment(class = "navbar",
@@ -1040,7 +1044,7 @@ server <- function(input, output, session) {
       table <- semantic_DT(
         data.frame(df, check.names = FALSE), # Convert to data.frame if not already
         options = list(
-          
+          responsive = TRUE,
           pageLength = 3,
           dom = 'lftp',
           lengthMenu = list(c(1, 3, 5, 10), c('1','3', '5', '10')),

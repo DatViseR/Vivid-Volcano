@@ -406,37 +406,35 @@ div.ui.raised.segment:hover {
         flex: 1 1 auto;
     }
     
-    /*  DATA TABLE MOBILE STYLES*/   
-    
+    /************* DATA TABLE MOBILE STYLES ***********************/   
+    /* Ensure the DataTable is scrollable horizontally */
 
-  
-  
-     #dataset_summary {
-        width: 100%;
-        overflow-x: auto; /* Enable horizontal scrolling */
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    }
-    
-    #dataset_summary .dataTables_wrapper.dt-semanticUI {
-        width: 100%;
-        overflow-x: auto; /* Ensure the table wrapper fits the viewport width */
+    /************* DATA TABLE MOBILE STYLES ***********************/   
+
+
+    .dataTables_wrapper.dt-semanticUI {
+        overflow-x: auto; /* Enable scrolling */
+        -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
     }
 
-    #dataset_summary .dataTables_wrapper.dt-semanticUI table {
-        width: 100%; /* Ensure the table takes the full width */
-        min-width: 600px; /* Ensure the table has a minimum width */
+    .dataTables_wrapper.dt-semanticUI table {
+        table-layout: auto; /* Allow flexible resizing */
+        min-width: 600px; /* Prevent stacking */
+        
+        
     }
 
-    #dataset_summary .dataTables_wrapper.dt-semanticUI table th,
-    #dataset_summary .dataTables_wrapper.dt-semanticUI table td {
-        white-space: nowrap; /* Prevent table cells from stacking vertically */
-    }
-  
+   
+/* This is the acces to tble header */
+     .dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr:nth-child(1),
+  /* This is the acces to tble body*/   
+     #DataTables_Table_0 > tbody:nth-child(2) > tr.odd:nth-child(1)  {
+        
+  white-space: nowrap; /* Keep content in one line */
+         display: inline-flex !important;
+         
+        
 
-
-    
-    
-}
 }
 
 
