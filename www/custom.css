@@ -391,6 +391,48 @@ div.ui.raised.segment:hover {
         width: 100% !important;
         order: 2;
     }
+    
+    .ui.left.action.input.ui-ss-input {
+        width: 80% !important;
+        margin: 0 auto; /* Center the element */
+    }
+    
+    /* Ensure the inner elements also adapt to the width */
+    .ui.file.input .ui.left.action.input .ui.labeled.icon.button,
+    .ui.file.input .ui.left.action.input .ui.text.input {
+        flex: 1 1 auto;
+    }
+    
+    /*  DATA TABLE MOBILE STYLES*/   
+    
+
+  
+  
+     #dataset_summary {
+        width: 100%;
+        overflow-x: auto; /* Enable horizontal scrolling */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    #dataset_summary .dataTables_wrapper.dt-semanticUI {
+        width: 100%;
+        overflow-x: auto; /* Ensure the table wrapper fits the viewport width */
+    }
+
+    #dataset_summary .dataTables_wrapper.dt-semanticUI table {
+        width: 100%; /* Ensure the table takes the full width */
+        min-width: 600px; /* Ensure the table has a minimum width */
+    }
+
+    #dataset_summary .dataTables_wrapper.dt-semanticUI table th,
+    #dataset_summary .dataTables_wrapper.dt-semanticUI table td {
+        white-space: nowrap; /* Prevent table cells from stacking vertically */
+    }
+  
+
+
+    
+    
 }
 }
 
