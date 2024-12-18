@@ -374,22 +374,24 @@ div.ui.raised.segment:hover {
 
 @media screen and (max-width: 768px) {
     /* Parent container switches to column layout */
-    #vytcp {
+    .ui.fluid.container > div {
         display: flex !important;
         flex-direction: column !important;
         gap: 1rem; /* Adds spacing between panels */
     }
 
-    /* Sidebar panel takes full width */
-    #vytcp-sidebar_panel {
+    /* Sidebar panel takes full width and is displayed first */
+    .ui.fluid.container .ui.sidebar.panel {
         width: 100% !important;
-        order: 1; /* Sidebar comes first */
+        order: 1;
     }
 
-    /* Main panel takes full width */
-    #vytcp-main_panel {
+    /* Main panel takes full width and is displayed second */
+    .ui.fluid.container .ui.main.panel {
         width: 100% !important;
-        order: 2; /* Main panel comes second */
+        order: 2;
     }
 }
+}
+
 
