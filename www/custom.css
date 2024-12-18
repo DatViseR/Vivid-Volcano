@@ -305,9 +305,10 @@ div.ui.raised.segment:hover {
 
 
 /************* Dataset preview ********************************/
-
-
+@media  screen and (min-width: 769px){
 /* Add margin to the DataTable wrapper */
+
+
 .dataTables_wrapper.dt-semanticUI {
   margin: 0.5rem;
 }
@@ -366,6 +367,8 @@ div.ui.raised.segment:hover {
   display: flex;
   align-items: center;
   gap: 0.5rem; /* Space between text and input */
+}
+
 }
 
 /************* DISPLAY FOR MOBILE *****************************/

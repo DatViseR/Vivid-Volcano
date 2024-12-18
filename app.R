@@ -1038,9 +1038,9 @@ server <- function(input, output, session) {
       log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
       
       table <- semantic_DT(
-        data.frame(df, check.names = FALSE), extensions = c('Responsive'), # Convert to data.frame if not already
+        data.frame(df, check.names = FALSE), # Convert to data.frame if not already
         options = list(
-          responsive = TRUE, 
+          
           pageLength = 3,
           dom = 'lftp',
           lengthMenu = list(c(1, 3, 5, 10), c('1','3', '5', '10')),
