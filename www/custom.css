@@ -300,7 +300,7 @@ div.ui.raised.segment:hover {
 
 .ui.segment.placeholder {
   background: linear-gradient(to bottom, #f6f8fa, #ddf4ff ) !important;
-  padding: 2em !important;
+ 
 }
 
 
@@ -395,11 +395,18 @@ div.ui.raised.segment:hover {
         order: 2;
     }
     
-    .ui.left.action.input.ui-ss-input {
-        width: 80% !important;
-        margin: 0 auto; /* Center the element */
+     div.ui.left.action.input.ui-ss-input {
+        width: 45% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        /* Center the element */
     }
     
+     div.ui.form div.three.fields div.field div div.ui.toggle.checked.checkbox {
+        margin: 0 !important;
+        padding: 0 !important;
+        }
+        
     /* Ensure the inner elements also adapt to the width */
     .ui.file.input .ui.left.action.input .ui.labeled.icon.button,
     .ui.file.input .ui.left.action.input .ui.text.input {
@@ -429,6 +436,15 @@ div.ui.raised.segment:hover {
   /* Style for the entire scrollable container */
 /* Style for the entire scrollable container */
 /* Style for the entire scrollable container */
+
+>.datatables{
+    width: 100%;
+    overflow-x: auto;
+    padding:1rem;
+    margin:1rem;
+    background-color: #E0E1E2;
+}
+
 .dataTables_scroll {
     width: 100%;
     overflow-x: auto;
@@ -455,14 +471,16 @@ div.ui.raised.segment:hover {
 }
 
 /* Target all body rows */
-#DataTables_Table_0 > tbody > tr {
+.ui.small.compact.table.dataTable.no-footer > tbody > tr {
     display: flex !important;
     white-space: nowrap;
      background-color: #E0E1E2;
 }
 
+
+
 /* Target body cells */
-#DataTables_Table_0 > tbody > tr > td {
+.ui.small.compact.table.dataTable.no-footer > tbody > tr > td {
     display: inline-block;
     white-space: nowrap;
      background-color: #E0E1E2;
@@ -475,11 +493,12 @@ div.ui.raised.segment:hover {
      background-color: #E0E1E2;
 }
 
-#DataTables_Table_0 > thead:nth-child(1) > tr:nth-child(1){
+.ui.small.compact.table.dataTable.no-footer > thead:nth-child(1) > tr:nth-child(1){
   padding: 0 !important;
 }
 
-#DataTables_Table_0_wrapper> * {
+
+.dataTables_wrapper.dt-semanticUI.no-footer > * {
         margin: 1rem !important;
     }
 

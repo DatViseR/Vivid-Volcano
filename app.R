@@ -789,8 +789,18 @@ ui <- semanticPage(
     tags$link(rel = "stylesheet", 
               type = "text/css", 
               href = paste0("custom.css?v=", Sys.time())),
-  tags$link(rel = "stylesheet", href = "https://cdn.datatables.net/responsive/2.2.9/css/responsive.semanticui.min.css"),
-  tags$script(src = "https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js")
+
+  tags$script(HTML(
+    "
+    // Send the current client width to the server
+    $(document).on('shiny:connected', function() {
+      Shiny.setInputValue('clientWidth', window.innerWidth);
+    });
+    $(window).on('resize', function() {
+      Shiny.setInputValue('clientWidth', window.innerWidth);
+    });
+    "
+  ))
     
     
   ),
@@ -1001,15 +1011,40 @@ ui <- semanticPage(
 
 
 server <- function(input, output, session) {
-  
   uploaded_df <- reactiveVal()
-  volcano_plot_rv <- reactiveVal()  # Create a reactive value to store the plot
-  # Reactive value to store the console log
-  # Create a more comprehensive logging system
+  volcano_plot_rv <- reactiveVal()
   log_messages <- reactiveVal("")
+  is_mobile <- reactiveVal(FALSE)
   
+  # Immediate logging of initial display state
+  observeEvent(input$clientWidth, {
+    req(input$clientWidth)  # Ensure the value is available
+    current_is_mobile <- input$clientWidth <= 768
+    is_mobile(current_is_mobile)
+    log_event(log_messages, 
+              sprintf("Browser window size: %dpx (%s view)", 
+                      input$clientWidth,
+                      if(current_is_mobile) "MOBILE" else "DESKTOP"), 
+              "INFO display initialization")
+  }, once = TRUE)
   
-
+  # Monitor for changes in window size
+  observeEvent(input$clientWidth, {
+    req(input$clientWidth)
+    current_is_mobile <- input$clientWidth <= 768
+    previous_is_mobile <- isolate(is_mobile())
+    if (current_is_mobile != previous_is_mobile) {
+      is_mobile(current_is_mobile)
+      log_event(log_messages, 
+                sprintf("Display changed to %s view (width: %dpx)", 
+                        if(current_is_mobile) "MOBILE" else "DESKTOP",
+                        input$clientWidth), 
+                "INFO display change")
+    }
+  })
+  
+ 
+  
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
@@ -1495,7 +1530,19 @@ server <- function(input, output, session) {
         )
     }
     
+    
+    
     volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
+    
+    # test if on mobile and modify the reactive value 
+    # After storing initial plot in reactive value
+    
+    
+   
+    
+    
+    
+    
     
     output$volcano_plot <- renderPlot({ 
       log_event(log_messages, "Rendering static volcano plot", "INFO output$volcano_plot")
