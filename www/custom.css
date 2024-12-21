@@ -425,16 +425,91 @@ div.ui.raised.segment:hover {
     }
 
    
-/* This is the acces to tble header */
-     .dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr:nth-child(1),
-  /* This is the acces to tble body*/   
-     #DataTables_Table_0 > tbody:nth-child(2) > tr.odd:nth-child(1)  {
-        
-  white-space: nowrap; /* Keep content in one line */
-         display: inline-flex !important;
-         
-        
-
+   /* selector for all elements of the table*/  
+  /* Style for the entire scrollable container */
+/* Style for the entire scrollable container */
+/* Style for the entire scrollable container */
+.dataTables_scroll {
+    width: 100%;
+    overflow-x: auto;
+    padding:1rem;
+    margin:1rem;
+    background-color: #E0E1E2;
 }
 
+/* Target header row specifically using the exact selector */
+.dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr {
+    display: flex !important;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+     border:none ;
+     padding:0 !important;
+}
 
+/* Target header cells */
+.dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr > th {
+    display: inline-block;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+    
+}
+
+/* Target all body rows */
+#DataTables_Table_0 > tbody > tr {
+    display: flex !important;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+}
+
+/* Target body cells */
+#DataTables_Table_0 > tbody > tr > td {
+    display: inline-block;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+}
+
+/* Ensure smooth scrolling */
+.dataTables_scrollBody {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+     background-color: #E0E1E2;
+}
+
+#DataTables_Table_0 > thead:nth-child(1) > tr:nth-child(1){
+  padding: 0 !important;
+}
+
+#DataTables_Table_0_wrapper> * {
+        margin: 1rem !important;
+    }
+
+/* Container for pagination */
+    .ui.stackable.pagination.menu {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        width: 100% !important;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        padding: 0.5rem !important;
+        background-color: #E0E1E2; /* To match your table style */
+    }
+
+    /* Individual pagination items */
+    .ui.stackable.pagination.menu .item {
+        display: inline-flex !important;
+        float: none !important;
+        margin: 0 0.25rem !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* Remove any stacking behaviors */
+    .ui.stackable.pagination.menu > .item {
+        width: auto !important;
+    }
+
+
+
+}
