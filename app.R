@@ -1019,7 +1019,7 @@ server <- function(input, output, session) {
   # Immediate logging of initial display state
   observeEvent(input$clientWidth, {
     req(input$clientWidth)  # Ensure the value is available
-    current_is_mobile <- input$clientWidth <= 768
+    current_is_mobile <- input$clientWidth <= 800
     is_mobile(current_is_mobile)
     log_event(log_messages, 
               sprintf("Browser window size: %dpx (%s view)", 
@@ -1031,7 +1031,7 @@ server <- function(input, output, session) {
   # Monitor for changes in window size
   observeEvent(input$clientWidth, {
     req(input$clientWidth)
-    current_is_mobile <- input$clientWidth <= 768
+    current_is_mobile <- input$clientWidth <= 800
     previous_is_mobile <- isolate(is_mobile())
     if (current_is_mobile != previous_is_mobile) {
       is_mobile(current_is_mobile)
@@ -1044,7 +1044,6 @@ server <- function(input, output, session) {
   })
   
  
-  
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
@@ -1530,16 +1529,80 @@ server <- function(input, output, session) {
         )
     }
     
+    if (!is_mobile()) {
+      volcano_plot_rv(volcano_plot)
+    } else {
+      # Calculate scaling factors based on screen width
+      width <- input$clientWidth
+      text_scale <- max(0.6, min(1, width / 768))
+      point_scale <- max(0.8, min(1.2, width / 768))
+      
+      mobile_plot <- volcano_plot +
+        # Adjust theme elements for mobile
+        theme(
+          # Reduce text sizes
+          plot.title = element_text(size = 18 * text_scale),
+          axis.title = element_text(size = 16 * text_scale),
+          axis.text = element_text(size = 14 * text_scale),
+          
+          # Adjust margins for mobile
+          plot.margin = margin(
+            t = 5 * text_scale,
+            r = 5 * text_scale,
+            b = 5 * text_scale,
+            l = 5 * text_scale
+          ),
+          
+          # Modify aspect ratio for better mobile viewing
+          aspect.ratio = 0.85,
+          
+          # Ensure plot uses full width
+          panel.spacing = unit(1, "mm")
+        )
+      
+      # Modify all existing layers for mobile optimization
+      mobile_plot$layers <- lapply(mobile_plot$layers, function(l) {
+        # Adjust point sizes
+        if (inherits(l$geom, "GeomPoint")) {
+          l$aes_params$size <- l$aes_params$size * point_scale
+          l$aes_params$alpha <- min(l$aes_params$alpha + 0.1, 1) # Slightly increase visibility
+        }
+        # Adjust text labels
+        else if (inherits(l$geom, "GeomTextRepel")) {
+          l$aes_params$size <- 4 * text_scale
+          l$aes_params$max.overlaps <- 10  # Reduce overlaps on mobile
+          l$aes_params$box.padding <- 0.35
+          l$aes_params$point.padding <- 0.25
+          l$aes_params$force <- 2
+        }
+        else if (inherits(l$geom, "GeomLabelRepel")) {
+          l$aes_params$size <- 4 * text_scale
+          l$aes_params$max.overlaps <- 10  # Reduce overlaps on mobile
+          l$aes_params$box.padding <- 0.35
+          l$aes_params$point.padding <- 0.25
+          l$aes_params$force <- 2
+        }
+        
+        
+        
+        # Adjust annotations
+        else if (inherits(l$geom, "GeomText") || inherits(l$geom, "GeomLabel")) {
+          l$aes_params$size <- l$aes_params$size * text_scale
+        }
+        return(l)
+      })
+      
+      log_event(log_messages, 
+                sprintf("Plot optimized for mobile view (width: %dpx, text scale: %.2f, point scale: %.2f)", 
+                        width, text_scale, point_scale), 
+                "INFO mobile optimization")
+      
+      volcano_plot_rv(mobile_plot)
+    }
     
-    
-    volcano_plot_rv(volcano_plot)  # Store the plot in reactive value
-    
-    # test if on mobile and modify the reactive value 
-    # After storing initial plot in reactive value
-    
+      # Store the plot in reactive value
     
    
-    
     
     
     

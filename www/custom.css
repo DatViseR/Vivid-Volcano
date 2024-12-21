@@ -80,7 +80,7 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 810px) {
   .navbar {
     flex-direction: column;
     align-items: flex-start;
@@ -102,7 +102,7 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
   }
 }
 
-@media (min-width: 768px){
+@media (min-width: 811px){
   
 .logo{
     transform: translateX(9rem);
@@ -305,7 +305,7 @@ div.ui.raised.segment:hover {
 
 
 /************* Dataset preview ********************************/
-@media  screen and (min-width: 769px){
+@media  screen and (min-width: 810px){
 /* Add margin to the DataTable wrapper */
 
 
@@ -375,7 +375,7 @@ div.ui.raised.segment:hover {
 
 /* Responsive design for mobile devices */
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 810px) {
     /* Parent container switches to column layout */
     .ui.fluid.container > div {
         display: flex !important;
@@ -396,7 +396,7 @@ div.ui.raised.segment:hover {
     }
     
      div.ui.left.action.input.ui-ss-input {
-        width: 45% !important;
+        width: 75% !important;
         margin: 0 !important;
         padding: 0 !important;
         /* Center the element */
@@ -535,7 +535,7 @@ div.ui.raised.segment:hover {
 /**** *********************** MOBILE RULES FOR THE RESULTS SECTION*******************************/
 
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 810px) {
     /* Make two column grid stack vertically */
     .ui.two.column.grid {
         display: flex !important;
