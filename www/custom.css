@@ -510,6 +510,119 @@ div.ui.raised.segment:hover {
         width: auto !important;
     }
 
-
-
 }
+
+
+/**** *********************** MOBILE RULES FOR THE RESULTS SECTION*******************************/
+
+
+@media screen and (max-width: 768px) {
+    /* Make two column grid stack vertically */
+    .ui.two.column.grid {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Make columns take full width */
+    .ui.two.column.grid > .column {
+        width: 100% !important;
+        margin: 0.2rem 0 !important;
+    }
+
+    /* Adjust plot outputs for mobile */
+    #volcano_plot {
+        height: 400px !important; /* Reduced height for mobile */
+        width: 100% !important;
+    }
+
+    #volcano_plotly {
+        height: 400px !important;
+        width: 100% !important;
+    }
+
+    /* Style download buttons for better mobile display */
+    .ui.tiny.fluid.buttons {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .ui.tiny.fluid.buttons > .ui.button {
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 4px !important; /* Reset border radius for stacked buttons */
+    }
+
+    /* Add spacing between segments */
+    .segment {
+        margin: 1rem 0 !important;
+    }
+
+    /* Adjust GT table container */
+    .gt_table {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Make tabs more mobile-friendly */
+    .ui.tabset .menu {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+
+    .ui.tabset .menu .item {
+        width: 100% !important;
+        text-align: center !important;
+        margin: 0.25rem 0 !important;
+    }
+
+    /* Add spacing for the log output */
+    #log_output {
+        margin: 1rem 0 !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+
+
+/***********tabset styling********************/
+
+
+    /* Style the tabset menu for mobile */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        border-bottom: none !important; /* Remove default border */
+    }
+
+    /* Style individual tab items */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item {
+        width: 100% !important;
+        text-align: center !important;
+        margin: 0.25rem 0 !important;
+        border: 1px solid rgba(34, 36, 38, 0.15) !important; /* Add border to each tab */
+        border-radius: 4px !important;
+        background-color: #f8f9fa !important;
+    }
+
+    /* Active tab styling */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item.active {
+        background-color: #ffffff !important;
+        border-bottom: 1px solid #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Hover state for tabs */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item:hover {
+        background-color: #e9ecef !important;
+    }
+
+    /* Content area below tabs */
+    .ui.bottom.attached.tab.segment.active {
+        margin-top: 1rem !important;
+        border-top: 1px solid rgba(34, 36, 38, 0.15) !important;
+    }
+
+}   
