@@ -81,7 +81,7 @@ create_structure_logger <- function(session) {
 
 
 
-perform_hypergeometric_test <- function(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size) {
+perform_hypergeometric_test <- function(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size, log_event) {
   # Log the input parameters
   log_event(log_messages_rv, 
             sprintf("Performing hypergeometric test with parameters: \npopulation_size: %d \nsuccess_population_size: %d \nsample_size: %d \nsample_success_size: %d",
@@ -106,7 +106,7 @@ perform_hypergeometric_test <- function(log_messages_rv, population_size, succes
   return(result)
 }
 
-calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv) {
+calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv, log_event) {
   # Initial gene processing logging
   log_event(log_messages_rv, 
             sprintf("Starting gene preprocessing with %d raw entries", length(unlist(genes))),
@@ -163,7 +163,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
                       go_category, population_size, success_population_size, sample_size, sample_success_size),
               "INFO from calculate_go_enrichment()")
     
-    p_value <- perform_hypergeometric_test(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size)
+    p_value <- perform_hypergeometric_test(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size, log_event)
     
     # Log p-value result
     log_event(log_messages_rv, 
@@ -214,7 +214,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 
 
 
-calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv) {
+calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv, log_event, log_structure) {
   # Log start of analysis with parameters
   log_event(log_messages_rv,
             sprintf("Starting GO enrichment analysis with parameters:\n Alpha: %g\n Fold change column: %s\n Annotation column: %s",
@@ -255,15 +255,15 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   
   # Calculate enrichment with added GO IDs
   log_event(log_messages_rv, "Starting upregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv) %>%
+  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
   log_event(log_messages_rv, "Starting downregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv) %>%
+  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
   log_event(log_messages_rv, "Starting all regulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv) %>%
+  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
     left_join(go_ids, by = c("GO_Category" = "name"))
   
   # Create results list
@@ -294,7 +294,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
 }
 
 
-create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv) {
+create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv, log_event) {
   # Log start of plot creation with dimensions
   log_event(log_messages_rv,
             sprintf("Creating publication plot with dimensions: %dmm x %dmm", width_mm, height_mm),
@@ -419,7 +419,7 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   return(publication_plot)
 }
 
-build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv) {
+build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv, log_event) {
  
   
   # Log function start and parameters
@@ -593,7 +593,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 #This function creates GT tables for each GO category with columns for genes in the GO category,
 #downregulated genes, and upregulated genes, with detected genes in bold.
 
-build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight, log_messages_rv) {
+build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight, log_messages_rv, log_event) {
   # Debug color inputs
   cat("\n==== Color Values Received ====\n")
   cat("Down-regulated color:", color_highlight[1], "\n")
@@ -1046,10 +1046,16 @@ server <- function(input, output, session) {
   log_messages <- reactiveVal("")
   is_mobile <- reactiveVal(FALSE)
   
-
+# Create session variables at server start
+  session_id <- substr(digest::digest(session$token), 1, 6)
+  session_start_time <- Sys.time()
+  
   # Create the logging functions with session context
   log_event <- create_logger(session)
   log_structure <- create_structure_logger(session)
+  
+  
+  
   
   # Immediate logging of initial display state
   observeEvent(input$clientWidth, {
@@ -1240,7 +1246,7 @@ server <- function(input, output, session) {
     if (input$select_custom_labels) {
       req(uploaded_df(), input$annotation_col)
       gene_names <- unique(uploaded_df()[[input$annotation_col]])
-      selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE)
+      selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE, server = TRUE )
     }
   })
   
@@ -1288,7 +1294,9 @@ server <- function(input, output, session) {
         go_data = GO,
         alpha = input$alpha,
         fold_col = input$fold_col,
-        log_messages_rv = log_messages
+        log_messages_rv = log_messages, 
+        log_event = log_event,
+        log_structure = log_structure
       )
       
       # Render GO gene list table
@@ -1319,7 +1327,8 @@ server <- function(input, output, session) {
           alpha = input$alpha,
           fold_col = input$fold_col,
           color_highlight = colors_to_use,
-          log_messages_rv = log_messages
+          log_messages_rv = log_messages, 
+          log_event = log_event
         )
       })
       
@@ -1341,7 +1350,8 @@ server <- function(input, output, session) {
           upregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
           downregulated_count = nrow(df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
           color_highlight = colors_to_use,
-          log_messages_rv = log_messages
+          log_messages_rv = log_messages,
+          log_event = log_event
         )
       })
     } else {
@@ -1824,7 +1834,6 @@ server <- function(input, output, session) {
     
     
     
-    # Modified download handler
     output$download_log <- downloadHandler(
       filename = function() {
         paste0("vivid_volcano_log_", session_id, ".txt")
@@ -1832,11 +1841,7 @@ server <- function(input, output, session) {
       content = function(file) {
         # Add session information header
         session_info <- sprintf(
-          "Log File for Vivid Volcano Analysis\n",
-          "Session ID: %s\n",
-          "Session Start: %s\n",
-          "Download Time: %s\n",
-          "----------------------------------------\n\n",
+          "Log File for Vivid Volcano Analysis\nSession ID: %s\nSession Start: %s\nDownload Time: %s\n----------------------------------------\n\n",
           session_id,
           format(session_start_time),
           format(Sys.time())
