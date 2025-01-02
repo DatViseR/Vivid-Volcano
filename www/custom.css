@@ -1,0 +1,647 @@
+/*############NAVBAR############  */
+
+/* Navbar styling */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
+  color: #333333
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+ 
+}
+
+/* Logo styling */
+.logo {
+  height: 120px;
+  width: auto;
+  margin-right: 1rem;
+
+  /* let it grow inside the container*/ 
+  transform: scale(1.1);  /* Makes the logo 20% bigger */
+  transform-origin: left center;  /* Scales from left center point */
+  object-fit: contain;  /* Ensures the image maintains aspect ratio */
+}
+  
+  
+}
+
+/* Left section styling */
+.left-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.title {
+  font-size: 2.5em;
+  font-weight: 700;
+  margin: 0;
+  color: #2D2D2D;
+}
+
+.subtitle {
+  font-size: 1.2em;
+  margin: 0;
+  color: #4A4A4A;
+}
+
+/* Social buttons container styling */
+.social-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Icon header styling */
+.icon-header {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #4A4A4A;
+  line-height: 1.5em;
+}
+
+/* Social icons styling */
+.social-buttons .icon {
+  font-size: 2.5em;
+  color: #4A4A4A;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+}
+
+.social-buttons .github:hover {
+  color: #000;
+}
+
+.social-buttons .linkedin:hover {
+  color: #0077b5;
+}
+
+/* Responsive design */
+@media (max-width: 810px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .social-buttons {
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: 1rem;
+  }
+  .logo {
+    height: 100px;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-size: 2em;
+  }
+  .subtitle {
+    font-size: 1em;
+  }
+}
+
+@media (min-width: 811px){
+  
+.logo{
+    transform: translateX(9rem);
+    
+  }
+  
+.title, .subtitle{
+  transform: translateX(-25rem);  
+    
+    
+    
+  }
+  
+  
+  
+  
+  
+}
+
+
+
+
+
+/********************* UPLOAD FORM **********************/
+/* Custom styling for Data Upload section */
+
+
+/* Base segment style */
+div.ui.raised.segment:nth-child(-n+3) {
+    background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
+    
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+
+
+/* Compress the three fields layout */
+.ui.form .three.fields {
+    
+}
+
+.ui.form .three.fields .field {
+   
+}
+
+/* Adjust toggle and radio spacing */
+.ui.toggle.checkbox {
+   
+}
+
+.ui.radio.checkbox {
+ 
+}
+
+/* Header and label adjustments */
+.ui.raised.segment .header {
+
+}
+
+.ui.grey.ribbon.label {
+    
+}
+
+/* Compress form elements */
+.ui.form .field {
+   
+}
+
+/* Upload button spacing */
+.ui.primary.button {
+  
+}
+
+/* Specific adjustments for the upload segment */
+div.ui.raised.segment:first-child {
+
+}
+
+/* Fix flex layout for header toggle */
+div[style*="display: flex; flex-direction: column"] {
+    
+}
+
+/* Make checkboxes more compact */
+.ui.checkbox {
+    
+}
+
+/* Adjust field labels */
+.ui.form .field > label {
+   
+}
+
+/* Optional: Add hover effect */
+div.ui.raised.segment:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    transition: box-shadow 0.3s ease;
+   
+}
+
+/* Add padding inside segments */
+.ui.raised.segment {
+   
+}
+
+/* Add spacing between elements inside segments */
+.ui.raised.segment:not(:first-of-type) > * {
+    margin-bottom: 1rem;
+}
+
+.ui.raised.segment:first-of-type > * {
+  }
+
+
+
+.ui.raised.segment:first-of-type .ui.grey.ribbon.label {
+  margin-bottom: 0.5rem;
+ }
+ 
+ 
+ 
+ 
+ 
+.ui.raised.segment:first-of-type .form{
+  
+    }
+
+/* Specific spacing for form elements */
+.ui.form .field {
+    
+}
+
+/* Add spacing after headers */
+.ui.raised.segment .header {
+    
+}
+
+/* Add spacing after ribbon labels */
+.ui.raised.segment .ribbon.label {
+ margin-right: 1rem;
+   
+}
+
+/* Add spacing between inputs */
+
+.ui.raised.segment .ui.dropdown,
+.ui.raised.segment .numeric-input,
+.ui.raised.segment .text-input {
+
+}
+
+/* Add spacing for toggle switches */
+.ui.raised.segment .ui.toggle.checkbox {
+
+}
+
+/* Add spacing for action buttons */
+.ui.raised.segment .ui.button {
+
+}
+
+/* Adjust spacing for grouped elements */
+.ui.raised.segment .fields {
+    
+}
+
+/**  COLOR PICKERS WERE SHOWING ALPHA CHANNEL, SO I made them narrower */
+
+ .ui.raised.segment .colourpicker {
+            width: 100px !important;
+        }
+        .ui.raised.segment .colourpicker input {
+            width: 100% !important;
+        }
+        .ui.raised.segment .colourpicker .colourpicker-input-container .colourpicker-swatch {
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+/** DOWNLOADERS BUTTONS*/
+.ui.tiny.fluid.buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .ui.tiny.fluid.buttons .button {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        margin: 0 !important;
+    }
+
+/************* Results section segment ********************************/
+
+.ui.segment.placeholder {
+  background: linear-gradient(to bottom, #f6f8fa, #ddf4ff ) !important;
+ 
+}
+
+
+/************* Dataset preview ********************************/
+@media  screen and (min-width: 810px){
+/* Add margin to the DataTable wrapper */
+
+
+.dataTables_wrapper.dt-semanticUI {
+  margin: 0.5rem;
+}
+
+/* Make the table background transparent */
+.dataTables_wrapper.dt-semanticUI table {
+  background-color: transparent;
+}
+
+/* Style the table headers specifically */
+.dataTables_wrapper.dt-semanticUI table thead th {
+  background-color: #E0E1E2; /* Green background for headers */
+  color: black; /* White text for contrast */
+  text-align: center; /* Center align the text */
+  font-weight: bold; /* Make the text bold */
+  padding: 10px; /* Add some padding for better spacing */
+  border-bottom: 2px solid #ddd; /* Add a subtle border below headers */
+}
+
+/* Add hover effect to headers for interactivity */
+.dataTables_wrapper.dt-semanticUI table thead th:hover {
+  background-color: #B0B1B2; /* Slightly darker green on hover */
+  cursor: pointer; /* Indicate interactivity */
+}
+
+
+/* Optional: Style the pagination menu */
+.dataTables_wrapper.dt-semanticUI .pagination.menu {
+  background-color: transparent;
+  border: none;
+}
+
+/* Adjust dropdown styles if necessary */
+.dataTables_wrapper.dt-semanticUI .ui.dropdown {
+  margin: 0.3rem;
+}
+
+/* Align Show Entries and Search in the same row */
+.dataTables_wrapper.dt-semanticUI .dataTables_length,
+.dataTables_wrapper.dt-semanticUI .dataTables_filter {
+  display: inline-flex; /* Place them inline */
+  align-items: center; /* Vertically align elements */
+  gap: 1rem; /* Space between label and input */
+}
+
+/* Wrap the length and filter into one container */
+.dataTables_wrapper.dt-semanticUI .dataTables_top {
+  display: flex;
+  justify-content: space-between; /* Push Show Entries to the left, Search to the right */
+  margin-bottom: 1rem; /* Add some spacing below */
+}
+
+/* Reset unnecessary spacing for consistent alignment */
+.dataTables_wrapper.dt-semanticUI .dataTables_length label,
+.dataTables_wrapper.dt-semanticUI .dataTables_filter label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* Space between text and input */
+}
+
+}
+
+/************* DISPLAY FOR MOBILE *****************************/
+
+/* Responsive design for mobile devices */
+
+@media screen and (max-width: 810px) {
+    /* Parent container switches to column layout */
+    .ui.fluid.container > div {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1rem; /* Adds spacing between panels */
+    }
+
+    /* Sidebar panel takes full width and is displayed first */
+    .ui.fluid.container .ui.sidebar.panel {
+        width: 100% !important;
+        order: 1;
+    }
+
+    /* Main panel takes full width and is displayed second */
+    .ui.fluid.container .ui.main.panel {
+        width: 100% !important;
+        order: 2;
+    }
+    
+     div.ui.left.action.input.ui-ss-input {
+        width: 75% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        /* Center the element */
+    }
+    
+     div.ui.form div.three.fields div.field div div.ui.toggle.checked.checkbox {
+        margin: 0 !important;
+        padding: 0 !important;
+        }
+        
+    /* Ensure the inner elements also adapt to the width */
+    .ui.file.input .ui.left.action.input .ui.labeled.icon.button,
+    .ui.file.input .ui.left.action.input .ui.text.input {
+        flex: 1 1 auto;
+    }
+    
+    /************* DATA TABLE MOBILE STYLES ***********************/   
+    /* Ensure the DataTable is scrollable horizontally */
+
+    /************* DATA TABLE MOBILE STYLES ***********************/   
+
+
+    .dataTables_wrapper.dt-semanticUI {
+        overflow-x: auto; /* Enable scrolling */
+        -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+    }
+
+    .dataTables_wrapper.dt-semanticUI table {
+        table-layout: auto; /* Allow flexible resizing */
+        min-width: 600px; /* Prevent stacking */
+        
+        
+    }
+
+   
+   /* selector for all elements of the table*/  
+  /* Style for the entire scrollable container */
+/* Style for the entire scrollable container */
+/* Style for the entire scrollable container */
+
+>.datatables{
+    width: 100%;
+    overflow-x: auto;
+    padding:1rem;
+    margin:1rem;
+    background-color: #E0E1E2;
+}
+
+.dataTables_scroll {
+    width: 100%;
+    overflow-x: auto;
+    padding:1rem;
+    margin:1rem;
+    background-color: #E0E1E2;
+}
+
+/* Target header row specifically using the exact selector */
+.dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr {
+    display: flex !important;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+     border:none ;
+     padding:0 !important;
+}
+
+/* Target header cells */
+.dataTables_scrollHeadInner > table:nth-child(1) > thead:nth-child(1) > tr > th {
+    display: inline-block;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+    
+}
+
+/* Target all body rows */
+.ui.small.compact.table.dataTable.no-footer > tbody > tr {
+    display: flex !important;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+}
+
+
+
+/* Target body cells */
+.ui.small.compact.table.dataTable.no-footer > tbody > tr > td {
+    display: inline-block;
+    white-space: nowrap;
+     background-color: #E0E1E2;
+}
+
+/* Ensure smooth scrolling */
+.dataTables_scrollBody {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+     background-color: #E0E1E2;
+}
+
+.ui.small.compact.table.dataTable.no-footer > thead:nth-child(1) > tr:nth-child(1){
+  padding: 0 !important;
+}
+
+
+.dataTables_wrapper.dt-semanticUI.no-footer > * {
+        margin: 1rem !important;
+    }
+
+/* Container for pagination */
+    .ui.stackable.pagination.menu {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        width: 100% !important;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        padding: 0.5rem !important;
+        background-color: #E0E1E2; /* To match your table style */
+    }
+
+    /* Individual pagination items */
+    .ui.stackable.pagination.menu .item {
+        display: inline-flex !important;
+        float: none !important;
+        margin: 0 0.25rem !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* Remove any stacking behaviors */
+    .ui.stackable.pagination.menu > .item {
+        width: auto !important;
+    }
+
+}
+
+
+/**** *********************** MOBILE RULES FOR THE RESULTS SECTION*******************************/
+
+
+@media screen and (max-width: 810px) {
+    /* Make two column grid stack vertically */
+    .ui.two.column.grid {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Make columns take full width */
+    .ui.two.column.grid > .column {
+        width: 100% !important;
+        margin: 0.2rem 0 !important;
+    }
+
+    /* Adjust plot outputs for mobile */
+    #volcano_plot {
+        height: 400px !important; /* Reduced height for mobile */
+        width: 100% !important;
+    }
+
+    #volcano_plotly {
+        height: 400px !important;
+        width: 100% !important;
+    }
+
+    /* Style download buttons for better mobile display */
+    .ui.tiny.fluid.buttons {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .ui.tiny.fluid.buttons > .ui.button {
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 4px !important; /* Reset border radius for stacked buttons */
+    }
+
+    /* Add spacing between segments */
+    .segment {
+        margin: 1rem 0 !important;
+    }
+
+    /* Adjust GT table container */
+    .gt_table {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Make tabs more mobile-friendly */
+    .ui.tabset .menu {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+
+    .ui.tabset .menu .item {
+        width: 100% !important;
+        text-align: center !important;
+        margin: 0.25rem 0 !important;
+    }
+
+    /* Add spacing for the log output */
+    #log_output {
+        margin: 1rem 0 !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+
+
+/***********tabset styling********************/
+
+
+    /* Style the tabset menu for mobile */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        border-bottom: none !important; /* Remove default border */
+    }
+
+    /* Style individual tab items */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item {
+        width: 100% !important;
+        text-align: center !important;
+        margin: 0.25rem 0 !important;
+        border: 1px solid rgba(34, 36, 38, 0.15) !important; /* Add border to each tab */
+        border-radius: 4px !important;
+        background-color: #f8f9fa !important;
+    }
+
+    /* Active tab styling */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item.active {
+        background-color: #ffffff !important;
+        border-bottom: 1px solid #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Hover state for tabs */
+    .ui.menu.sem.top.attached.tabular.shiny-bound-input > .item:hover {
+        background-color: #e9ecef !important;
+    }
+
+    /* Content area below tabs */
+    .ui.bottom.attached.tab.segment.active {
+        margin-top: 1rem !important;
+        border-top: 1px solid rgba(34, 36, 38, 0.15) !important;
+    }
+
+}   

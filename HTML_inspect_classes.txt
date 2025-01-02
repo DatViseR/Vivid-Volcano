@@ -1,0 +1,298 @@
+
+  
+    <div class="ui segment navbar">
+      <img src="Vivid_volcano_logo.png" alt="Logo" class="logo">
+      <div class="left-section">
+        <h1 class="title">Vivid Volcano</h1>
+        <h4 class="subtitle">Publication-ready volcano plots and GO analysis with ease</h4>
+      </div>
+      <div class="social-buttons">
+        <h5 class="icon-header">Source Code</h5>
+        <a href="https://github.com/DatViseR" class="github" target="_blank">
+          <i class="github big icon"></i>
+        </a>
+        <h5 class="icon-header">Developer</h5>
+        <a href="https://www.linkedin.com/in/tomasz-st%C4%99pkowski/" class="linkedin" target="_blank">
+          <i class="linkedin big icon"></i>
+        </a>
+      </div>
+    </div>
+    <div class="ui fluid container"><style>#rdazp { display: grid; height: 100%; grid-template-rows: ; grid-template-columns: 3fr 12fr; grid-template-areas: 'sidebar_panel main_panel';   gap: 15px;
+  height: auto;
+  min-height: auto;
+   }</style>
+<div id="rdazp">
+  <div id="rdazp-sidebar_panel" style="grid-area: sidebar_panel;   background-color: #f5f5f5;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 10px;
+  "><div>
+        <div class="ui raised segment">
+          <h2 class="ui header">
+            <i class="upload icon"></i>
+            <div class="content">
+              Upload your data
+              <div class="sub header"></div>
+            </div>
+          </h2>
+          <div class="ui grey ribbon label">Upload a CSV or TSV file</div>
+          <div class="ui file input">
+            <div class="field">
+              <div class="ui  left action input ui-ss-input">
+                <label class="ui labeled icon button btn-file">
+                  <i class="file icon"></i>
+                  Browse...
+                  <input id="file1" name="file1" type="file" style="display: none;" accept=".csv,.tsv" class="shiny-bound-input">
+                </label>
+                <input class="ui  text input" type="text" placeholder="no file selected" readonly="readonly">
+              </div>
+              <div id="file1_progress" style="margin-top: 0px; visibility: hidden;" class="ui indicating tiny progress ui-ss-progress-file">
+                <div class="bar" style="transition-duration: 300ms;"></div>
+                <div class="label"></div>
+              </div>
+              <script>$('#file1_progress').progress();</script>
+            </div>
+          </div>
+          <div class="ui form">
+            <div class="three fields">
+              <div class="field">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <div style="font-weight: bold;">Header</div>
+                  <div class="ui toggle checked checkbox">
+                    <input id="header" type="checkbox" checked="" class="shiny-bound-input">
+                    <label></label>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <div class="grouped fields ss-checkbox-input radio shiny-bound-input" id="sep">
+                  <label for="sep">Separator</label>
+                  <div class="field">
+                    <div class="ui checkbox radio checked">
+                      <input type="radio" name="sep" tabindex="0" value="," checked="" class="hidden">
+                      <label>Comma</label>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="ui checkbox radio">
+                      <input type="radio" name="sep" tabindex="0" value=";" class="hidden">
+                      <label>Semicolon</label>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="ui checkbox radio">
+                      <input type="radio" name="sep" tabindex="0" value="	" class="hidden">
+                      <label>Tab</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <div id="dec" class="grouped fields ss-checkbox-input shiny-bound-input">
+                  <label for="dec">Decimal Point</label>
+                  <div class="field">
+                    <div class="ui checkbox radio checked">
+                      <input type="radio" name="dec" tabindex="0" value="." checked="" class="hidden">
+                      <label>Dot</label>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="ui checkbox radio">
+                      <input type="radio" name="dec" tabindex="0" value="," class="hidden">
+                      <label>Comma</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button id="upload" class="ui ui primary button button shiny-bound-input">
+             
+            <i class="upload icon"></i> Upload
+          </button>
+        </div>
+        <div id="column_select_ui" class="shiny-html-output shiny-bound-output recalculating" aria-live="polite"></div>
+        <div class="ui raised segment">
+          <h2 class="ui header">
+            <i class="cogs icon"></i>
+            <div class="content">
+              Analysis Options
+              <div class="sub header">Customize volcano plot</div>
+            </div>
+          </h2>
+          <div class="ui grey ribbon label">Customize p value adjustment</div>
+          <div id="adj" class="ui selection fluid dropdown semantic-select-input shiny-bound-input" tabindex="0">
+            <input type="hidden" name="adj" value="BH">
+            <i class="dropdown icon"></i>
+            <div class="text">Benjamini-Hochberg</div>
+            <div class="ui menu hidden transition" tabindex="-1">
+              <div class="item" data-value="none">None</div>
+              <div class="item" data-value="bonferroni">Bonferroni</div>
+              <div class="item" data-value="hochberg">Hochberg</div>
+              <div class="item active selected" data-value="BH">Benjamini-Hochberg</div>
+              <div class="item" data-value="BY">Benjamini-Yekutieli</div>
+            </div>
+          </div>
+          <div class="ui form">
+            <div class="field">
+              <label for="alpha">Significance Threshold</label>
+              <div class="ui  input">
+                <input id="alpha" value="0.05" type="number" class="shiny-bound-input">
+              </div>
+            </div>
+          </div>
+          <div class="ui grey ribbon label">Customize annotations</div>
+          <div class="ui toggle  checkbox">
+            <input id="color_highlight" type="checkbox" class="shiny-bound-input">
+            <label>Highlight Significant Hits</label>
+          </div>
+          <div id="color_highlight_ui" class="shiny-html-output shiny-bound-output" aria-live="polite"></div>
+          <div class="ui toggle  checkbox">
+            <input id="show_go_category" type="checkbox" class="shiny-bound-input">
+            <label>Visualize GO Categories</label>
+          </div>
+          <div id="go_category_ui" class="shiny-html-output shiny-bound-output" aria-live="polite"></div>
+          <div id="color_picker_ui" class="shiny-html-output shiny-bound-output" aria-live="polite"></div>
+          <div class="ui form">
+            <div class="field">
+              <label for="num_labels">Number of Gene Labels (0-100)</label>
+              <div class="ui  input">
+                <input id="num_labels" value="10" type="number" min="0" max="100" class="shiny-bound-input">
+              </div>
+            </div>
+          </div>
+          <div class="ui toggle checked checkbox">
+            <input id="trim_gene_names" type="checkbox" checked="" class="shiny-bound-input">
+            <label>Trim Multiplied Gene Names to First Occurrence</label>
+          </div>
+          <div class="ui toggle  checkbox">
+            <input id="select_custom_labels" type="checkbox" class="shiny-bound-input">
+            <label>Label your choosen genes</label>
+          </div>
+          <div id="custom_gene_labels_ui" class="shiny-html-output shiny-bound-output" aria-live="polite"></div>
+          <div class="ui grey ribbon label">Customize plot title</div>
+          <div class="ui form">
+            <div class="field">
+              <label for="plot_title"></label>
+              <input id="plot_title" value="Vivid Volcano" type="text" class="shiny-bound-input">
+            </div>
+          </div>
+          <div class="ui grey ribbon label">Customize X -axis label</div>
+          <div class="ui form">
+            <div class="field">
+              <label for="x_axis_label"></label>
+              <input id="x_axis_label" value="Log2 Fold Change (Condition X vs. Condition Y)" type="text" class="shiny-bound-input">
+            </div>
+          </div>
+          <button id="draw_volcano" class="ui ui primary button button shiny-bound-input">
+            <i class="chart line icon icon"></i>
+             
+            Draw Volcano Plot
+          </button>
+          <div id="download_log_ui" class="shiny-html-output shiny-bound-output recalculating" aria-live="polite"></div>
+        </div>
+      </div></div>
+  <div id="rdazp-main_panel" style="grid-area: main_panel;   background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 10px;
+  "><div>
+        <div class="ui segment raised">
+          <div class="ui grey ribbon label">Dataset Preview</div>
+          <div class="datatables html-widget html-widget-output shiny-report-size html-fill-item shiny-bound-output recalculating" id="dataset_summary" style="width:100%;height:auto;" aria-live="polite"></div>
+        </div>
+        <div class="ui segment placeholder">
+          <h2 class="ui header">
+            <i class="fa-solid fa-square-poll-vertical icon"></i>
+            <div class="content">
+              Results
+              <div class="sub header"></div>
+            </div>
+          </h2>
+          <div id="menu-cgabsywacpzwowbdyule" class="ui menu sem top attached tabular shiny-bound-input">
+            <a class="item active" data-tab="tab-bfwlerhpvpdvpcdkloyv">Static Volcano Plot and GO enrichment table</a>
+            <a class="item " data-tab="tab-gqmnzdqznavnbefioqte">Interactive Volcano Plot</a>
+            <a class="item " data-tab="tab-pqjomrailwczadsdqkre">GO Category Details</a>
+          </div>
+          <div class="ui tab bottom attached grid segment active" data-tab="tab-bfwlerhpvpdvpcdkloyv">
+            <div>
+              <div class="ui two column grid">
+                <div class="column">
+                  <div class="ui segment basic">
+                    <div class="shiny-plot-output html-fill-item shiny-bound-output recalculating" id="volcano_plot" style="width:100%;height:600px;" aria-live="polite"></div>
+                  </div>
+                  <div class="ui segment basic">
+                    <h4 class="ui header">Download Plots</h4>
+                    <div class="ui tiny fluid buttons">
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_plot1" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        85x85mm (1 col)
+                      </a>
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_plot2" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        114x114mm (1.5 col)
+                      </a>
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_plot3" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        114x65mm (landscape)
+                      </a>
+                    </div>
+                    <div style="margin-top: 10px;" class="ui tiny fluid buttons">
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_plot4" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        174x174mm (square)
+                      </a>
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_plot5" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        174x98mm (landscape)
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div class="column">
+                  <div class="ui segment basic">
+                    <h4 class="ui header">Download GO Enrichment Table</h4>
+                    <div class="ui tiny fluid buttons">
+                      <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_go_enrichment" tabindex="-1" target="_blank" aria-live="polite">
+                        <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                        Download GO Table as PDF
+                      </a>
+                    </div>
+                    <div id="go_enrichment_gt" class="shiny-html-output shiny-bound-output recalculating" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ui tab bottom attached grid segment " data-tab="tab-gqmnzdqznavnbefioqte">
+            <div>
+              <div class="plotly html-widget html-widget-output shiny-report-size shiny-report-theme html-fill-item shiny-bound-output recalculating" id="volcano_plotly" style="width:800px;height:740px;" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="ui tab bottom attached grid segment " data-tab="tab-pqjomrailwczadsdqkre">
+            <div>
+              <div class="ui segment basic">
+                <h4 class="ui header">Download GO Gene List Table</h4>
+                <div class="ui tiny fluid buttons">
+                  <a aria-disabled="true" class="btn btn-default shiny-download-link disabled ui button shiny-bound-output shiny-bound-input" download="" href="" id="download_go_gene_list" tabindex="-1" target="_blank" aria-live="polite">
+                    <i class="fas fa-download" role="presentation" aria-label="download icon"></i>
+                    Download GO Gene List as PDF
+                  </a>
+                </div>
+                <div id="go_gene_list_gt" class="shiny-html-output shiny-bound-output recalculating" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <pre class="shiny-text-output noplaceholder shiny-bound-output recalculating" id="log_output" aria-live="polite"></pre>
+      </div></div>
+</div></div>
+  
+
+
