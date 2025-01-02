@@ -27,6 +27,60 @@ GO <- arrow::read_parquet("GO.parquet2")
 
 ##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
 
+# 1. First, create the logger factory function that will set up session-specific logging
+# 1. Create the logger factory function with simplified session display
+create_logger <- function(session) {
+  # Create session-specific identifiers
+  session_start_time <- Sys.time()
+  # Extract only the hash part for display
+  session_hash <- substr(digest::digest(session$token), 1, 6)
+  
+  # Return the configured log_event function
+  function(log_messages_rv, message, type = "INFO") {
+    if (!shiny::is.reactive(log_messages_rv)) {
+      stop("log_messages_rv must be a reactiveVal or reactive expression")
+    }
+    
+    # Format the log entry with simplified session information
+    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    formatted_msg <- sprintf("[%s][Session:%s] %s: %s\n", 
+                             timestamp, 
+                             session_hash,  # Using only the hash part
+                             type, 
+                             message)
+    
+    # Update the log using isolate
+    isolate({
+      current_log <- log_messages_rv()
+      log_messages_rv(paste0(current_log, formatted_msg))
+    })
+    
+    # Also print to console
+    cat(formatted_msg)
+  }
+}
+
+# 2. Create the structure logging helper function
+create_structure_logger <- function(session) {
+  # Get the basic logger
+  log_event <- create_logger(session)
+  
+  # Return the configured log_structure function
+  function(log_messages_rv, obj, message = "Object structure:", type = "INFO") {
+    # Capture the structure output
+    structure_info <- paste(capture.output(dplyr::glimpse(obj)), collapse = "\n")
+    
+    # Combine the message and structure info
+    full_message <- paste0(message, "\n", structure_info)
+    
+    # Use the session-aware log_event
+    log_event(log_messages_rv, full_message, type)
+  }
+}
+
+
+
+
 perform_hypergeometric_test <- function(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size) {
   # Log the input parameters
   log_event(log_messages_rv, 
@@ -724,45 +778,13 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 
-# Function defined outside server
-log_event <- function(log_messages_rv, message, type = "INFO") {
-  # Check if log_messages_rv is a reactive value
-  if (!shiny::is.reactive(log_messages_rv)) {
-    stop("log_messages_rv must be a reactiveVal or reactive expression")
-  }
-  
-  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-  formatted_msg <- sprintf("[%s] %s: %s\n", timestamp, type, message)
-  
-  # Update the log using isolate to prevent reactive dependencies
-  isolate({
-    current_log <- log_messages_rv()
-    log_messages_rv(paste0(current_log, formatted_msg))
-  })
-  
-  # Also print to console
-  cat(formatted_msg)
-}
-
-# The wrapper to properly print the structures of objects in the log
-
-log_structure <- function(log_messages_rv, obj, message = "Object structure:", type = "INFO") {
-  # Capture the structure output using dplyr::glimpse()
-  structure_info <- paste(capture.output(dplyr::glimpse(obj)), collapse = "\n")
-  
-  # Combine the message and structure info
-  full_message <- paste0(message, "\n", structure_info)
-  
-  # Call log_event with the combined message
-  log_event(log_messages_rv, full_message, type)
-}
 
 
 
 
 
 # Function to check and unlog p-values
-check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv) {
+check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) {
   log_event(log_messages_rv, "Starting p-value range check", "PVALUE")
   pvalues <- as.numeric(df[[pvalue_col]])
   
@@ -1024,6 +1046,11 @@ server <- function(input, output, session) {
   log_messages <- reactiveVal("")
   is_mobile <- reactiveVal(FALSE)
   
+
+  # Create the logging functions with session context
+  log_event <- create_logger(session)
+  log_structure <- create_structure_logger(session)
+  
   # Immediate logging of initial display state
   observeEvent(input$clientWidth, {
     req(input$clientWidth)  # Ensure the value is available
@@ -1232,7 +1259,7 @@ server <- function(input, output, session) {
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
     
     # Check and unlog p-values
-    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages)
+    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages, log_event)
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO pvalues module")
     
@@ -1797,15 +1824,40 @@ server <- function(input, output, session) {
     
     
     
-    # Download handler
+    # Modified download handler
     output$download_log <- downloadHandler(
       filename = function() {
-        paste0("vivid_volcano_log_", format(Sys.time(), "%Y%m%d_%H%M"), ".txt")
+        paste0("vivid_volcano_log_", session_id, ".txt")
       },
       content = function(file) {
-        writeLines(log_messages(), file)
+        # Add session information header
+        session_info <- sprintf(
+          "Log File for Vivid Volcano Analysis\n",
+          "Session ID: %s\n",
+          "Session Start: %s\n",
+          "Download Time: %s\n",
+          "----------------------------------------\n\n",
+          session_id,
+          format(session_start_time),
+          format(Sys.time())
+        )
+        
+        # Combine session info with logs
+        complete_log <- paste0(session_info, log_messages())
+        writeLines(complete_log, file)
       }
     )
+    
+    # Clear logs when session ends
+    session$onSessionEnded(function() {
+      log_event(log_messages, "Session ended", "INFO")
+      isolate(log_messages(""))  # Clear logs
+    })
+    
+    
+    
+    
+    
     # In server
 output$log_output <- renderText({
   log_messages()
