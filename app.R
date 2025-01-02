@@ -895,7 +895,7 @@ ui <- semanticPage(
                                           
                                           choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
                                           value = "BH"),
-                           numericInput("alpha", "Significance Threshold", value = 0.05),
+                           numericInput("alpha", "Significance Threshold", value = 0.05, min = 0.0001, max = 1, step = 0.001),
                            
                            # Plot Options Card
                            div(class = "ui grey ribbon label", "Customize annotations"),
