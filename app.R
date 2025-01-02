@@ -841,6 +841,14 @@ ui <- semanticPage(
                               file_input("file1", label = NULL, accept = c(".csv", ".tsv"))
                           ),
                           
+                          # Add download link for demo data
+                          tags$a(
+                            href = "demo_data.csv",  # This will be served from www/demo_data.csv
+                            download = NA,
+                            class = "ui small labeled icon button",
+                            tags$i(class = "download icon"),
+                            "Download tab separated demo data for upload"
+                          ),
                           # Form layout for checkbox and radio buttons
                           div(class = "ui form",
                               div(class = "three fields",
