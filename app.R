@@ -293,7 +293,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     if (length(upregulated_genes) > 0) {
       log_event(log_messages_rv, "Starting upregulated genes enrichment analysis", 
                 "INFO from calculate_go_enrichment_table()")
-      calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv) %>%
+      calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
         left_join(go_ids, by = c("GO_Category" = "name"))
     } else {
       log_event(log_messages_rv, "No upregulated genes found", 
@@ -311,7 +311,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     if (length(downregulated_genes) > 0) {
       log_event(log_messages_rv, "Starting downregulated genes enrichment analysis", 
                 "INFO from calculate_go_enrichment_table()")
-      calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv) %>%
+      calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
         left_join(go_ids, by = c("GO_Category" = "name"))
     } else {
       log_event(log_messages_rv, "No downregulated genes found", 
@@ -329,7 +329,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
     if (length(regulated_genes) > 0) {
       log_event(log_messages_rv, "Starting all regulated genes enrichment analysis", 
                 "INFO from calculate_go_enrichment_table()")
-      calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv) %>%
+      calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
         left_join(go_ids, by = c("GO_Category" = "name"))
     } else {
       log_event(log_messages_rv, "No regulated genes found", 
@@ -1444,9 +1444,6 @@ server <- function(input, output, session) {
       confirmButtonText = "Continue",
       timer = 0
     )
-    
-    
-    
     
     
    
