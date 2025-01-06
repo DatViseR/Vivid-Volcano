@@ -27,4 +27,4 @@ Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request. License
 
-This project is licensed under the MIT License.
+This project is licensed under the dual licence mode for non-commercial and commercial use - see LICENCE file for details.
