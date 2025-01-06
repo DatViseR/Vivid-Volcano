@@ -915,7 +915,7 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) 
 
 
 ui <- semanticPage(
-  useShinyalert(),
+
   # Include custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
@@ -1140,8 +1140,7 @@ ui <- semanticPage(
               )
             )
           ),
-          # In ui
-          verbatimTextOutput("log_output")
+      
         )
       )
   )
@@ -1449,6 +1448,26 @@ server <- function(input, output, session) {
    
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
+    
+    # Check if input$pvalue_col and input$fold_col are numeric and break the code with a warning allert to the user if not 
+    # inform the user to double check the decimal point in the upload section
+    
+    if (!is.numeric(df[[input$pvalue_col]]) || !is.numeric(df[[input$fold_col]])) {
+      log_event(log_messages, "Error: p-value and fold change columns are not numeric", "ERROR - draw volcano observer checks")
+      shinyalert(
+        title = "Data Processing Error",
+        text = "The p-value and fold change columns must be numeric. Please double-check the decimal point in the upload section",
+        type = "error",
+        size = "m",
+        closeOnEsc = TRUE,
+        closeOnClickOutside = TRUE,
+        showConfirmButton = TRUE,
+        confirmButtonText = "OK",
+        timer = 0
+      )
+      return(NULL)
+    }
+    
     
     # Check and unlog p-values
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages, log_event)
@@ -2045,14 +2064,6 @@ server <- function(input, output, session) {
       isolate(log_messages(""))  # Clear logs
     })
     
-    
-    
-    
-    
-    # In server
-output$log_output <- renderText({
-  log_messages()
-})
   
 })
 }
