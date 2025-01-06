@@ -1,10 +1,5 @@
 ---
-title: "LICENCE"
-output: html_document
-date: "`r Sys.Date()`"
-editor_options: 
-  markdown: 
-    wrap: 72
+
 ---
 
 # LICENCE:
@@ -16,8 +11,7 @@ The Vivid volcano application is available under a dual-license model:
 -   Free for academic, research, and non-commercial use
 -   Subject to the terms of the GNU Affero General Public License v3.0
 -   Any modifications must be shared back with the community
--   Source code must be made available when the software is used over a
-    network
+-   Source code must be made available when the software is used over a network
 
 Copyright (C) 2025 Tomasz Stępkowski
 
@@ -37,8 +31,7 @@ The copy of the GNU Affero General Public License is availible from <https://www
 
 ## Commercial License
 
-For commercial use, please contact me to obtain a commercial license. A
-commercial license is required if you want to:
+For commercial use, please contact me to obtain a commercial license. A commercial license is required if you want to:
 
 \- Use the software in a commercial product or service
 
@@ -48,5 +41,4 @@ commercial license is required if you want to:
 
 \- Avoid the AGPL-3.0 requirements
 
-For commercial licensing inquiries, please contact: - Email:
-dzdzstepel\@gmail.com
+For commercial licensing inquiries, please contact: - Email: dzdzstepel\@gmail.com
