@@ -13,7 +13,8 @@ library(shiny.semantic)
 library(semantic.dashboard)
 library(gridExtra)
 library(webshot2)
-
+library(shinyalert)  
+library(tidyr)
 
 # Load the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data  and in the script
@@ -242,6 +243,39 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
                     length(regulated_genes)),
             "INFO from calculate_go_enrichment_table()")
   
+  # Check if there are any regulated genes
+  if (length(regulated_genes) == 0) {
+    log_event(log_messages_rv,
+              "No regulated genes found at the current significance threshold",
+              "WARNING from calculate_go_enrichment_table()")
+    
+    # Create empty enrichment results with proper structure
+    empty_enrichment <- data.frame(
+      GO_Category = go_categories,
+      P_Value = NA_real_,
+      Population_Size = NA_integer_,
+      Success_Population_Size = NA_integer_,
+      Sample_Size = 0,
+      Sample_Success_Size = 0,
+      Adjusted_P_Value = NA_real_
+    )
+    
+    # Get GO IDs for categories even if no enrichment
+    go_ids <- go_data %>% 
+      filter(name %in% go_categories) %>% 
+      distinct(name, id)
+    
+    empty_enrichment <- empty_enrichment %>%
+      left_join(go_ids, by = c("GO_Category" = "name"))
+    
+    # Return results list with empty data frames but proper structure
+    return(list(
+      upregulated = list(data = empty_enrichment),
+      downregulated = list(data = empty_enrichment),
+      regulated = list(data = empty_enrichment)
+    ))
+  }
+  
   # Get GO IDs for categories
   go_ids <- go_data %>% 
     filter(name %in% go_categories) %>% 
@@ -254,29 +288,66 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
             "INFO from calculate_go_enrichment_table()")
   
   # Calculate enrichment with added GO IDs
-  log_event(log_messages_rv, "Starting upregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  upregulated_enrichment <- calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
-    left_join(go_ids, by = c("GO_Category" = "name"))
+  # Wrap each enrichment calculation in tryCatch to handle potential errors
+  upregulated_enrichment <- tryCatch({
+    if (length(upregulated_genes) > 0) {
+      log_event(log_messages_rv, "Starting upregulated genes enrichment analysis", 
+                "INFO from calculate_go_enrichment_table()")
+      calculate_go_enrichment(upregulated_genes, go_categories, go_data, log_messages_rv) %>%
+        left_join(go_ids, by = c("GO_Category" = "name"))
+    } else {
+      log_event(log_messages_rv, "No upregulated genes found", 
+                "INFO from calculate_go_enrichment_table()")
+      empty_enrichment
+    }
+  }, error = function(e) {
+    log_event(log_messages_rv, 
+              sprintf("Error in upregulated enrichment: %s", e$message),
+              "ERROR from calculate_go_enrichment_table()")
+    empty_enrichment
+  })
   
-  log_event(log_messages_rv, "Starting downregulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  downregulated_enrichment <- calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
-    left_join(go_ids, by = c("GO_Category" = "name"))
+  downregulated_enrichment <- tryCatch({
+    if (length(downregulated_genes) > 0) {
+      log_event(log_messages_rv, "Starting downregulated genes enrichment analysis", 
+                "INFO from calculate_go_enrichment_table()")
+      calculate_go_enrichment(downregulated_genes, go_categories, go_data, log_messages_rv) %>%
+        left_join(go_ids, by = c("GO_Category" = "name"))
+    } else {
+      log_event(log_messages_rv, "No downregulated genes found", 
+                "INFO from calculate_go_enrichment_table()")
+      empty_enrichment
+    }
+  }, error = function(e) {
+    log_event(log_messages_rv, 
+              sprintf("Error in downregulated enrichment: %s", e$message),
+              "ERROR from calculate_go_enrichment_table()")
+    empty_enrichment
+  })
   
-  log_event(log_messages_rv, "Starting all regulated genes enrichment analysis", "INFO from calculate_go_enrichment_table()")
-  regulated_enrichment <- calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv, log_event) %>%
-    left_join(go_ids, by = c("GO_Category" = "name"))
+  regulated_enrichment <- tryCatch({
+    if (length(regulated_genes) > 0) {
+      log_event(log_messages_rv, "Starting all regulated genes enrichment analysis", 
+                "INFO from calculate_go_enrichment_table()")
+      calculate_go_enrichment(regulated_genes, go_categories, go_data, log_messages_rv) %>%
+        left_join(go_ids, by = c("GO_Category" = "name"))
+    } else {
+      log_event(log_messages_rv, "No regulated genes found", 
+                "INFO from calculate_go_enrichment_table()")
+      empty_enrichment
+    }
+  }, error = function(e) {
+    log_event(log_messages_rv, 
+              sprintf("Error in regulated enrichment: %s", e$message),
+              "ERROR from calculate_go_enrichment_table()")
+    empty_enrichment
+  })
   
   # Create results list
   enrichment_results_list <- list(
-    upregulated = list(
-      data = upregulated_enrichment
-    ),
-    downregulated = list(
-      data = downregulated_enrichment
-    ),
-    regulated = list(
-      data = regulated_enrichment
-    )
+    upregulated = list(data = upregulated_enrichment),
+    downregulated = list(data = downregulated_enrichment),
+    regulated = list(data = regulated_enrichment)
   )
   
   # Log summary of results
@@ -285,14 +356,13 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
                     nrow(upregulated_enrichment),
                     nrow(downregulated_enrichment),
                     nrow(regulated_enrichment)),
-                   
             "INFO from calculate_go_enrichment_table()")
   
-  log_structure(log_messages_rv, enrichment_results_list, "Final enrichment results structure", "INFO from calculate_go_enrichment_table()")
+  log_structure(log_messages_rv, enrichment_results_list, "Final enrichment results structure", 
+                "INFO from calculate_go_enrichment_table()")
   
   return(enrichment_results_list)
 }
-
 
 create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv, log_event) {
   # Log start of plot creation with dimensions
@@ -783,29 +853,69 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 
-# Function to check and unlog p-values
 check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) {
   log_event(log_messages_rv, "Starting p-value range check", "PVALUE")
   pvalues <- as.numeric(df[[pvalue_col]])
   
-  if (all(pvalues >= 0 & pvalues <= 1) == FALSE) {
-    log_event(log_messages_rv, "P-values appear to be -log10 transformed", "PVALUE")
-    cat("P-values appear to be -log10 transformed. Unlogging...\n")
-    pvalues <- 10^(-abs(pvalues))
-    df[[pvalue_col]] <- pvalues
-    log_event(log_messages_rv, "P-value unlogging completed", "SUCCESS")
+  # Check for NAs
+  na_count <- sum(is.na(pvalues))
+  if (na_count > 0) {
+    log_event(log_messages_rv, 
+              sprintf("WARNING: Found %d NA values in p-value column", na_count), 
+              "WARNING")
+  }
+  
+  # Check value ranges
+  negative_values <- sum(pvalues < 0, na.rm = TRUE)
+  above_one_values <- sum(pvalues > 1, na.rm = TRUE)
+  total_abnormal <- negative_values + above_one_values
+  
+  if (total_abnormal > 0) {
+    log_event(log_messages_rv, 
+              sprintf("Found %d abnormal p-values (%d negative, %d above 1)", 
+                      total_abnormal, negative_values, above_one_values), 
+              "WARNING")
+    
+    # Check if values appear to be -log10 transformed
+    if (all(pvalues >= -50 & pvalues <= 50, na.rm = TRUE)) {
+      log_event(log_messages_rv, 
+                "Values appear to be -log10 transformed. Attempting to unlog...", 
+                "PVALUE")
+      pvalues <- 10^(-abs(pvalues))
+      df[[pvalue_col]] <- pvalues
+      
+      # Verify transformation worked
+      new_invalid <- sum(pvalues < 0 | pvalues > 1, na.rm = TRUE)
+      if (new_invalid == 0) {
+        log_event(log_messages_rv, 
+                  "P-value unlogging completed successfully. All values now in [0,1] range", 
+                  "SUCCESS")
+      } else {
+        log_event(log_messages_rv, 
+                  sprintf("WARNING: %d values still outside [0,1] range after unlogging", 
+                          new_invalid), 
+                  "ERROR")
+      }
+    } else {
+      log_event(log_messages_rv, 
+                "Values outside normal range and do not appear to be -log10 transformed", 
+                "ERROR")
+    }
   } else {
-    log_event(log_messages_rv, "P-values are in correct range [0,1]", "VALIDATION")
+    log_event(log_messages_rv, 
+              sprintf("All %d p-values are in correct range [0,1]", 
+                      sum(!is.na(pvalues))), 
+              "VALIDATION")
   }
   
   return(df)
 }
 
-
 ################################### ----UI---#################################
 
 
 ui <- semanticPage(
+  useShinyalert(),
   # Include custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
@@ -1241,13 +1351,29 @@ server <- function(input, output, session) {
     log_event(log_messages, paste("Custom gene labels selection", state), "INFO input$select_custom_labels")
   })
   
-  # Dynamic UI for custom gene labels input
+  # First, create the UI with empty choices
   output$custom_gene_labels_ui <- renderUI({
     if (input$select_custom_labels) {
       req(uploaded_df(), input$annotation_col)
-      gene_names <- unique(uploaded_df()[[input$annotation_col]])
-      selectizeInput("custom_gene_labels", "Select gene names to label", choices = gene_names, multiple = TRUE, server = TRUE )
+      selectizeInput(
+        "custom_gene_labels", 
+        "Select gene names to label", 
+        choices = NULL,  # Start with no choices
+        multiple = TRUE
+      )
     }
+  })
+  
+  # Then, update it with server-side processing
+  observe({
+    req(input$select_custom_labels, uploaded_df(), input$annotation_col)
+    gene_names <- unique(uploaded_df()[[input$annotation_col]])
+    updateSelectizeInput(
+      session,
+      "custom_gene_labels",
+      choices = gene_names,
+      server = TRUE  # This is where server = TRUE actually works
+    )
   })
   
   # Reactive expression to track chosen custom gene labels
@@ -1259,7 +1385,70 @@ server <- function(input, output, session) {
   
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
+    
+    # Get the original data
     df <- uploaded_df()
+    original_rows <- nrow(df)
+    
+    # Log the initial state
+    log_event(log_messages, sprintf("Initial number of rows: %d", original_rows), "INFO")
+    
+    # Add error checking for NA values before dropping
+    na_counts <- sapply(df[c(input$pvalue_col, input$fold_col, input$annotation_col)], function(x) sum(is.na(x)))
+    log_event(log_messages, sprintf("NA counts in columns before filtering:\n%s", 
+                                    paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), "INFO")
+    
+    # Drop NA values and capture the new data frame
+    df <- df %>% drop_na(!!sym(input$pvalue_col), !!sym(input$fold_col), !!sym(input$annotation_col))
+    new_rows <- nrow(df)
+    
+    # Calculate and log the difference
+    dropped_rows <- original_rows - new_rows
+    if (dropped_rows > 0) {
+      log_event(log_messages, 
+                sprintf("Removed %d rows with missing values (%d -> %d rows)", 
+                        dropped_rows, original_rows, new_rows), "INFO")
+    } else {
+      log_event(log_messages, "No rows were removed - no missing values found", "INFO")
+    }
+    
+    # Update the reactive value
+    uploaded_df(df)
+    
+    # Create alert message
+    alert_message <- HTML(sprintf(
+      "<div style='text-align: left;'>
+        <strong>Data Processing Summary:</strong><br><br>
+        Initial number of rows: %d<br><br>
+        <strong>Missing values found:</strong><br>
+        %s<br>
+        <strong>Rows removed:</strong> %d<br>
+        <strong>Remaining rows:</strong> %d
+        </div>",
+      original_rows,
+      paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
+      dropped_rows,
+      new_rows
+    ))
+    
+    # Show alert with the information
+    shinyalert(
+      title = "Data Processing Information",
+      text = alert_message,
+      type = "warning",
+      html = TRUE,
+      size = "m",
+      closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE,
+      showConfirmButton = TRUE,
+      confirmButtonText = "Continue",
+      timer = 0
+    )
+    
+    
+    
+    
+    
    
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
