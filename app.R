@@ -1920,7 +1920,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages, log_event = log_event)
         ggsave(file, publication_plot, width = 85, height = 85, 
                units = "mm", device = cairo_pdf)
       }
@@ -1932,7 +1932,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages, log_event = log_event)
         ggsave(file, publication_plot, width = 114, height = 114, 
                units = "mm", device = cairo_pdf)
       }
@@ -1944,7 +1944,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages, log_event = log_event)
         ggsave(file, publication_plot, width = 114, height = 65, 
                units = "mm", device = cairo_pdf)
       }
@@ -1956,7 +1956,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages, log_event = log_event)
         ggsave(file, publication_plot, width = 174, height = 174, 
                units = "mm", device = cairo_pdf)
       }
@@ -1968,7 +1968,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages)
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages, log_event = log_event)
         ggsave(file, publication_plot, width = 174, height = 98, 
                units = "mm", device = cairo_pdf)
       }
@@ -1992,7 +1992,8 @@ server <- function(input, output, session) {
           upregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0)),
           downregulated_count = nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0)),
           color_highlight = colors_to_use,
-          log_messages_rv = log_messages
+          log_messages_rv = log_messages,
+          log_event = log_event
         )
         log_event(log_messages, "GO enrichment table created successfully and ready for saving as pdf", "SUCCESS from output$download_go_enrichment")
         gtsave(gt_table, file)
@@ -2020,7 +2021,8 @@ server <- function(input, output, session) {
           alpha = input$alpha,
           fold_col = input$fold_col,
           color_highlight = colors_to_use,
-          log_messages_rv = log_messages
+          log_messages_rv = log_messages,
+          log_event = log_event
         )
         gtsave(gt_table, file)
       }
