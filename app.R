@@ -16,8 +16,8 @@ library(webshot2)
 library(shinyalert)  
 library(tidyr)
 
-# Load the GO data once globally
-# The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data  and in the script
+# Loading the GO data once globally
+# The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data and in the script
 # Parquet_GO_source_data_preparation_script.R
 # The file is also available in the data folder of this repository
 # This newfile contains around 8000 non-obsolete unique GO categories with at least 6 annotated genes in the category
@@ -28,8 +28,8 @@ GO <- arrow::read_parquet("GO.parquet2")
 
 ##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
 
-# 1. First, create the logger factory function that will set up session-specific logging
-# 1. Create the logger factory function with simplified session display
+# The logger factory function that creates a logger function for a specific session  
+
 create_logger <- function(session) {
   # Create session-specific identifiers
   session_start_time <- Sys.time()
@@ -61,7 +61,8 @@ create_logger <- function(session) {
   }
 }
 
-# 2. Create the structure logging helper function
+# The structure logging helper function - it can be used to log the structure of any R object or modified to 
+# log other properties of the object
 create_structure_logger <- function(session) {
   # Get the basic logger
   log_event <- create_logger(session)
@@ -80,7 +81,9 @@ create_structure_logger <- function(session) {
 }
 
 
-
+# GO tag enrichment analysis is based on the hypergeometric test which is a statistical test used to determine if the
+# number of successes in a sample drawn from a population is significantly different from the number of successes in the
+# population as a whole. The function below performs the hypergeometric test and logs the results. 
 
 perform_hypergeometric_test <- function(log_messages_rv, population_size, success_population_size, sample_size, sample_success_size, log_event) {
   # Log the input parameters
@@ -151,11 +154,11 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
     
     population_size <- 19689  # Number of human coding genes after pseudogene exclusion
     success_population_size <- length(go_genes)
-    sample_size <- length(genes)
+    sample_size <- length(genes) # analyze the  # "clean gene names" section to understand the cleaning process of gene names
     sample_success_size <- sum(sapply(genes, function(gene) {
       cleaned_gene <- gsub("[c\\(\\)\";]", "", gene)
       gene_parts <- toupper(unlist(strsplit(cleaned_gene, "[ ,;:]+")))
-      any(gene_parts %in% go_genes)
+      any(gene_parts %in% go_genes)  
     }))
     
     # Log hypergeometric test parameters
@@ -181,7 +184,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
     )
   })
   
-  enrichment_results <- bind_rows(enrichment_results)
+  enrichment_results <- bind_rows(enrichment_results) # Combine results into a single data frame
   
   # Check if enrichment_results is empty
   if (nrow(enrichment_results) == 0) {
@@ -200,6 +203,8 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
   log_event(log_messages_rv, 
            "Applying Bonferroni correction n = 1160 (estimate for level 4 hierarchy GO tags)", "INFO from calculate_go_enrichment()")
   
+  # This is based on the number of level 4 hierarchy GO tags - a more suitable approach may exists but 
+  # would involve complex bioinformatic calculations taking into account the hierarchy structure of the GO tags tree
   enrichment_results$Adjusted_P_Value <- p.adjust(enrichment_results$P_Value, method = "bonferroni", n = 1160)
   
   # Log final results summary
@@ -213,7 +218,7 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 }
 
 
-
+# Creates a GO enrichment table for upregulated, downregulated, and all regulated genes based on the input data frame
 
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv, log_event, log_structure) {
   # Log start of analysis with parameters
@@ -222,7 +227,7 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
                     alpha, fold_col, annotation_col),
             "INFO from calculate_go_enrichment_table()")
   
-  # Get genes and log counts
+  # Get regulated genes
   upregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
     pull(!!sym(annotation_col))
@@ -364,6 +369,9 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   return(enrichment_results_list)
 }
 
+# Creates a publication-ready plot for pdf outputs with custom dimensions and text sizes based on the input base plot and 
+# defined output
+
 create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv, log_event) {
   # Log start of plot creation with dimensions
   log_event(log_messages_rv,
@@ -489,6 +497,8 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   return(publication_plot)
 }
 
+# Creates a GT table with color-coded row groups for regulated genes based on the input enrichment results list 
+
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv, log_event) {
  
   
@@ -508,7 +518,8 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
             "Processing regulated genes data",
             "INFO from build_gt_table()")
   
-  # Prepare data frames with rounded values and formatted p-values
+  # Prepare data frames with rounded values and formatted p-values - this is done to ensure consistent formatting
+  # in the table output and to avoid scientific notation
   regulated_df <- enrichment_results_list$regulated$data %>%
     mutate(
       Population_Enrichment_Ratio = round(Success_Population_Size / Population_Size, 3),
@@ -661,7 +672,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
 }
 
 #This function creates GT tables for each GO category with columns for genes in the GO category,
-#downregulated genes, and upregulated genes, with detected genes in bold.
+#downregulated genes, and upregulated genes, with detected genes in bold and regulated in color.
 
 build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight, log_messages_rv, log_event) {
   # Debug color inputs
@@ -851,7 +862,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 
-
+# Checks p-values in a data frame column to find out if they are logged or not and unlogs them if necessary
 
 check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) {
   log_event(log_messages_rv, "Starting p-value range check", "PVALUE")
@@ -916,7 +927,7 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) 
 
 ui <- semanticPage(
 
-  # Include custom CSS
+  # Includes custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
               type = "text/css", 
@@ -1155,11 +1166,11 @@ server <- function(input, output, session) {
   log_messages <- reactiveVal("")
   is_mobile <- reactiveVal(FALSE)
   
-# Create session variables at server start
+# Creates session variables at server start
   session_id <- substr(digest::digest(session$token), 1, 6)
   session_start_time <- Sys.time()
   
-  # Create the logging functions with session context
+  # Creates the logging functions with session context
   log_event <- create_logger(session)
   log_structure <- create_structure_logger(session)
   
@@ -1199,7 +1210,7 @@ server <- function(input, output, session) {
     in_file <- input$file1
     df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
     uploaded_df(df)
-    # create log event for successful initialisations of reactive values
+    # create log event for successful initialization of reactive values
     
     log_event(log_messages, "Reactive value uploaded_df initialized successfully", "INFO from upload observer")   
     
@@ -1363,7 +1374,8 @@ server <- function(input, output, session) {
     }
   })
   
-  # Then, update it with server-side processing
+  # Then, update it with server-side processing - this server side processing was suggested by R console warning message that
+  # appeared in the previous version with client side processing and no updataSelectizeInput function
   observe({
     req(input$select_custom_labels, uploaded_df(), input$annotation_col)
     gene_names <- unique(uploaded_df()[[input$annotation_col]])
@@ -1371,7 +1383,7 @@ server <- function(input, output, session) {
       session,
       "custom_gene_labels",
       choices = gene_names,
-      server = TRUE  # This is where server = TRUE actually works
+      server = TRUE  
     )
   })
   
@@ -1449,8 +1461,9 @@ server <- function(input, output, session) {
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
     
-    # Check if input$pvalue_col and input$fold_col are numeric and break the code with a warning allert to the user if not 
-    # inform the user to double check the decimal point in the upload section
+    # Checks if input$pvalue_col and input$fold_col are numeric and breaks the code with a warning allert to the user if not 
+    # informs the user to double check the decimal point in the upload section - the wrong decimal point resulted in coercing
+    # the vectors to character instead of numeric
     
     if (!is.numeric(df[[input$pvalue_col]]) || !is.numeric(df[[input$fold_col]])) {
       log_event(log_messages, "Error: p-value and fold change columns are not numeric", "ERROR - draw volcano observer checks")
@@ -1666,8 +1679,8 @@ server <- function(input, output, session) {
         go_details <- paste0(paste(chosen, unique(selected_GO$id), collapse = "\n"))
       } else {
         go_details <- paste0("GO: ", paste(chosen, collapse = ", "), "\nID: Not available")
-        cat("Warning: 'id' column not found in selected_GO\n")  # Debug warning if 'id' column is missing
-        cat(go_details)  # Debug statement
+        cat("Warning: 'id' column not found in selected_GO\n")  
+        cat(go_details)  
       }
       
       for (i in seq_along(chosen)) {
@@ -1752,7 +1765,7 @@ server <- function(input, output, session) {
         scale_color_identity()  # Use identity scale to apply the colors directly
     }
     
-    # NEW: Add custom gene labels if feature is enabled
+    # Add custom gene labels if feature is enabled
     if (input$select_custom_labels && !is.null(custom_genes())) {
       log_event(log_messages, "Adding custom gene labels", "INFO input$draw_volcano")
       custom_label_data <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes())
@@ -1846,15 +1859,11 @@ server <- function(input, output, session) {
                 sprintf("Plot optimized for mobile view (width: %dpx, text scale: %.2f, point scale: %.2f)", 
                         width, text_scale, point_scale), 
                 "INFO mobile optimization")
-      
+      # Store the plot in reactive value
       volcano_plot_rv(mobile_plot)
     }
     
-      # Store the plot in reactive value
-    
-   
-    
-    
+      
     
     
     output$volcano_plot <- renderPlot({ 
@@ -1888,7 +1897,7 @@ server <- function(input, output, session) {
           responsive = TRUE
         )
       
-      # Add try-catch for error handling
+      # Adds try-catch for error handling
       tryCatch({
         return(p)
       }, error = function(e) {
@@ -1900,12 +1909,12 @@ server <- function(input, output, session) {
             showarrow = FALSE
           )
       })
-      # Render the download button
+      # Renders the download button
       output$download_log_button <- renderUI({
         downloadButton("download_log", "Download Analysis Log", class = "ui gray button")
       })
       
-      # Render the download button only after draw_volcano is clicked
+      # Renders the download button only after draw_volcano is clicked
       outputOptions(output, "download_log_button", suspendWhenHidden = FALSE)
       
       
@@ -2014,7 +2023,7 @@ server <- function(input, output, session) {
           c("#000000", "#000000")  # default black if highlighting is disabled
         }
         gt_table <- build_gt_gene_lists(
-          df = uploaded_df(),  # Use the actual df from the parent scope
+          df = uploaded_df(),  
           annotation_col = input$annotation_col,
           chosen_go = input$go_category,
           go_data = GO,

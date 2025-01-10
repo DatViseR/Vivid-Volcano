@@ -138,44 +138,6 @@ div.ui.raised.segment:nth-child(-n+3) {
 }
 
 
-
-/* Compress the three fields layout */
-.ui.form .three.fields {
-    
-}
-
-.ui.form .three.fields .field {
-   
-}
-
-/* Adjust toggle and radio spacing */
-.ui.toggle.checkbox {
-   
-}
-
-.ui.radio.checkbox {
- 
-}
-
-/* Header and label adjustments */
-.ui.raised.segment .header {
-
-}
-
-.ui.grey.ribbon.label {
-    
-}
-
-/* Compress form elements */
-.ui.form .field {
-   
-}
-
-/* Upload button spacing */
-.ui.primary.button {
-  
-}
-
 /* Specific adjustments for the upload segment */
 div.ui.raised.segment:first-child {
 
@@ -186,27 +148,16 @@ div[style*="display: flex; flex-direction: column"] {
     
 }
 
-/* Make checkboxes more compact */
-.ui.checkbox {
-    
-}
 
-/* Adjust field labels */
-.ui.form .field > label {
-   
-}
 
-/* Optional: Add hover effect */
+/* Add hover effect */
 div.ui.raised.segment:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
     transition: box-shadow 0.3s ease;
    
 }
 
-/* Add padding inside segments */
-.ui.raised.segment {
-   
-}
+
 
 /* Add spacing between elements inside segments */
 .ui.raised.segment:not(:first-of-type) > * {
@@ -224,50 +175,13 @@ div.ui.raised.segment:hover {
  
  
  
- 
- 
-.ui.raised.segment:first-of-type .form{
-  
-    }
-
-/* Specific spacing for form elements */
-.ui.form .field {
-    
-}
-
-/* Add spacing after headers */
-.ui.raised.segment .header {
-    
-}
-
 /* Add spacing after ribbon labels */
 .ui.raised.segment .ribbon.label {
  margin-right: 1rem;
    
 }
 
-/* Add spacing between inputs */
 
-.ui.raised.segment .ui.dropdown,
-.ui.raised.segment .numeric-input,
-.ui.raised.segment .text-input {
-
-}
-
-/* Add spacing for toggle switches */
-.ui.raised.segment .ui.toggle.checkbox {
-
-}
-
-/* Add spacing for action buttons */
-.ui.raised.segment .ui.button {
-
-}
-
-/* Adjust spacing for grouped elements */
-.ui.raised.segment .fields {
-    
-}
 
 /**  COLOR PICKERS WERE SHOWING ALPHA CHANNEL, SO I made them narrower */
 
@@ -414,7 +328,8 @@ div.ui.raised.segment:hover {
     }
     
     /************* DATA TABLE MOBILE STYLES ***********************/   
-    /* Ensure the DataTable is scrollable horizontally */
+    /* Ensure the DataTable is scrollable horizontally  - not perfect but i failed with other methods and the
+    native approuch for DT responsive somehow was not working*/
 
     /************* DATA TABLE MOBILE STYLES ***********************/   
 
