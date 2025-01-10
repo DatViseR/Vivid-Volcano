@@ -1,3 +1,89 @@
+
+ #########  LOCATE CHROMIUM BROWSER IN THE SERVER ##########
+
+# After deployment to the posit connect cloud everything was working fine except the gt table pdf downloaders
+# according to the log the issue probably depends on the lack of chromium browser activated in the server 
+# This code is designed to set up the eviroment variable on the server - not sure if this would work as....unfortunately there is 
+# no terminal or environment variable acces in the posit cloud so it cannot be set up via the cloud system
+
+## Auto-detect Chrome/Chromium path with detailed logging
+find_chrome <- function() {
+  # First check if CHROMOTE_CHROME environment variable is already set
+  chrome_env <- Sys.getenv("CHROMOTE_CHROME")
+  if (chrome_env != "") {
+    message("CHROMOTE_CHROME environment variable is set to: ", chrome_env)
+    if (file.exists(chrome_env)) {
+      return(chrome_env)
+    } else {
+      message("Warning: CHROMOTE_CHROME points to non-existent file: ", chrome_env)
+    }
+  }
+  
+  # List of possible executable names
+  possible_names <- c("google-chrome", "chromium", "chromium-browser", "brave-browser")
+  
+  # Common installation directories
+  possible_dirs <- c(
+    "/usr/bin/",
+    "/usr/local/bin/",
+    "/snap/bin/",
+    "/opt/google/chrome/",
+    "/opt/chromium/"
+  )
+  
+  # Create all possible combinations of paths
+  possible_paths <- unlist(lapply(possible_dirs, function(dir) {
+    paste0(dir, possible_names)
+  }))
+  
+  # Log system information
+  message("Operating system: ", Sys.info()["sysname"])
+  message("Looking for browsers in following locations:")
+  message(paste(possible_paths, collapse = "\n"))
+  
+  # Check each path
+  for (path in possible_paths) {
+    message("Checking path: ", path)
+    if (file.exists(path)) {
+      message("Found browser at: ", path)
+      # Try to get version information
+      tryCatch({
+        version_info <- system2(path, "--version", stdout = TRUE, stderr = TRUE)
+        message("Browser version info: ", paste(version_info, collapse = "\n"))
+      }, error = function(e) {
+        message("Could not get version info: ", e$message)
+      })
+      return(path)
+    }
+  }
+  
+  # If no browser found, try system which command
+  for (name in possible_names) {
+    try({
+      path <- system2("which", name, stdout = TRUE, stderr = FALSE)
+      if (length(path) > 0 && file.exists(path)) {
+        message("Found browser via 'which' command at: ", path)
+        return(path)
+      }
+    }, silent = TRUE)
+  }
+  
+  message("No Chrome/Chromium browser found. System PATH is:")
+  message(Sys.getenv("PATH"))
+  return(NULL)
+}
+
+# Set the environment variable if a browser is found
+chrome_path <- find_chrome()
+if (!is.null(chrome_path)) {
+  Sys.setenv(CHROMOTE_CHROME = chrome_path)
+  message("Successfully set CHROMOTE_CHROME to: ", chrome_path)
+} else {
+  warning("Could not find Chrome/Chromium browser. PDF export may not work. Please ensure a Chromium-based browser is installed in the cloud environment.")
+}
+
+####################### LIBRARY SETUP ############################
+
 library(shiny)
 library(readr)
 library(dplyr)
