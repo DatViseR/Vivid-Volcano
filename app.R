@@ -971,7 +971,14 @@ ui <- semanticPage(
             icon("linkedin big"),
             class = "linkedin",
             target = "_blank"
-          )
+          ),
+          h5("Buy me a coffee?", class = "icon-header"),
+          a(href = "https://buymeacoffee.com/datviser",
+            icon("fa-solid fa-mug-hot"),
+            class = "coffe",
+            target = "_blank"
+          ),
+          
       )
   ),
   

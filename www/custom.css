@@ -71,6 +71,19 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
   margin-left: 0.5rem;
 }
 
+/* specific size for coffee mug icon */
+.social-buttons .fa-mug-hot {
+  font-size: 2.2em;  /* Slightly smaller than the 2.5em used for other icons */
+  color: #4A4A4A;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+  transform: translateY(-0.1em);  /* Slightly adjust the vertical position */
+}
+
+
+
+
+
 .social-buttons .github:hover {
   color: #000;
 }
@@ -78,6 +91,13 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 .social-buttons .linkedin:hover {
   color: #0077b5;
 }
+
+.social-buttons .coffe:hover i{
+  color: #000;
+}
+
+
+
 
 /* Responsive design */
 @media (max-width: 810px) {
@@ -110,7 +130,7 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
   }
   
 .title, .subtitle{
-  transform: translateX(-25rem);  
+  transform: translateX(-17rem);  
     
     
     
