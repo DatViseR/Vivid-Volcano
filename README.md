@@ -19,11 +19,11 @@
 • Table of gene lists for each GO category, enabling easy identification of detected and regulated genes within a specific category (optional PDF output)\
 • Process log system for user sessions, useful for checking data processing outcomes, debugging, and analyzing app functionality
 
-The application in availible in the web:
+The application is available in the cloud:
 
-XXXXXXXXXXXXXXX
+[Vivid volcano live - beta version](https://019450d5-e026-768a-7bd5-5eee2cd59c8f.share.connect.posit.cloud/)
 
-For running the app locally follow the Instructions:
+To run the app locally follow the Instructions:
 
 1.  Clone this repository:\
     git clone <https://github.com/DatViseR/Vivid-Volcano.git>
