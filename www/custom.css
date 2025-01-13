@@ -125,18 +125,22 @@ background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
 @media (min-width: 811px){
   
 .logo{
-    transform: translateX(9rem);
+    margin-left:9rem;
+    
     
   }
   
 .title, .subtitle{
-  transform: translateX(-17rem);  
-    
+  
+   
     
     
   }
   
-  
+.left-section{
+    margin-left: 1rem;
+    margin-right: 41rem; 
+  }
   
   
   
