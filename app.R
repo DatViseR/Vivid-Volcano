@@ -927,6 +927,124 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) 
   return(df)
 }
 
+# data preprocesing function detecting non-numeric values in columns supposed to be numeric 
+# the function analyze observations with suspicious values - logs the summary of those values 
+# and remove the rows tha may result in coercion to character values instead of numeric 
+#' Diagnose and trim numeric-like columns, then display a summary alert.
+#'
+#' This function scans columns in a dataframe for non-numeric values in columns
+#' that are likely meant to be numeric. If suspicious entries are found, a summary
+#' alert is displayed using shinyalert. When the user clicks "Continue", those rows
+#' with non-numeric entries are removed, and the final trimmed dataframe is
+
+diagnose_dataframe_v4 <- function(log_messages_rv, log_event, uploaded_df) {
+  # Get the current dataframe from the reactive value
+  df <- uploaded_df()
+  
+  # Define keywords for identifying numeric-like columns
+  keywords <- c("log", "fold", "pvalue", "padj", "mean", "std", "variance", 
+                "count", "value", "diff", "change", "ratio", "score", "rank")
+  
+  potential_numeric_cols <- grep(
+    paste(keywords, collapse = "|"), 
+    colnames(df), 
+    value = TRUE, 
+    ignore.case = TRUE
+  )
+  
+  if (length(potential_numeric_cols) == 0) {
+    log_event(log_messages_rv, "No numeric-like columns detected.", "INFO from diagnose_dataframe_v4")
+    return(invisible(NULL))
+  }
+  
+  # Modified to store both rows and counts
+  invalid_rows_list <- lapply(potential_numeric_cols, function(col) {
+    suspicious_rows <- which(!is.na(df[[col]]) & is.na(suppressWarnings(as.numeric(df[[col]]))))
+    if (length(suspicious_rows) > 0) {
+      log_event(
+        log_messages_rv,
+        paste0("Column '", col, "' has ", length(suspicious_rows), " suspicious (non-numeric) entries."),
+        "WARN from diagnose_dataframe_v4"
+      )
+      list(
+        rows = suspicious_rows,
+        count = length(suspicious_rows)
+      )
+    } else {
+      NULL
+    }
+  })
+  names(invalid_rows_list) <- potential_numeric_cols
+  
+  # Filter out NULL entries and get all suspicious rows
+  valid_entries <- !sapply(invalid_rows_list, is.null)
+  problematic_cols <- names(invalid_rows_list)[valid_entries]
+  invalid_rows_list <- invalid_rows_list[valid_entries]
+  
+  all_suspicious_rows <- unique(unlist(lapply(invalid_rows_list, function(x) x$rows)))
+  
+  if (length(all_suspicious_rows) == 0) {
+    log_event(log_messages_rv, "No suspicious non-numeric and not NA entries found in numeric-like columns.", "INFO from diagnose_dataframe_v4")
+    return(invisible(NULL))
+  }
+  
+  # Create detailed message for each problematic column
+  column_messages <- sapply(seq_along(problematic_cols), function(i) {
+    sprintf("• %s suspicious non-numeric and not NA values found in column '%s' that is supposed to be numeric",
+            invalid_rows_list[[i]]$count,
+            problematic_cols[i])
+  })
+  
+  # Build the complete alert text
+  alert_text <- paste0(
+    "<div style='text-align: left;'>",
+    "<strong>Data Processing Warning:</strong><br/><br/>",
+    paste(column_messages, collapse = "<br/>"),
+    "<br/><br/>",
+    "Total rows to be removed: ", length(all_suspicious_rows),
+    "<br/><br/>",
+    "Click 'Proceed' to remove these rows and convert columns to numeric format.",
+    "</div>"
+  )
+  
+  shinyalert::shinyalert(
+    title = "Suspicious Values Detected",
+    text = HTML(alert_text),
+    type = "warning",
+    html = TRUE,
+    closeOnEsc = FALSE,
+    closeOnClickOutside = FALSE,
+    showConfirmButton = TRUE,
+    confirmButtonText = "Proceed",
+    callbackR = function(user_proceeded) {
+      if (isTRUE(user_proceeded)) {
+        log_event(
+          log_messages_rv,
+          paste0("User proceeded. Removing ", length(all_suspicious_rows), " suspicious rows."),
+          "INFO from diagnose_dataframe_v4"
+        )
+        
+        # Create cleaned version of the dataframe
+        cleaned_df <- df[-all_suspicious_rows, ]
+        
+        # Coerce problematic columns to numeric
+        for (col_name in potential_numeric_cols) {
+          cleaned_df[[col_name]] <- suppressWarnings(as.numeric(cleaned_df[[col_name]]))
+        }
+        
+        # Update the reactive value with cleaned data
+        uploaded_df(cleaned_df)
+      }
+    }
+  )
+  
+  return(invisible(NULL))
+}
+
+
+
+
+
 ################################### ----UI---#################################
 
 
@@ -1229,8 +1347,18 @@ server <- function(input, output, session) {
     # Log the structure of the uploaded dataset
     log_structure(log_messages, df, "The structure of the uploaded dataset is:", "INFO from upload observer")
     log_event(log_messages, "Dataset uploaded successfully", "SUCCESS from upload observer")
+ 
+       
+    # Call diagnose_dataframe_v4 with just the reactive value
+    diagnose_dataframe_v4(
+      log_messages_rv = log_messages, 
+      log_event = log_event, 
+      uploaded_df = uploaded_df
+    )
     
-  
+   log_structure(log_messages, df, "The structure of the uploaded dataset afted diagnostic preprocesing:", "INFO from upload observer")
+    
+    
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
