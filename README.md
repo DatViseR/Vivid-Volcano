@@ -23,6 +23,11 @@ The application is available in the cloud:
 
 [Vivid volcano live - beta version](https://019450d5-e026-768a-7bd5-5eee2cd59c8f.share.connect.posit.cloud/)
 
+The live demo of the early version - now in closed beta testing:
+
+[Vivid volcano features- demo movie](https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link)
+
+
 To run the app locally follow the Instructions:
 
 1.  Clone this repository:\
