@@ -1041,6 +1041,231 @@ diagnose_dataframe_v4 <- function(log_messages_rv, log_event, uploaded_df) {
   return(invisible(NULL))
 }
 
+diagnose_expression_column <- function(log_messages_rv, log_event, uploaded_df) {
+  # Get the current dataframe from the reactive value
+  df <- uploaded_df()
+  
+  # Define keywords for identifying expression-like columns
+  keywords <- c("log2", "expression", "fold")
+  expression_cols <- grep(
+    paste(keywords, collapse = "|"), 
+    colnames(df), 
+    value = TRUE, 
+    ignore.case = TRUE
+  )
+  
+  if (length(expression_cols) == 0) {
+    log_event(log_messages_rv, "No expression-like columns detected.", "INFO from diagnose_expression_column")
+    return(invisible(NULL))
+  }
+  
+  # Log detected columns
+  log_event(log_messages_rv, sprintf("Detected expression-like columns: %s", paste(expression_cols, collapse = ", ")), 
+            "INFO from diagnose_expression_column")
+  
+  # Check for suspicious values in expression-like columns
+  suspicious_rows <- lapply(expression_cols, function(col) {
+    which(abs(df[[col]]) > 10)  # Identify rows with absolute values > 10
+  })
+  names(suspicious_rows) <- expression_cols
+  
+  # Filter columns with suspicious values
+  suspicious_cols <- names(suspicious_rows)[sapply(suspicious_rows, length) > 0]
+  if (length(suspicious_cols) == 0) {
+    log_event(log_messages_rv, "No suspicious values detected in expression columns.", "INFO from diagnose_expression_column")
+    return(invisible(NULL))
+  }
+  
+  # Prepare alert message
+  alert_text <- paste0(
+    "<strong>Suspicious Values Detected:</strong><br/>",
+    paste(sapply(suspicious_cols, function(col) {
+      sprintf("%d values in column '%s' exceed abs(10)", length(suspicious_rows[[col]]), col)
+    }), collapse = "<br/>"),
+    "<br/><br/>Click 'Proceed' to remove these rows."
+  )
+  
+  # Show alert and handle user response
+  shinyalert::shinyalert(
+    title = "Data Warning",
+    text = HTML(alert_text),
+    type = "warning",
+    html = TRUE,
+    closeOnEsc = FALSE,
+    closeOnClickOutside = FALSE,
+    showConfirmButton = TRUE,
+    confirmButtonText = "Proceed",
+    callbackR = function(proceed) {
+      if (isTRUE(proceed)) {
+        log_event(log_messages_rv, "User opted to remove suspicious rows.", "INFO from diagnose_expression_column")
+        
+        # Remove rows with suspicious values
+        rows_to_remove <- unique(unlist(suspicious_rows[suspicious_cols]))
+        df <- df[-rows_to_remove, ]
+        
+        # Update the reactive value
+        uploaded_df(df)
+        
+        log_event(log_messages_rv, sprintf("Removed %d rows with suspicious values.", length(rows_to_remove)), 
+                  "INFO from diagnose_expression_column")
+      } else {
+        log_event(log_messages_rv, "User canceled the removal of suspicious rows.", "INFO from diagnose_expression_column")
+      }
+    }
+  )
+  
+  return(invisible(NULL))
+}
+
+
+# one diagnostic and cleaning function that
+
+# Checks for columns that should be numeric but have suspicious non numeric and not NA values - log event
+
+
+# If there are such values in columns supposed to be numeric remove those observations - log event
+
+# Coerce those columns to numeric - log event and structure of df after step
+
+# Search for column with log2 fold
+
+# remove  values > abs(10) - log event
+
+# log structure after second cleaning step
+
+# show shiny alert with information on the performed data preprocessing and explanation 
+
+diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structure) {
+  cleaned_df <- df
+  cleaning_messages <- character(0)
+  any_cleaning_needed <- FALSE
+  
+  # Step 1: Check for numeric-like columns
+  keywords_numeric <- c("log", "fold", "pvalue", "padj", "mean", "std", "variance", 
+                        "count", "value", "diff", "change", "ratio", "score", "rank")
+  
+  potential_numeric_cols <- grep(
+    paste(keywords_numeric, collapse = "|"), 
+    colnames(cleaned_df), 
+    value = TRUE, 
+    ignore.case = TRUE
+  )
+  
+  if (length(potential_numeric_cols) == 0) {
+    log_event(log_messages_rv, "No numeric-like columns detected.", "INFO from diagnose_and_clean_data")
+    return(df)
+  }
+  
+  # Phase 1: Handle non-numeric values
+  invalid_rows_list <- lapply(potential_numeric_cols, function(col) {
+    if (!is.numeric(cleaned_df[[col]])) {
+      suspicious_rows <- which(!is.na(df[[col]]) & is.na(suppressWarnings(as.numeric(df[[col]]))))
+      if (length(suspicious_rows) > 0) {
+        log_event(
+          log_messages_rv,
+          paste0("Column '", col, "' has ", length(suspicious_rows), " suspicious (non-numeric) entries."),
+          "WARN from diagnose_and_clean_data"
+        )
+        return(list(
+          rows = suspicious_rows,
+          count = length(suspicious_rows),
+          column = col
+        ))
+      }
+    }
+    return(NULL)
+  })
+  
+  invalid_rows_list <- Filter(function(x) !is.null(x), invalid_rows_list)
+  non_numeric_rows <- unique(unlist(lapply(invalid_rows_list, function(x) x$rows)))
+  
+  if (length(non_numeric_rows) > 0) {
+    any_cleaning_needed <- TRUE
+    log_event(
+      log_messages_rv,
+      sprintf("Removing %d rows with non-numeric values", length(non_numeric_rows)),
+      "INFO from diagnose_and_clean_data"
+    )
+    cleaned_df <- cleaned_df[-non_numeric_rows, ]
+    cleaning_messages <- c(cleaning_messages, 
+                           sprintf("• Removed %d rows with non-numeric values", length(non_numeric_rows)))
+    
+    # Coerce columns to numeric
+    for (col in potential_numeric_cols) {
+      if (!is.numeric(cleaned_df[[col]])) {
+        cleaned_df[[col]] <- suppressWarnings(as.numeric(cleaned_df[[col]]))
+      }
+    }
+    log_event(log_messages_rv, "Columns coerced to numeric", "INFO from diagnose_and_clean_data")
+    log_structure(log_messages_rv, cleaned_df, "Data structure after numeric coercion:", "INFO from diagnose_and_clean_data")
+  }
+  
+  # Phase 2: Check for extreme values (always run this check)
+  fold_cols <- grep("log2.*fold|log2.*fc|l2fc|fold.*change", 
+                    colnames(cleaned_df), value = TRUE, ignore.case = TRUE)
+  
+  if (length(fold_cols) > 0) {
+    extreme_rows <- unique(unlist(lapply(fold_cols, function(col) {
+      which(abs(cleaned_df[[col]]) > 10)
+    })))
+    
+    if (length(extreme_rows) > 0) {
+      any_cleaning_needed <- TRUE
+      log_event(
+        log_messages_rv,
+        sprintf("Removing %d rows with extreme fold changes (|log2 FC| > 10)", length(extreme_rows)),
+        "INFO from diagnose_and_clean_data"
+      )
+      cleaned_df <- cleaned_df[-extreme_rows, ]
+      cleaning_messages <- c(cleaning_messages,
+                             sprintf("• Removed %d rows with extreme fold changes (|log2 FC| > 10)", length(extreme_rows)))
+      
+      log_structure(log_messages_rv, cleaned_df, 
+                    "Data structure after removing extreme values:", 
+                    "INFO from diagnose_and_clean_data")
+    }
+  }
+  
+  # Show alert only if any cleaning was performed
+  if (any_cleaning_needed) {
+    alert_text <- paste0(
+      "<div style='text-align: left;'>",
+      "<strong>Data Preprocessing Summary:</strong><br/><br/>",
+      paste(cleaning_messages, collapse = "<br/><br/>"),
+      "<br/><br/>Click 'Proceed' to continue with the cleaned dataset.</div>"
+    )
+    
+    shinyalert::shinyalert(
+      title = "Data Preprocessing Complete",
+      text = alert_text,
+      type = "info",
+      html = TRUE,
+      closeOnEsc = FALSE,
+      closeOnClickOutside = FALSE,
+      showConfirmButton = TRUE,
+      showCancelButton = TRUE,
+      confirmButtonText = "Proceed",
+      callbackR = function(user_proceeded) {
+        if (isTRUE(user_proceeded)) {
+          log_event(log_messages_rv, "User accepted data cleaning changes", "SUCCESS from diagnose_and_clean_data")
+          return(cleaned_df)
+        } else {
+          log_event(log_messages_rv, "User cancelled data cleaning", "INFO from diagnose_and_clean_data")
+          return(df)
+        }
+      }
+    )
+  }
+  
+  return(cleaned_df)
+}
+
+
+
+
+
+
+
 
 
 
@@ -1287,16 +1512,6 @@ ui <- semanticPage(
   )
 )
 
-diagnose_expression_column <- function(df, log_messages_rv, log_event, uploaded_df) {
-
-  # Search for the log2 fold expression levels using keywords - log the step
-  
-  # Checks if the column found contains abs(values) > 10    - log the step and show column name and number of suspicious values 
-  
-  # Gives html alert with the column name, number of suspicious values and the option to remove them - log the step 
-  
-  # Returns the cleaned dataframe that can be used by rest of the code 
-}
 
 
 ##########################-----SERVER----####################################
@@ -1362,17 +1577,22 @@ server <- function(input, output, session) {
  
        
     # Call diagnose_dataframe_v4 with just the reactive value
-    diagnose_dataframe_v4(
-      log_messages_rv = log_messages, 
-      log_event = log_event, 
-      uploaded_df = uploaded_df
+    # Run combined diagnostic and cleaning
+    df_cleaned <- diagnose_and_clean_data(
+      df = df,
+      log_messages_rv = log_messages,
+      log_event = log_event,
+      log_structure = log_structure
     )
+    
+    # Update if cleaning returns result
+    if (!is.null(df_cleaned)) {
+      uploaded_df(df_cleaned)
+    }
     
    log_structure(log_messages, df, "The structure of the uploaded dataset after 1st diagnostic preprocesing:", "INFO from upload observer")
     
-   # implement diagnose_expression_column()
-   
-   
+
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
