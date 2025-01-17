@@ -1122,7 +1122,6 @@ diagnose_expression_column <- function(log_messages_rv, log_event, uploaded_df) 
 
 # Checks for columns that should be numeric but have suspicious non numeric and not NA values - log event
 
-
 # If there are such values in columns supposed to be numeric remove those observations - log event
 
 # Coerce those columns to numeric - log event and structure of df after step
@@ -1133,12 +1132,14 @@ diagnose_expression_column <- function(log_messages_rv, log_event, uploaded_df) 
 
 # log structure after second cleaning step
 
-# show shiny alert with information on the performed data preprocessing and explanation 
+# show nicely formated shiny alert with information on the performed data processing and information to the user
 
 diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structure) {
+  # Initialize variables at the start
   cleaned_df <- df
   cleaning_messages <- character(0)
   any_cleaning_needed <- FALSE
+  initial_rows <- nrow(df)
   
   # Step 1: Check for numeric-like columns
   keywords_numeric <- c("log", "fold", "pvalue", "padj", "mean", "std", "variance", 
@@ -1179,6 +1180,24 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
   invalid_rows_list <- Filter(function(x) !is.null(x), invalid_rows_list)
   non_numeric_rows <- unique(unlist(lapply(invalid_rows_list, function(x) x$rows)))
   
+  # Create detailed message for non-numeric values
+  if (length(invalid_rows_list) > 0) {
+    column_details <- sapply(invalid_rows_list, function(x) {
+      sprintf("<li><code>%s</code>: %d entries</li>", x$column, x$count)
+    })
+    non_numeric_message <- sprintf(
+      "<div class='cleaning-section'>
+       <h4>⚠️Non-numeric values found and removed from columns
+       expected to be purely numeric.  
+
+        </h4>
+       <p>Total rows affected: %d</p>
+       <ul>%s</ul>
+       </div>",
+      length(non_numeric_rows),
+      paste(column_details, collapse = ""))
+  }
+  
   if (length(non_numeric_rows) > 0) {
     any_cleaning_needed <- TRUE
     log_event(
@@ -1187,8 +1206,7 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
       "INFO from diagnose_and_clean_data"
     )
     cleaned_df <- cleaned_df[-non_numeric_rows, ]
-    cleaning_messages <- c(cleaning_messages, 
-                           sprintf("• Removed %d rows with non-numeric values", length(non_numeric_rows)))
+    cleaning_messages <- c(cleaning_messages, non_numeric_message)
     
     # Coerce columns to numeric
     for (col in potential_numeric_cols) {
@@ -1200,25 +1218,49 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
     log_structure(log_messages_rv, cleaned_df, "Data structure after numeric coercion:", "INFO from diagnose_and_clean_data")
   }
   
-  # Phase 2: Check for extreme values (always run this check)
+  # Phase 2: Check for extreme values
   fold_cols <- grep("log2.*fold|log2.*fc|l2fc|fold.*change", 
                     colnames(cleaned_df), value = TRUE, ignore.case = TRUE)
   
   if (length(fold_cols) > 0) {
-    extreme_rows <- unique(unlist(lapply(fold_cols, function(col) {
-      which(abs(cleaned_df[[col]]) > 10)
-    })))
+    extreme_info <- lapply(fold_cols, function(col) {
+      extreme_indices <- which(abs(cleaned_df[[col]]) > 10)
+      if (length(extreme_indices) > 0) {
+        return(list(
+          column = col,
+          rows = extreme_indices,
+          count = length(extreme_indices)
+        ))
+      }
+      return(NULL)
+    })
     
-    if (length(extreme_rows) > 0) {
+    extreme_info <- Filter(function(x) !is.null(x), extreme_info)
+    
+    if (length(extreme_info) > 0) {
       any_cleaning_needed <- TRUE
+      extreme_rows <- unique(unlist(lapply(extreme_info, function(x) x$rows)))
+      
+      extreme_details <- sapply(extreme_info, function(x) {
+        sprintf("<li><code>%s</code>: %d rows</li>", x$column, x$count)
+      })
+      
+      extreme_message <- sprintf(
+        "<div class='cleaning-section'>
+         <h4>📊 Potentialy improper extreme log2 fold values found and removed</h4>
+         <p>Rows with log<sub>2</sub>fold change > +-10</p>
+         <ul>%s</ul>
+         </div>",
+        paste(extreme_details, collapse = ""))
+      
       log_event(
         log_messages_rv,
-        sprintf("Removing %d rows with extreme fold changes (|log2 FC| > 10)", length(extreme_rows)),
+        paste(extreme_details, collapse = "\n"),
         "INFO from diagnose_and_clean_data"
       )
+      
       cleaned_df <- cleaned_df[-extreme_rows, ]
-      cleaning_messages <- c(cleaning_messages,
-                             sprintf("• Removed %d rows with extreme fold changes (|log2 FC| > 10)", length(extreme_rows)))
+      cleaning_messages <- c(cleaning_messages, extreme_message)
       
       log_structure(log_messages_rv, cleaned_df, 
                     "Data structure after removing extreme values:", 
@@ -1228,15 +1270,87 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
   
   # Show alert only if any cleaning was performed
   if (any_cleaning_needed) {
-    alert_text <- paste0(
-      "<div style='text-align: left;'>",
-      "<strong>Data Preprocessing Summary:</strong><br/><br/>",
-      paste(cleaning_messages, collapse = "<br/><br/>"),
-      "<br/><br/>Click 'Proceed' to continue with the cleaned dataset.</div>"
+    final_rows <- nrow(cleaned_df)
+    rows_removed <- initial_rows - final_rows
+    
+    alert_text <- sprintf(
+      "<div style='text-align: left; font-family: Arial, sans-serif;'>
+        <style>
+          .cleaning-section { 
+            margin-bottom: 20px; 
+            padding: 15px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+            border-radius: 4px;
+          }
+          .cleaning-section h4 { 
+            color: #007bff; 
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+          }
+          .cleaning-section p {
+            margin: 8px 0;
+            color: #495057;
+          }
+          .cleaning-section ul {
+            margin: 8px 0;
+            padding-left: 20px;
+            list-style-type: none;
+          }
+          .cleaning-section li {
+            margin: 4px 0;
+            color: #495057;
+          }
+          .summary-section {
+            background: #e9ecef;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border-left: 3px solid #6c757d;
+          }
+          code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #d63384;
+            font-size: 0.9em;
+            border: 1px solid #dee2e6;
+          }
+          .warning-note {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 3px solid #ffc107;
+            background: #fff3cd;
+            color: #856404;
+            font-size: 0.95em;
+            line-height: 1.4;
+            border-radius: 4px;
+          }
+        </style>
+        
+        %s
+        
+        <div class='summary-section'>
+          <strong>📈 Summary:</strong><br>
+          Initial rows: %d<br>
+          Rows removed: %d<br>
+          Final rows: %d
+        </div>
+
+        <div class='warning-note'>
+          Automatic data processing is performed due to potentially improper data format in part of the input, 
+          cancel to check the data input settings (separator and decimal point) or to check your data, 
+          proceed to continue with automatically cleaned data.
+        </div>
+      </div>",
+      paste(cleaning_messages, collapse = "\n"),
+      initial_rows,
+      rows_removed,
+      final_rows
     )
     
     shinyalert::shinyalert(
-      title = "Data Preprocessing Complete",
+      title = "🔍Improper input structure, data processing triggered",
       text = alert_text,
       type = "info",
       html = TRUE,
@@ -1259,8 +1373,6 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
   
   return(cleaned_df)
 }
-
-
 
 
 
