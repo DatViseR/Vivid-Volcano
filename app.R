@@ -1,5 +1,6 @@
 
-
+# Set maximum file size limit (e.g., 10MB = 10*1024^2)
+options(shiny.maxRequestSize = 25*1024^2)  # Set to 25MB
 
 ####################### LIBRARY SETUP ############################
 
@@ -1448,7 +1449,9 @@ ui <- semanticPage(
                           header(title = "Upload your data", description = "", icon = "upload"),
                           div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
                           div(class = "ui file input", 
-                              file_input("file1", label = NULL, accept = c(".csv", ".tsv"))
+                              file_input("file1", 
+                                         label = paste0("Maximum file size: 25MB"),
+                                         accept = c(".csv", ".tsv"))
                           ),
                           
                           # Add download link for demo data
