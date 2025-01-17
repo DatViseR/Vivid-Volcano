@@ -1287,6 +1287,18 @@ ui <- semanticPage(
   )
 )
 
+diagnose_expression_column <- function(df, log_messages_rv, log_event, uploaded_df) {
+
+  # Search for the log2 fold expression levels using keywords - log the step
+  
+  # Checks if the column found contains abs(values) > 10    - log the step and show column name and number of suspicious values 
+  
+  # Gives html alert with the column name, number of suspicious values and the option to remove them - log the step 
+  
+  # Returns the cleaned dataframe that can be used by rest of the code 
+}
+
+
 ##########################-----SERVER----####################################
 
 
@@ -1356,9 +1368,11 @@ server <- function(input, output, session) {
       uploaded_df = uploaded_df
     )
     
-   log_structure(log_messages, df, "The structure of the uploaded dataset afted diagnostic preprocesing:", "INFO from upload observer")
+   log_structure(log_messages, df, "The structure of the uploaded dataset after 1st diagnostic preprocesing:", "INFO from upload observer")
     
-    
+   # implement diagnose_expression_column()
+   
+   
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
