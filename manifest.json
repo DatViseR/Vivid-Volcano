@@ -3895,23 +3895,32 @@
     }
   },
   "files": {
+    ".github/FUNDING.yml": {
+      "checksum": "6e266d4b2c71b1a8a6a8e3f3df6a054e"
+    },
     ".RData": {
-      "checksum": "ea6af46cc11ae0a3a4ff4fff9dd0bf27"
+      "checksum": "f8301f6dd9a63af1a2fe7a949df4e10e"
     },
     ".Rprofile": {
-      "checksum": "8e3ecf89c0c4738db829f030202dd6da"
+      "checksum": "572290b94d55fb8d7c09567f72e03f09"
     },
     "app.R": {
-      "checksum": "ecd51ebae059a6fa7e32e567284c8fb7"
+      "checksum": "17fda0e454966026610ef88e22e69652"
     },
-    "AS2_Protein_Table.csv": {
-      "checksum": "e4f14773f1e7aae6caaa45700b3037c4"
+    "Generates mock data for file size input testing.R": {
+      "checksum": "dd3e7ebca282d8b8b1fe77da953c342f"
     },
     "GO.parquet2": {
       "checksum": "13cb6bbb539c2bdfb5c66b59f2b8e574"
     },
+    "images/clipboard-1118121615.png": {
+      "checksum": "155d2273c1415d8f5f62435ade46f2c4"
+    },
     "images/clipboard-1305613866.png": {
       "checksum": "d860d33965dba5d07f1c405580643142"
+    },
+    "images/clipboard-604128060.png": {
+      "checksum": "98f4c8f1ca104384e092e12d84f38698"
     },
     "images/Vivid_volcano_logo.png": {
       "checksum": "f74f655b4d720ce7cf6c5ac98c1f8149"
@@ -3919,29 +3928,35 @@
     "LICENCE.md": {
       "checksum": "162b282c1cf1eba4d57334487f1268e2"
     },
+    "mock_data_10mb.csv": {
+      "checksum": "020fae8d7eaaa4f8095f6e46a5260f12"
+    },
+    "mock_data_15mb.csv": {
+      "checksum": "972c603e344c348705f9a27a1ea4390a"
+    },
     "Parquet_GO_source_data_preparation_srcipt.R": {
       "checksum": "c5b49937d0fc12b875a53814378ab623"
     },
     "Profile_1.Rprofvis": {
       "checksum": "6cddf9426212bd4fca26b77f8fdae271"
     },
+    "Prototype data diagnostic functions.R": {
+      "checksum": "dfa7db2ec3ead0691779756cc2cf6ed1"
+    },
     "README.html": {
       "checksum": "89ea9cfdf53ad263f4c438616a4a7c36"
     },
     "README.md": {
-      "checksum": "dfa4ade89810ac9c39f9eaed4428a0dc"
+      "checksum": "5549860f1791e38e544369d828feb7d0"
     },
     "renv.lock": {
       "checksum": "9ea74f39b64a9bd1bfedaeaabe76806c"
-    },
-    "Test_data.csv": {
-      "checksum": "d5a4e29ece7cee50ab38e41b9c922aee"
     },
     "Vivid_volcano_logo.png": {
       "checksum": "f74f655b4d720ce7cf6c5ac98c1f8149"
     },
     "www/custom.css": {
-      "checksum": "107de63a799bcbeb42b15c192af882b7"
+      "checksum": "8496f324d42a6f3f81750dcc406eaa78"
     },
     "www/demo_data.csv": {
       "checksum": "d5a4e29ece7cee50ab38e41b9c922aee"
