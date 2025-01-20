@@ -29,6 +29,28 @@ library(tidyr)
 # This newfile contains around 8000 non-obsolete unique GO categories with at least 6 annotated genes in the category
 GO <- arrow::read_parquet("GO.parquet2")
 
+# This is the structure of the one main "source of truth" file for GO
+
+# Classes ‘spec_tbl_df’, ‘tbl_df’, ‘tbl’ and 'data.frame':	693408 obs. of  4 variables:
+#   $ id      : chr  "GO:0003723" "GO:0005515" "GO:0046872" "GO:0005829" ...
+# $ name    : chr  "RNA binding" "protein binding" "metal ion binding" "cytosol" ...
+# $ gene    : chr  "NUDT4B" "NUDT4B" "NUDT4B" "NUDT4B" ...
+# $ ontology: chr  "F" "F" "F" "C" ...
+# - attr(*, "spec")=List of 3
+# ..$ cols   :List of 4
+# .. ..$ id      : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ name    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ gene    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ ontology: list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# ..$ default: list()
+# .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
+# ..$ delim  : chr "\t"
+# ..- attr(*, "class")= chr "col_spec"
+
 
 
 
@@ -1828,6 +1850,10 @@ server <- function(input, output, session) {
           segment(
             class = "basic",
             h4(class = "ui header", "GSEA Analysis Results"),
+            div( 
+            class = "ui tiny fluid buttons",
+            downloadButton("reg_gene_list", "Download regulated gene list", class = "ui button"),
+            ),
             div(class = "ui two column grid",
                 # First column (50%) - GSEA Plot
                 div(class = "column",
@@ -1838,7 +1864,8 @@ server <- function(input, output, session) {
                       div(
                         style = "margin-top: 10px;",
                         class = "ui tiny fluid buttons",
-                        downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button")
+                        downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button"),
+                        
                       )
                     )
                 ),
