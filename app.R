@@ -1504,7 +1504,7 @@ ui <- semanticPage(
                       # Analysis Options Card
                       div(class = "ui raised segment",
                            # ribbon
-                           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
+                           header(title = "Analysis Options", description = "Customize GSEA and volcano plot options",icon = "cogs"),
                            div(class = "ui grey ribbon label", "Customize p value adjustment"),
                            
                            dropdown_input("adj",
@@ -1520,6 +1520,8 @@ ui <- semanticPage(
                            
                            div(class = "ui grey ribbon label", "GSEA analysis controls"),
                            toggle("GSEA_acvited", "I want to run GSEA", FALSE),
+                           uiOutput("gsea_controls_ui"),
+                          
                            
                            # Plot Options Card
                            div(class = "ui grey ribbon label", "Customize annotations")  ,
@@ -1556,75 +1558,8 @@ ui <- semanticPage(
           segment(
             class = "placeholder",
             header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
-            
-            tabset(
-              tabs = list(
-                list(
-                  menu = "Static Volcano Plot and GO enrichment table",
-                  content = div(
-                    div(class = "ui two column grid",
-                        # First column (50%) - Plot and Downloads
-                        div(class = "column",
-                            segment(
-                              class = "basic",
-                              plotOutput("volcano_plot", width = "100%", height = "600px")
-                            ),
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "Download Plots"),
-                              div(
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
-                                downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
-                                downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
-                              ),
-                              div(
-                                style = "margin-top: 10px;",
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
-                                downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
-                              )
-                            )
-                        ),
-                        # Second column (50%) - GO Table
-                        div(class = "column",
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "Download GO Enrichment Table"),
-                              div(
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_go_enrichment", "Download GO enrichment table", class = "ui button")
-                              ),
-                              gt_output("go_enrichment_gt")
-                            )
-                        )
-                    )
-                  )
-                ),
-                list(
-                  menu = "Interactive Volcano Plot",
-                  content = div(
-                    plotlyOutput("volcano_plotly", width = "800px", height = "740px")
-                  )
-                ),
-                list(
-                  menu = "GO Category Details",
-                  content = div(
-                    segment(
-                      class = "basic",
-                      h4(class = "ui header", "Download GO Gene List Table"),
-                      div(
-                        class = "ui tiny fluid buttons",
-                        downloadButton("download_go_gene_list", "Download GO gene lists", class = "ui button")
-                      ),
-                      gt_output("go_gene_list_gt")
-                    )
-                  )
-                )        
-              )
-            )
-          ),
-      
+            uiOutput("dynamic_tabset")
+          )
         )
       )
   )
@@ -1759,6 +1694,222 @@ server <- function(input, output, session) {
     })
       
   })
+  
+# REACTIVE UI FOR OPTIONAL GSEA ANALYSIS 
+  
+  output$gsea_controls_ui <- renderUI({
+    if (input$GSEA_acvited) {
+      div(class = "ui segment",
+          div(class = "ui two column grid",
+              # First column - Gene Set Selection
+              div(class = "field",
+                  multiple_radio(
+                    "gsea_gene_set",
+                    "Select Gene Set",
+                    choices = list(
+                      "Bidirectionally regulated",
+                      "Upregulated",
+                      "Downregulated"
+                    ),
+                    choices_value = c(
+                      "bidirectional",
+                      "up",
+                      "down"
+                    ),
+                    selected = "bidirectional"
+                  )
+              ),
+              # Second column - Ontology Selection
+              div(class = "field",
+                  multiple_radio(
+                    "gsea_ontology",
+                    "Ontology",
+                    choices = list(
+                      "Cellular Component",
+                      "Biological Process",
+                      "Molecular Function"
+                    ),
+                    choices_value = c(
+                      "CC",
+                      "BP",
+                      "MF"
+                    ),
+                    selected = "BP"
+                  )
+              )
+          ),
+          # Run GSEA button below the grid
+          div(style = "margin-top: 15px; text-align: center;",
+              actionButton(
+                "run_gsea",
+                label = HTML('<i class="play icon"></i> Run GSEA'),
+                class = "ui primary button"
+              )
+          )
+      )
+    }
+  })
+  
+##### Reactive  4 tabset appearing if GSEA is activated and 3 tabset if not #########
+  
+  # Add these to your server function
+  tab_list <- reactive({
+    # Define base tabs that are always present
+    base_tabs <- list(
+      list(
+        menu = "Static Volcano Plot and GO enrichment table",
+        content = div(
+          div(class = "ui two column grid",
+              # First column (50%) - Plot and Downloads
+              div(class = "column",
+                  segment(
+                    class = "basic",
+                    plotOutput("volcano_plot", width = "100%", height = "600px")
+                  ),
+                  segment(
+                    class = "basic",
+                    h4(class = "ui header", "Download Plots"),
+                    div(
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
+                      downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
+                      downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
+                    ),
+                    div(
+                      style = "margin-top: 10px;",
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
+                      downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
+                    )
+                  )
+              ),
+              # Second column (50%) - GO Table
+              div(class = "column",
+                  segment(
+                    class = "basic",
+                    h4(class = "ui header", "Download GO Enrichment Table"),
+                    div(
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_go_enrichment", "Download GO enrichment table", class = "ui button")
+                    ),
+                    gt_output("go_enrichment_gt")
+                  )
+              )
+          )
+        )
+      ),
+      list(
+        menu = "Interactive Volcano Plot",
+        content = div(
+          plotlyOutput("volcano_plotly", width = "800px", height = "740px")
+        )
+      ),
+      list(
+        menu = "GO Category Details",
+        content = div(
+          segment(
+            class = "basic",
+            h4(class = "ui header", "Download GO Gene List Table"),
+            div(
+              class = "ui tiny fluid buttons",
+              downloadButton("download_go_gene_list", "Download GO gene lists", class = "ui button")
+            ),
+            gt_output("go_gene_list_gt")
+          )
+        )
+      )
+    )
+    
+    # Add GSEA tab conditionally
+    if (isTRUE(input$GSEA_acvited)) {
+      gsea_tab <- list(
+        menu = "GSEA Results",
+        content = div(
+          segment(
+            class = "basic",
+            h4(class = "ui header", "GSEA Analysis Results"),
+            div(class = "ui two column grid",
+                # First column (50%) - GSEA Plot
+                div(class = "column",
+                    segment(
+                      class = "basic",
+                      h4(class = "ui header", "GSEA Enrichment Plot"),
+                      plotOutput("gsea_plot", width = "100%", height = "600px"),
+                      div(
+                        style = "margin-top: 10px;",
+                        class = "ui tiny fluid buttons",
+                        downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button")
+                      )
+                    )
+                ),
+                # Second column (50%) - GSEA Results Table
+                div(class = "column",
+                    segment(
+                      class = "basic",
+                      h4(class = "ui header", "GSEA Results Table"),
+                      div(
+                        class = "ui tiny fluid buttons",
+                        downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
+                      ),
+                      gt_output("gsea_results_gt")
+                    )
+                )
+            )
+          )
+        )
+      )
+      # Return combined tabs with GSEA tab first
+      c(list(gsea_tab), base_tabs)
+    } else {
+      # Return only base tabs
+      base_tabs
+    }
+  })
+  
+  # Render the dynamic tabset
+  output$dynamic_tabset <- renderUI({
+    tabset(tabs = tab_list())
+  })
+  
+  # Add logging for debugging
+  observeEvent(input$GSEA_acvited, {
+    log_event(log_messages, 
+              sprintf("Tab list updated. GSEA active: %s. Number of tabs: %d", 
+                      isTRUE(input$GSEA_acvited),
+                      length(tab_list())), 
+              "INFO")
+  })
+  
+  # 
+  # # Add an observer to log the state of the dynamic tab
+  # observeEvent(input$GSEA_acvited, {
+  #   if (isTRUE(input$GSEA_acvited)) {
+  #     log_event(log_messages, "GSEA tab activated", "INFO")
+  #   } else {
+  #     log_event(log_messages, "GSEA tab deactivated", "INFO")
+  #   }
+  # })
+  # 
+  # 
+  
+  
+  observeEvent(input$run_gsea, {
+    req(input$GSEA_acvited, input$gsea_gene_set, input$gsea_ontology)
+    
+    # Log the GSEA analysis start
+    log_event(log_messages, 
+              sprintf("Starting GSEA analysis with gene set: %s, ontology: %s", 
+                      input$gsea_gene_set, 
+                      input$gsea_ontology),
+              "INFO from GSEA observer")
+    
+    # GSEA analysis code will be here
+    
+    
+  })
+  
+  
+  
   
   # Observe changes to the color_highlight input
   observeEvent(input$color_highlight, {
