@@ -1502,7 +1502,7 @@ ui <- semanticPage(
                       
                       
                       # Analysis Options Card
-                      div( class = "ui raised segment",
+                      div(class = "ui raised segment",
                            # ribbon
                            header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
                            div(class = "ui grey ribbon label", "Customize p value adjustment"),
@@ -1518,8 +1518,11 @@ ui <- semanticPage(
                                           value = "BH"),
                            numericInput("alpha", "Significance Threshold", value = 0.05, min = 0.0001, max = 1, step = 0.001),
                            
+                           div(class = "ui grey ribbon label", "GSEA analysis controls"),
+                           toggle("GSEA_acvited", "I want to run GSEA", FALSE),
+                           
                            # Plot Options Card
-                           div(class = "ui grey ribbon label", "Customize annotations"),
+                           div(class = "ui grey ribbon label", "Customize annotations")  ,
                            toggle("color_highlight", "Highlight Significant Hits", FALSE),
                            uiOutput("color_highlight_ui"),
                            toggle("show_go_category", "Visualize GO Categories", FALSE),
