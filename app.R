@@ -142,6 +142,8 @@ perform_hypergeometric_test <- function(log_messages_rv, population_size, succes
 # which are in tousands so logging needs to be supressed to avoid cluttering the log. 
 
 # First create a silent version of the hypergeometric test
+
+# Only this function definition should be in global scope
 perform_hypergeometric_test_silent <- function(population_size, success_population_size, 
                                                sample_size, sample_success_size) {
   # Just calculate and return the result, no logging
@@ -152,52 +154,6 @@ perform_hypergeometric_test_silent <- function(population_size, success_populati
          lower.tail = FALSE)
 }
 
-# Then in your main function:
-if (!is.null(log_messages_rv)) {
-  log_event(log_messages_rv,
-            sprintf("GO terms statistics:\n- Terms with detected genes: %d\n- Terms with regulated genes: %d",
-                    length(go_counts_detected),
-                    length(go_counts_regulated)),
-            "INFO from identify_top_go_enrichment()")
-}
-
-# Use the silent version in the lapply
-results_list <- lapply(names(go_counts_detected), function(go_term_name) {
-  sample_success_size <- go_counts_regulated[go_term_name]
-  if (is.na(sample_success_size)) sample_success_size <- 0
-  
-  success_population_size <- go_counts_detected[go_term_name]
-  sample_size <- length(regulated_genes)
-  population_size <- length(detected_genes)
-  
-  # Use the silent version here
-  pval <- perform_hypergeometric_test_silent(
-    population_size = population_size,
-    success_population_size = success_population_size,
-    sample_size = sample_size,
-    sample_success_size = sample_success_size
-  )
-  
-  data.frame(name = go_term_name, p_value = pval, stringsAsFactors = FALSE)
-})
-
-# Add single summary log after all tests
-if (!is.null(log_messages_rv)) {
-  log_event(log_messages_rv,
-            sprintf("Completed hypergeometric tests for %d GO terms", 
-                    length(go_counts_detected)),
-            "INFO from identify_top_go_enrichment()")
-}
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -207,13 +163,21 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
             sprintf("Starting gene preprocessing with %d raw entries", length(unlist(genes))),
             "INFO from calculate_go_enrichment()")
   
-  # Clean gene names
-  genes <- unlist(strsplit(genes, "[;|,\\s]+"))  
-  genes <- trimws(genes)                         
-  genes <- genes[genes != ""]                    
-  genes <- toupper(genes)                        
-  genes <- gsub("[^A-Z0-9]", "", genes)          
-  genes <- unique(genes)                         
+  genes <- genes %>%
+    # Split input string by semicolon, comma, or any whitespace
+    strsplit("[;|,\\s]+") %>%
+    # Convert list to vector
+    unlist() %>%
+    # Remove leading and trailing whitespace from each element
+    trimws() %>%
+    # Remove empty strings from vector using subsetting
+    .[. != ""] %>%
+    # Convert all characters to uppercase for consistency
+    toupper() %>%
+    # Remove all non-alphanumeric characters (keep only A-Z and 0-9)
+    gsub(pattern = "[^A-Z0-9]", replacement = "") %>%
+    # Remove duplicate gene names
+    unique()                    
   
   # Log gene cleaning results
   log_event(log_messages_rv, 
@@ -359,7 +323,7 @@ identify_top_go_enrichment <- function(detected_genes,
   go_counts_detected <- table(filtered_go_data$name)
   
   # Filter and count GO terms among regulated genes
-  regulated_go_data <- go_data[go_data$gene %in% regulated_genes & go_data$ontology == ontology,  drop = FALSE]
+  regulated_go_data <- go_data[go_data$gene %in% regulated_genes & go_data$ontology == ontology, drop = FALSE]
   go_counts_regulated <- table(regulated_go_data$name)
   
   if (!is.null(log_messages_rv)) {
@@ -379,31 +343,18 @@ identify_top_go_enrichment <- function(detected_genes,
     sample_size <- length(regulated_genes)
     population_size <- length(detected_genes)
     
-    # # Log hypergeometric test parameters for each term
-    # if (!is.null(log_messages_rv)) {
-    #   log_event(log_messages_rv,
-    #             sprintf("Testing GO term: %s\n- Population size: %d\n- Success in population: %d\n- Sample size: %d\n- Success in sample: %d",
-    #                     go_term_name,
-    #                     population_size,
-    #                     success_population_size,
-    #                     sample_size,
-    #                     sample_success_size),
-    #             "DEBUG from identify_top_go_enrichment()")
-    # }
-    
+    # Use the silent version to prevent log flooding
     pval <- perform_hypergeometric_test_silent(
-     
       population_size = population_size,
       success_population_size = success_population_size,
       sample_size = sample_size,
-      sample_success_size = sample_success_size,
-     
+      sample_success_size = sample_success_size
     )
     
     data.frame(name = go_term_name, p_value = pval, stringsAsFactors = FALSE)
   })
   
-  # Add a single summary log after all tests are complete
+  # Log completion of hypergeometric tests
   if (!is.null(log_messages_rv)) {
     log_event(log_messages_rv,
               sprintf("Completed hypergeometric tests for %d GO terms", 
@@ -430,21 +381,25 @@ identify_top_go_enrichment <- function(detected_genes,
   significant_results <- results_df[results_df$p_adj < alpha, ]
   significant_results <- significant_results[order(significant_results$p_adj), ]
   
-  # Take top categories and log final results
+  # Take top categories and prepare final results
   final_results <- head(significant_results, n = max_categories)
   
+  # Log final summary
   if (!is.null(log_messages_rv)) {
     log_event(log_messages_rv,
               sprintf("Final results summary:\n- Significant terms: %d\n- Returned top terms: %d\n- Min adj.p-value: %g\n- Max adj.p-value: %g",
                       nrow(significant_results),
                       nrow(final_results),
-                      min(final_results$p_adj),
-                      max(final_results$p_adj)),
+                      ifelse(nrow(final_results) > 0, min(final_results$p_adj), NA),
+                      ifelse(nrow(final_results) > 0, max(final_results$p_adj), NA)),
               "SUCCESS from identify_top_go_enrichment()")
   }
   
   return(final_results)
 }
+
+
+
 
 #' Produce a gt table of top enriched GO categories.
 #'
@@ -2283,10 +2238,28 @@ server <- function(input, output, session) {
     
     # Get all detected genes (all non-NA genes in the annotation column)
     detected_genes <- df[[input$annotation_col]] %>%
-      na.omit() %>%
-      unique() %>%
+      # Split input string by semicolon, comma, or any whitespace
+      strsplit("[;|,\\s]+") %>%
+      # Convert list to vector and keep only first occurrence from each split
+      # lapply(head, 1) takes first element from each split result
+      # unlist() then combines results into a single vector
+      lapply(head, 1) %>%
+      unlist() %>%
+      # Remove leading and trailing whitespace from each element
+      trimws() %>%
+      # Remove empty strings using subsetting
+      .[. != ""] %>%
+      # Convert all characters to uppercase for consistency
       toupper() %>%
-      gsub("[^A-Z0-9]", "", .)
+      # Remove all non-alphanumeric characters (keep only A-Z and 0-9)
+      gsub(pattern = "[^A-Z0-9]", replacement = "") %>%
+      # Remove duplicate gene names
+      unique()
+    
+    # Before introducing preservation of first occurance of a gene name in
+    #observations with multilied genes !!!!!!! This list vector was longer 
+    #that observations as it splited gene names splited from the observations having 
+    #multiplied gene names and separator in the annotation column
     
     # Log the number of detected genes
     log_event(log_messages,
