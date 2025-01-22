@@ -1074,22 +1074,22 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
   
   # Get gene lists - corrected classification
   detected_genes <- df[[annotation_col]] %>%  # All genes in the experiment
-  clean_gene_names(genes, log_messages_rv, log_event)
+  clean_gene_names(., log_messages_rv, log_event)
   
   regulated_genes <- df %>%  # All significantly regulated genes
     filter(adjusted_pvalues < alpha) %>%
     pull(!!sym(annotation_col)) %>%
-    clean_gene_names(genes, log_messages_rv, log_event)
+    clean_gene_names(., log_messages_rv, log_event)
   
   downregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
     pull(!!sym(annotation_col)) %>%
-    clean_gene_names(genes, log_messages_rv, log_event)
+    clean_gene_names(., log_messages_rv, log_event)
   
   upregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
     pull(!!sym(annotation_col)) %>%
-    clean_gene_names(genes, log_messages_rv, log_event)
+    clean_gene_names(., log_messages_rv, log_event)
   
   # Log gene counts
   log_event(log_messages_rv,
@@ -1113,7 +1113,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     
     go_genes <- category_data %>%
       pull(gene) %>%
-      clean_gene_names(genes, log_messages_rv, log_event)
+      clean_gene_names(., log_messages_rv, log_event)
     
     go_id <- unique(category_data$id)[1]  # Get the GO ID
     
@@ -2254,7 +2254,7 @@ server <- function(input, output, session) {
     
     # Get all detected genes (all non-NA genes in the annotation column)
     detected_genes <- df[[input$annotation_col]] %>%
-      clean_gene_names(genes, log_messages, log_event)
+      clean_gene_names(., log_messages, log_event)
     
     # Before introducing preservation of first occurance of a gene name in
     #observations with multilied genes !!!!!!! This list vector was longer 
@@ -2295,17 +2295,17 @@ server <- function(input, output, session) {
       up = df %>%
         filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>%
         pull(!!sym(input$annotation_col)) %>%
-        clean_gene_names(genes, log_messages_rv, log_event),
+        clean_gene_names(., log_messages, log_event),
       
       down = df %>%
         filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>%
         pull(!!sym(input$annotation_col)) %>%
-        clean_gene_names(genes, log_messages_rv, log_event),
+        clean_gene_names(., log_messages, log_event),
       
       bidirectional = df %>%
         filter(adjusted_pvalues < input$alpha) %>%
         pull(!!sym(input$annotation_col)) %>%
-        clean_gene_names(genes, log_messages_rv, log_event)
+        clean_gene_names(., log_messages, log_event)
     )
     
     # Log gene set counts
