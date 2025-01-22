@@ -2350,42 +2350,56 @@ server <- function(input, output, session) {
     go_filtered <- GO %>%
       filter(gene %in% detected_genes & ontology == input$gsea_ontology)
     
-    # Log GO data filtering results
-    log_event(log_messages,
-              sprintf("Filtered GO data:\n- Ontology: %s\n- Terms: %d\n- Genes: %d",
-                      switch(input$gsea_ontology,
-                             "C" = "Cellular Component",
-                             "F" = "Molecular Function",
-                             "P" = "Biological Process"),
-                      n_distinct(go_filtered$name),
-                      n_distinct(go_filtered$gene)),
-              "INFO from GSEA observer")
+    # Get missing genes and prepare ontology name
+    missing_genes <- setdiff(detected_genes, go_filtered$gene)
+    ontology_name <- switch(input$gsea_ontology,
+                            "C" = "Cellular Component",
+                            "F" = "Molecular Function",
+                            "P" = "Biological Process")
+    
+    # Create comprehensive single log message
+    log_message <- sprintf(
+      "GO Analysis Summary:
+
+1. Data Overview:
+- Ontology: %s
+- Total Terms: %d
+- Unique Genes: %d
+
+2. Terms by Ontology Category:
+- Cellular Component (C): %d terms
+- Molecular Function (F): %d terms
+- Biological Process (P): %d terms
+
+3. Missing Annotations (%d genes):
+%s",
+      ontology_name,
+      n_distinct(go_filtered$name),
+      n_distinct(go_filtered$gene),
+      sum(go_filtered$ontology == "C"),
+      sum(go_filtered$ontology == "F"),
+      sum(go_filtered$ontology == "P"),
+      length(missing_genes),
+      if(length(missing_genes) > 0) paste(missing_genes, collapse = ", ") else "None"
+    )
+    
+    # Single log event for all GO data information
+    log_event(log_messages, log_message, "INFO from GSEA observer")
     
     # Validate we have GO data for the selected ontology
     if (nrow(go_filtered) == 0) {
       shinyalert(
         title = "No GO Data",
         text = sprintf("No GO terms found for %s ontology with the detected genes", 
-                       switch(input$gsea_ontology,
-                              "C" = "Cellular Component",
-                              "F" = "Molecular Function",
-                              "P" = "Biological Process")),
+                       ontology_name),
         type = "error"
       )
       log_event(log_messages,
-                sprintf("No GO terms found for ontology %s with detected genes", 
-                        input$gsea_ontology),
+                sprintf("ANALYSIS STOPPED: No GO terms found for %s ontology", 
+                        ontology_name),
                 "ERROR from GSEA observer")
       return()
     }
-    
-    # Add summary of available GO data
-    log_event(log_messages,
-              sprintf("Filtered GO data summary [terms availible for detected genes and chosen ontology]:\nC (Cellular Component): %d terms\nF (Molecular Function): %d terms\nP (Biological Process): %d terms",
-                      sum(go_filtered$ontology == "C"),
-                      sum(go_filtered$ontology == "F"),
-                      sum(go_filtered$ontology == "P")),
-              "INFO from GSEA observer")
     
     # Run enrichment analysis using identify_top_go_enrichment
     enrichment_results <- identify_top_go_enrichment(
