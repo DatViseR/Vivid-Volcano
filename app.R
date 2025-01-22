@@ -2601,7 +2601,17 @@ server <- function(input, output, session) {
       log_event = log_event
     )
     
-# update the reactive value
+    # Debug print the structure
+    if (!is.null(log_event)) {
+      log_event(log_messages,
+                sprintf("GSEA Results Structure:\n- Has all_results: %s\n- Has top_results: %s\n- Number of missing genes: %d",
+                        !is.null(enrichment_results$all_results),
+                        !is.null(enrichment_results$top_results),
+                        length(enrichment_results$missing_genes)),
+                "DEBUG")
+    }
+    
+    # Store results
     gsea_results(enrichment_results)
     
     # Log completion    
@@ -2658,32 +2668,55 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
       paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
     },
     content = function(file) {
-      # Add error handling
+      # Debug log the state
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Download full results triggered:\n- Results exist: %s\n- Results structure valid: %s",
+                          !is.null(gsea_results()),
+                          !is.null(gsea_results()$all_results)),
+                  "DEBUG")
+      }
+      
+      # Ensure results exist
+      req(gsea_results())
+      req(gsea_results()$all_results)
+      
       tryCatch({
-        # Combine all results from all_results list into one data frame
-        full_results_df <- bind_rows(
-          enrichment_results$all_results,
-          .id = "regulation_group"
-        ) %>%
-          # FIXED: Match the actual column names from your function
-          select(
-            regulation_group,
-            name,
-            gene_set,
-            total_count,
-            genes_in_term,
-            regulated_count,
-            regulated_genes,
-            expected_count,
-            fold_enrichment,
-            p_value,
-            p_adj
-          )
+        # Debug the data before binding
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("All results content:\n- Number of sets: %d\n- Set names: %s",
+                            length(gsea_results()$all_results),
+                            paste(names(gsea_results()$all_results), collapse = ", ")),
+                    "DEBUG")
+        }
         
-        # Write to CSV with error handling
+        # Combine results
+        full_results_df <- bind_rows(
+          gsea_results()$all_results,
+          .id = "regulation_type"
+        )
+        
+        # Debug the combined data
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Combined results:\n- Rows: %d\n- Columns: %d\n- Column names: %s",
+                            nrow(full_results_df),
+                            ncol(full_results_df),
+                            paste(colnames(full_results_df), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write to CSV
         write.csv(full_results_df, file, row.names = FALSE)
+        
       }, error = function(e) {
-        # Return an empty data frame with correct structure if there's an error
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in full results download: %s", e$message),
+                    "ERROR")
+        }
+        # Write empty file with structure
         empty_df <- data.frame(
           regulation_group = character(),
           name = character(),
@@ -2705,35 +2738,100 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
   
   output$download_top_gsea <- downloadHandler(
     filename = function() {
+      # Create filename with timestamp
       paste0("GSEA_top_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
     },
     content = function(file) {
-      # Add error handling
+      # Verify results exist
+      req(gsea_results())
+      req(gsea_results()$top_results)
+      
       tryCatch({
-        # Combine top results from top_results list into one data frame
+        # Log download attempt if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Download top results triggered at %s by %s",
+                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                            "DatViseR"),
+                    "INFO")
+        }
+        
+        # Combine top results from all regulation groups
         top_results_df <- bind_rows(
-          enrichment_results$top_results,
+          gsea_results()$top_results,
           .id = "regulation_group"
         ) %>%
-          # FIXED: Match the actual column names from your function
           select(
-            regulation_group,
-            name,
-            gene_set,
-            total_count,
-            genes_in_term,
-            regulated_count,
-            regulated_genes,
-            expected_count,
-            fold_enrichment,
-            p_value,
-            p_adj
+            regulation_group,    # Regulation direction (up/down/bidirectional)
+            name,               # GO term name
+            gene_set,           # Gene set identifier
+            total_count,        # Total genes in GO term
+            genes_in_term,      # All genes in the GO term
+            regulated_count,    # Number of regulated genes
+            regulated_genes,    # List of regulated genes
+            expected_count,     # Expected number by chance
+            fold_enrichment,    # Enrichment ratio
+            p_value,           # Raw p-value
+            p_adj              # Adjusted p-value
           )
         
-        # Write to CSV with error handling
-        write.csv(top_results_df, file, row.names = FALSE)
+        # Log data summary if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                            nrow(top_results_df),
+                            paste(unique(top_results_df$regulation_group), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write data or empty structure based on whether we have results
+        if (nrow(top_results_df) > 0) {
+          write.csv(top_results_df, file, row.names = FALSE)
+          
+          # Log successful write if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      sprintf("Successfully wrote %d rows of top GSEA results to file",
+                              nrow(top_results_df)),
+                      "SUCCESS")
+          }
+        } else {
+          # Create empty data frame with correct structure
+          empty_df <- data.frame(
+            regulation_group = character(),
+            name = character(),
+            gene_set = character(),
+            total_count = integer(),
+            genes_in_term = character(),
+            regulated_count = integer(),
+            regulated_genes = character(),
+            expected_count = numeric(),
+            fold_enrichment = numeric(),
+            p_value = numeric(),
+            p_adj = numeric(),
+            stringsAsFactors = FALSE
+          )
+          
+          # Write empty structure
+          write.csv(empty_df, file, row.names = FALSE)
+          
+          # Log empty result if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      "No significant results found, wrote empty structure",
+                      "WARNING")
+          }
+        }
+        
       }, error = function(e) {
-        # Return an empty data frame with correct structure if there's an error
+        # Log error if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in top results download: %s", e$message),
+                    "ERROR")
+        }
+        
+        # Create and write empty structure on error
         empty_df <- data.frame(
           regulation_group = character(),
           name = character(),
