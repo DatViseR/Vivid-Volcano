@@ -300,22 +300,9 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 }
 
 
-#' Identify top enriched GO categories for a set of regulated genes.
-#'
-#' @param detected_genes A character vector of all genes detected in the experiment.
-#' @param regulated_genes A character vector of significantly regulated genes (e.g., up/down).
-#' @param go_data A data frame (or list) containing GO annotations for each gene.
-#' @param ontology Character string specifying the ontology (e.g., "BP", "MF", "CC").
-#' @param p_adj_method String for the p-value adjustment method (e.g., "BH").
-#' @param alpha Numeric specifying the significance level after p-value adjustment.
-#' @param max_categories Maximum number of top categories to be returned.
-#' @param log_messages_rv A reactiveValues object for logging events, if used (optional).
-#' @param log_event A character string identifying the logging event, if used (optional).
-#'
-#' @return A data frame containing the top enriched GO categories, their p-values, and adjusted p-values.
 identify_top_go_enrichment <- function(detected_genes,
-                                       regulated_genes,
-                                       go_data,
+                                       regulated_sets,
+                                       go_filtered,
                                        ontology,
                                        p_adj_method = "BH",
                                        alpha = 0.05,
@@ -326,103 +313,94 @@ identify_top_go_enrichment <- function(detected_genes,
   # Initial logging
   if (!is.null(log_messages_rv)) {
     log_event(log_messages_rv,
-              sprintf("Starting GO enrichment analysis:\n- Detected genes: %d\n- Regulated genes: %d\n- Ontology: %s\n- Alpha: %g\n- Max categories: %d",
-                      length(detected_genes),
-                      length(regulated_genes),
-                      ontology,
-                      alpha,
-                      max_categories),
+              sprintf("Starting GO enrichment analysis for multiple gene sets:\n- Detected genes: %d\n- Ontology: %s",
+                      length(detected_genes), ontology),
               "INFO from identify_top_go_enrichment()")
   }
   
-  # Filter GO data and log results
-  filtered_go_data <- go_data[go_data$gene %in% detected_genes & go_data$ontology == ontology, , drop = FALSE]
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Filtered GO data for detected genes:\n- Original terms: %d\n- Filtered terms: %d\n- Unique genes: %d",
-                      n_distinct(go_data$name),
-                      n_distinct(filtered_go_data$name),
-                      n_distinct(filtered_go_data$gene)),
-              "INFO from identify_top_go_enrichment()")
-  }
-  
-  # Count GO terms among detected genes
-  go_counts_detected <- table(filtered_go_data$name)
-  
-  # Filter and count GO terms among regulated genes
-  regulated_go_data <- go_data[go_data$gene %in% regulated_genes & go_data$ontology == ontology, drop = FALSE]
-  go_counts_regulated <- table(regulated_go_data$name)
-  
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("GO terms statistics:\n- Terms with detected genes: %d\n- Terms with regulated genes: %d",
-                      length(go_counts_detected),
-                      length(go_counts_regulated)),
-              "INFO from identify_top_go_enrichment()")
-  }
-  
-  # Perform hypergeometric tests
-  results_list <- lapply(names(go_counts_detected), function(go_term_name) {
-    sample_success_size <- go_counts_regulated[go_term_name]
-    if (is.na(sample_success_size)) sample_success_size <- 0
-    
-    success_population_size <- go_counts_detected[go_term_name]
-    sample_size <- length(regulated_genes)
-    population_size <- length(detected_genes)
-    
-    # Use the silent version to prevent log flooding
-    pval <- perform_hypergeometric_test_silent(
-      population_size = population_size,
-      success_population_size = success_population_size,
-      sample_size = sample_size,
-      sample_success_size = sample_success_size
+  # Pre-calculate background once - more efficient
+  go_term_stats <- go_filtered %>%
+    group_by(name, go_id) %>%
+    summarise(
+      total_count = n_distinct(gene),
+      .groups = 'drop'
     )
+  
+  # Initialize results storage
+  all_results <- list()
+  top_results <- list()
+  
+  # Process each gene set
+  for (set_name in names(regulated_sets)) {
+    regulated_genes <- regulated_sets[[set_name]]
     
-    data.frame(name = go_term_name, p_value = pval, stringsAsFactors = FALSE)
-  })
-  
-  # Log completion of hypergeometric tests
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Completed hypergeometric tests for %d GO terms", 
-                      length(go_counts_detected)),
-              "INFO from identify_top_go_enrichment()")
+    if (length(regulated_genes) == 0) {
+      if (!is.null(log_messages_rv)) {
+        log_event(log_messages_rv,
+                  sprintf("Skipping analysis for empty %s gene set", set_name),
+                  "INFO from identify_top_go_enrichment()")
+      }
+      next
+    }
+    
+    # Calculate regulated gene stats efficiently
+    regulated_stats <- go_filtered %>%
+      filter(gene %in% regulated_genes) %>%
+      group_by(name, go_id) %>%
+      summarise(
+        regulated_count = n_distinct(gene),
+        .groups = 'drop'
+      )
+    
+    # Join with background stats
+    set_results <- go_term_stats %>%
+      left_join(regulated_stats, by = c("name", "go_id")) %>%
+      mutate(
+        regulated_count = replace_na(regulated_count, 0),
+        gene_set = set_name,
+        # Calculate enrichment ratio
+        enrichment_ratio = (regulated_count/length(regulated_genes))/(total_count/length(detected_genes)),
+        # Calculate p-value using vectorized operation
+        p_value = phyper(
+          q = regulated_count - 1,
+          m = total_count,
+          n = length(detected_genes) - total_count,
+          k = length(regulated_genes),
+          lower.tail = FALSE
+        )
+      )
+    
+    # Adjust p-values
+    set_results$p_adj <- p.adjust(set_results$p_value, method = p_adj_method)
+    
+    # Store full results
+    all_results[[set_name]] <- set_results
+    
+    # Filter and store top results
+    significant_results <- set_results %>%
+      filter(p_adj < alpha) %>%
+      arrange(p_adj) %>%
+      head(max_categories)
+    
+    top_results[[set_name]] <- significant_results
+    
+    # Log results
+    if (!is.null(log_messages_rv)) {
+      log_event(log_messages_rv,
+                sprintf("%s gene set results:\n- Total terms: %d\n- Significant terms: %d\n- Top terms: %d",
+                        set_name,
+                        nrow(set_results),
+                        sum(set_results$p_adj < alpha),
+                        nrow(significant_results)),
+                "INFO from identify_top_go_enrichment()")
+    }
   }
   
-  # Combine results and adjust p-values
-  results_df <- do.call(rbind, results_list)
-  results_df$p_adj <- p.adjust(results_df$p_value, method = p_adj_method)
-  
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("P-value adjustment completed:\n- Method: %s\n- Total terms tested: %d\n- Terms with p < 0.05: %d\n- Terms with adj.p < %g: %d",
-                      p_adj_method,
-                      nrow(results_df),
-                      sum(results_df$p_value < 0.05),
-                      alpha,
-                      sum(results_df$p_adj < alpha)),
-              "INFO from identify_top_go_enrichment()")
-  }
-  
-  # Filter significant results and sort
-  significant_results <- results_df[results_df$p_adj < alpha, ]
-  significant_results <- significant_results[order(significant_results$p_adj), ]
-  
-  # Take top categories and prepare final results
-  final_results <- head(significant_results, n = max_categories)
-  
-  # Log final summary
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Final results summary:\n- Significant terms: %d\n- Returned top terms: %d\n- Min adj.p-value: %g\n- Max adj.p-value: %g",
-                      nrow(significant_results),
-                      nrow(final_results),
-                      ifelse(nrow(final_results) > 0, min(final_results$p_adj), NA),
-                      ifelse(nrow(final_results) > 0, max(final_results$p_adj), NA)),
-              "SUCCESS from identify_top_go_enrichment()")
-  }
-  
-  return(final_results)
+  # Return both full and top results
+  return(list(
+    top_results = top_results,
+    all_results = all_results
+  ))
 }
 
 
@@ -2194,6 +2172,16 @@ server <- function(input, output, session) {
             class = "ui tiny fluid buttons",
             downloadButton("reg_gene_list", "Download regulated gene list", class = "ui button"),
             ),
+            
+            div( 
+              class = "ui tiny fluid buttons",
+            downloadButton("download_full_gsea", "Download Full GSEA Results")
+            ),
+            div( 
+              class = "ui tiny fluid buttons",
+            downloadButton("download_top_gsea", "Download Top GSEA Results")
+                ),
+            
             div(class = "ui two column grid",
                 # First column (50%) - GSEA Plot
                 div(class = "column",
@@ -2240,13 +2228,14 @@ server <- function(input, output, session) {
   
  
   observeEvent(input$run_gsea, {
-    req(input$GSEA_acvited, input$gsea_gene_set, input$gsea_ontology, 
+    req(input$GSEA_acvited, input$gsea_ontology, 
         uploaded_df(), input$annotation_col, input$fold_col, input$alpha)
+    #
     
     # Log the GSEA analysis start
     log_event(log_messages, 
-              sprintf("Starting GSEA analysis with gene set: %s, ontology: %s", 
-                      input$gsea_gene_set, input$gsea_ontology),
+              sprintf("Starting GSEA analysis for all gene sets with ontology: %s", 
+                      input$gsea_ontology),
               "INFO from GSEA observer")
     
     # Get the current data frame
@@ -2255,11 +2244,6 @@ server <- function(input, output, session) {
     # Get all detected genes (all non-NA genes in the annotation column)
     detected_genes <- df[[input$annotation_col]] %>%
       clean_gene_names(., log_messages, log_event)
-    
-    # Before introducing preservation of first occurance of a gene name in
-    #observations with multilied genes !!!!!!! This list vector was longer 
-    #that observations as it splited gene names splited from the observations having 
-    #multiplied gene names and separator in the annotation column
     
     # Log the number of detected genes
     log_event(log_messages,
@@ -2316,35 +2300,24 @@ server <- function(input, output, session) {
                       length(regulated_sets$bidirectional)),
               "INFO from GSEA observer")
     
-    # Validate the selected gene set exists in our input choices
-    if (!input$gsea_gene_set %in% c("bidirectional", "up", "down")) {
+    # Validate we have genes in any set
+    if (all(sapply(regulated_sets, length) == 0)) {
       shinyalert(
-        title = "Invalid Selection",
-        text = "Please select a valid gene set (up, down, or bidirectional)",
-        type = "error"
-      )
-      return()
-    }
-    
-    # Get the selected gene set
-    gsea_gene_set <- regulated_sets[[input$gsea_gene_set]]
-    
-    # Validate we have genes in the selected set
-    if (length(gsea_gene_set) == 0) {
-      shinyalert(
-        title = "Empty Gene Set",
-        text = sprintf("No %s regulated genes found with current threshold (alpha = %g)",
-                       input$gsea_gene_set, input$alpha),
+        title = "Empty Gene Sets",
+        text = sprintf("No regulated genes found with current threshold (alpha = %g)",
+                       input$alpha),
         type = "warning"
       )
       return()
     }
     
-    # Log the selected set
-    log_event(log_messages,
-              sprintf("Selected %s regulated gene set contains %d genes",
-                      input$gsea_gene_set, length(gsea_gene_set)),
-              "INFO from GSEA observer")
+  
+    # Until this part the code was adjusted and simplified 
+    # we have gene list with regulated and cleaned genes
+    # now we need to filter GO data (number of detected genes having annotations
+    # for a particular ontology) and run the enrichment analysis
+    
+    
     
     # More efficient GO filtering - first filter by detected genes and ontology
     go_filtered <- GO %>%
@@ -2401,18 +2374,74 @@ server <- function(input, output, session) {
       return()
     }
     
+    
     # Run enrichment analysis using identify_top_go_enrichment
     enrichment_results <- identify_top_go_enrichment(
       detected_genes = detected_genes,
-      regulated_genes = gsea_gene_set,
-      go_data = go_filtered,
+      regulated_sets = regulated_sets, 
+      go_filtered = go_filtered,        
       ontology = input$gsea_ontology,
-      p_adj_method = "BH",
-      alpha = input$alpha,
-      max_categories = 10,
+      p_adj_method = BH,         
+      alpha = 0.05,
+      max_categories = 10, 
       log_messages_rv = log_messages,
       log_event = log_event
     )
+    
+    output$download_full_gsea <- downloadHandler(
+      filename = function() {
+        paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+      },
+      content = function(file) {
+        # Combine all results from all_results list into one data frame
+        full_results_df <- bind_rows(
+          enrichment_results$all_results,
+          .id = "regulation_group"
+        ) %>%
+          select(
+            regulation_group,
+            name,
+            go_id,
+            p_value,
+            p_adj,
+            regulated_count,
+            total_count,
+            enrichment_ratio
+          )
+        
+        # Write to CSV
+        write.csv(full_results_df, file, row.names = FALSE)
+      }
+    )
+    
+    
+    output$download_top_gsea <- downloadHandler(
+      filename = function() {
+        paste0("GSEA_top_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+      },
+      content = function(file) {
+        # Combine top results from top_results list into one data frame
+        top_results_df <- bind_rows(
+          enrichment_results$top_results,
+          .id = "regulation_group"
+        ) %>%
+          select(
+            regulation_group,
+            name,
+            go_id,
+            p_value,
+            p_adj,
+            regulated_count,
+            total_count,
+            enrichment_ratio
+          )
+        
+        # Write to CSV
+        write.csv(top_results_df, file, row.names = FALSE)
+      }
+    )
+    
+    
     
     # Validate we got results
     if (is.null(enrichment_results) || nrow(enrichment_results) == 0) {
@@ -2425,27 +2454,27 @@ server <- function(input, output, session) {
     }
     
     # Use the enrichment results to create the gt table
-    gsea_gt_table <- produce_GSEA_GT_table_for_overepresented_tags(
-      df = df,
-      detected_genes = detected_genes,
-      regulated_genes = gsea_gene_set,
-      go_data = go_filtered,
-      ontology = input$gsea_ontology,
-      annotation_col = input$annotation_col,
-      fold_col = input$fold_col,
-      alpha = input$alpha,
-      max_categories = 10,
-      log_messages_rv = log_messages,
-      log_event = log_event,
-      log_structure = log_structure,
-      color_highlight = if(input$color_highlight) c(input$down_color, input$up_color) else c("#000000", "#000000")
-    )
+    # gsea_gt_table <- produce_GSEA_GT_table_for_overepresented_tags(
+    #   df = df,
+    #   detected_genes = detected_genes,
+    #   regulated_genes = gsea_gene_set,
+    #   go_data = go_filtered,
+    #   ontology = input$gsea_ontology,
+    #   annotation_col = input$annotation_col,
+    #   fold_col = input$fold_col,
+    #   alpha = input$alpha,
+    #   max_categories = 10,
+    #   log_messages_rv = log_messages,
+    #   log_event = log_event,
+    #   log_structure = log_structure,
+    #   color_highlight = if(input$color_highlight) c(input$down_color, input$up_color) else c("#000000", "#000000")
+    # )
     
-    # Render the GSEA results table
-    output$gsea_results_gt <- render_gt({
-      gsea_gt_table
-    })
-    
+    # # Render the GSEA results table
+    # output$gsea_results_gt <- render_gt({
+    #   gsea_gt_table
+    # })
+    # 
     # Log completion
     log_event(log_messages,
               sprintf("GSEA analysis completed successfully with %d enriched terms", 
