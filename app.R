@@ -300,6 +300,30 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 }
 
 
+#' #' Identify top enriched GO categories for multiple sets of regulated genes.
+#'
+#' @description 
+#' Performs Gene Ontology enrichment analysis for multiple sets of regulated genes (up, down, bidirectional)
+#' using hypergeometric testing and controlling for multiple testing.
+#'
+#' @param detected_genes A character vector of all genes detected in the experiment.
+#' @param regulated_sets A list of character vectors containing regulated genes. 
+#'        Must be named (e.g., "up", "down", "bidirectional").
+#' @param go_filtered A pre-filtered data frame containing GO annotations matching detected genes 
+#'        and selected ontology. Must contain columns: 'name' (GO term), 'gene', 'ontology'.
+#' @param ontology Character string specifying the ontology (e.g., "P", "F", "C").
+#' @param p_adj_method String for the p-value adjustment method (default: "BH").
+#' @param alpha Numeric specifying the significance level after p-value adjustment (default: 0.05).
+#' @param max_categories Maximum number of top categories to be returned (default: 10).
+#' @param min_genes_in_term Minimum number of genes required in a GO term (default: 5).
+#' @param max_genes_in_term Maximum number of genes allowed in a GO term (default: 500).
+#' @param min_fold_enrichment Minimum fold enrichment required (default: 1.5).
+#' @param log_messages_rv A reactiveValues object for logging events (optional).
+#' @param log_event Function for logging events (optional).
+#'
+#' @return A list containing two elements:
+#'   \item{top_results}{A list of data frames with top significant GO terms for each gene set}
+#'   \item{all_results}{A list of data frames with all GO terms and statistics for each gene set}
 identify_top_go_enrichment <- function(detected_genes,
                                        regulated_sets,
                                        go_filtered,
@@ -307,24 +331,53 @@ identify_top_go_enrichment <- function(detected_genes,
                                        p_adj_method = "BH",
                                        alpha = 0.05,
                                        max_categories = 10,
+                                       min_genes_in_term = 5,
+                                       max_genes_in_term = 500,
+                                       min_fold_enrichment = 1.5,
                                        log_messages_rv = NULL,
                                        log_event = NULL) {
   
-  # Initial logging
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Starting GO enrichment analysis for multiple gene sets:\n- Detected genes: %d\n- Ontology: %s",
-                      length(detected_genes), ontology),
-              "INFO from identify_top_go_enrichment()")
+  # Input validation
+  if (is.null(detected_genes) || length(detected_genes) == 0) {
+    stop("No detected genes provided")
+  }
+  if (is.null(regulated_sets) || length(regulated_sets) == 0) {
+    stop("No regulated gene sets provided")
+  }
+  if (is.null(go_filtered) || nrow(go_filtered) == 0) {
+    stop("No GO annotations provided")
   }
   
-  # Pre-calculate background once - more efficient
+  # Start logging
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv,
+              sprintf("Starting GO enrichment analysis:\n- Detected genes: %d\n- Ontology: %s\n- Alpha: %g\n- Max categories: %d\n- Adjustment method: %s\n- Gene size filters: %d-%d\n- Min fold enrichment: %.2f",
+                      length(detected_genes), ontology, alpha, max_categories, 
+                      p_adj_method, min_genes_in_term, max_genes_in_term, min_fold_enrichment),
+              "START from identify_top_go_enrichment()")
+  }
+  
+  # Pre-calculate background statistics with size filtering
   go_term_stats <- go_filtered %>%
-    group_by(name, go_id) %>%
+    group_by(name) %>%
     summarise(
       total_count = n_distinct(gene),
+      genes_in_term = paste(sort(unique(gene)), collapse = ";"),
       .groups = 'drop'
-    )
+    ) %>%
+    filter(total_count >= min_genes_in_term,
+           total_count <= max_genes_in_term)
+  
+  # Log background statistics
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv,
+              sprintf("Background statistics:\n- Initial GO terms: %d\n- Filtered GO terms: %d\n- Range of genes per term: %d-%d",
+                      nrow(go_filtered %>% distinct(name)),
+                      nrow(go_term_stats),
+                      min(go_term_stats$total_count),
+                      max(go_term_stats$total_count)),
+              "INFO from identify_top_go_enrichment()")
+  }
   
   # Initialize results storage
   all_results <- list()
@@ -343,67 +396,107 @@ identify_top_go_enrichment <- function(detected_genes,
       next
     }
     
-    # Calculate regulated gene stats efficiently
+    # Calculate regulated gene statistics
     regulated_stats <- go_filtered %>%
       filter(gene %in% regulated_genes) %>%
-      group_by(name, go_id) %>%
+      group_by(name) %>%
       summarise(
         regulated_count = n_distinct(gene),
+        regulated_genes = paste(sort(unique(gene)), collapse = ";"),
         .groups = 'drop'
       )
     
-    # Join with background stats
+    # Combine statistics and calculate enrichment
     set_results <- go_term_stats %>%
-      left_join(regulated_stats, by = c("name", "go_id")) %>%
+      inner_join(regulated_stats, by = "name") %>%
       mutate(
-        regulated_count = replace_na(regulated_count, 0),
         gene_set = set_name,
-        # Calculate enrichment ratio
-        enrichment_ratio = (regulated_count/length(regulated_genes))/(total_count/length(detected_genes)),
-        # Calculate p-value using vectorized operation
-        p_value = phyper(
-          q = regulated_count - 1,
-          m = total_count,
-          n = length(detected_genes) - total_count,
-          k = length(regulated_genes),
-          lower.tail = FALSE
-        )
+        expected_count = total_count * length(regulated_genes) / length(detected_genes),
+        fold_enrichment = regulated_count / expected_count
+      ) %>%
+      mutate(
+        p_value = mapply(function(rc, tc, rg, dg) {
+          if (rc > tc || tc == 0 || rg > dg) return(1)
+          phyper(q = rc - 1, m = tc, n = dg - tc, k = rg, lower.tail = FALSE)
+        }, regulated_count, total_count, length(regulated_genes), length(detected_genes))
       )
     
-    # Adjust p-values
+    # Adjust p-values within this gene set
     set_results$p_adj <- p.adjust(set_results$p_value, method = p_adj_method)
     
     # Store full results
     all_results[[set_name]] <- set_results
     
-    # Filter and store top results
+    # Find most significant term for logging
+    if (nrow(set_results) > 0) {
+      top_term <- set_results[which.min(set_results$p_value), ]
+      
+      if (!is.null(log_messages_rv)) {
+        log_event(log_messages_rv,
+                  sprintf("Most significant term parameters:\n- Term: %s\n- Regulated/Total: %d/%d\n- Fold enrichment: %.2f\n- Raw p-value: %.2e",
+                          top_term$name,
+                          top_term$regulated_count,
+                          top_term$total_count,
+                          top_term$fold_enrichment,
+                          top_term$p_value),
+                  "DEBUG from identify_top_go_enrichment()")
+      }
+    }
+    
+    # Filter and store significant results
     significant_results <- set_results %>%
-      filter(p_adj < alpha) %>%
+      filter(p_adj < alpha,
+             fold_enrichment >= min_fold_enrichment) %>%
       arrange(p_adj) %>%
       head(max_categories)
     
     top_results[[set_name]] <- significant_results
     
-    # Log results
+    # Log detailed results
     if (!is.null(log_messages_rv)) {
       log_event(log_messages_rv,
-                sprintf("%s gene set results:\n- Total terms: %d\n- Significant terms: %d\n- Top terms: %d",
+                sprintf("%s gene set analysis:\n- Terms tested: %d\n- Raw p < 0.05: %d\n- Adjusted p < %g: %d\n- Terms passing fold enrichment ≥ %.1f: %d\n- Final top terms: %d",
                         set_name,
                         nrow(set_results),
+                        sum(set_results$p_value < 0.05),
+                        alpha,
                         sum(set_results$p_adj < alpha),
+                        min_fold_enrichment,
+                        sum(set_results$fold_enrichment >= min_fold_enrichment),
                         nrow(significant_results)),
                 "INFO from identify_top_go_enrichment()")
     }
   }
   
-  # Return both full and top results
+  # Final logging
+  if (!is.null(log_messages_rv)) {
+    sig_counts <- sapply(all_results, function(x) {
+      sum(!is.na(x$p_adj) & x$p_adj < alpha & x$fold_enrichment >= min_fold_enrichment)
+    })
+    
+    log_event(log_messages_rv,
+              sprintf("GO enrichment analysis completed:\n- Sets analyzed: %d\n- Significant terms per set: %s",
+                      length(all_results),
+                      paste(names(sig_counts), sig_counts, sep = ": ", collapse = ", ")),
+              "SUCCESS from identify_top_go_enrichment()")
+  }
+  
+  # Add information about missing genes
+  missing_genes <- setdiff(regulated_genes, unique(go_filtered$gene))
+  if (length(missing_genes) > 0 && !is.null(log_messages_rv)) {
+    log_event(log_messages_rv,
+              sprintf("Missing GO annotations for %d genes:\n%s",
+                      length(missing_genes),
+                      paste(sort(missing_genes), collapse = ", ")),
+              "WARNING from identify_top_go_enrichment()")
+  }
+  
   return(list(
     top_results = top_results,
-    all_results = all_results
+    all_results = all_results,
+    missing_genes = missing_genes
   ))
 }
-
-
 
 
 #' Produce a gt table of top enriched GO categories.
@@ -2381,7 +2474,7 @@ server <- function(input, output, session) {
       regulated_sets = regulated_sets, 
       go_filtered = go_filtered,        
       ontology = input$gsea_ontology,
-      p_adj_method = BH,         
+      p_adj_method = "BH",         
       alpha = 0.05,
       max_categories = 10, 
       log_messages_rv = log_messages,
