@@ -114,13 +114,14 @@ create_structure_logger <- function(session) {
 #'
 #' @description
 #' Analyzes specified columns in a data frame for NA values, removes rows with NAs,
-#' and provides comprehensive statistics and user feedback about the cleaning process.
+#' removes columns that are fully NA, and provides comprehensive statistics and user feedback about the cleaning process.
 #'
 #' @param df A data frame containing the input data
 #' @param pvalue_col Character string specifying the name of the p-value column
 #' @param fold_col Character string specifying the name of the fold change column
 #' @param annotation_col Character string specifying the name of the annotation column
-#' @param log_messages Optional logging object for event logging
+#' @param log_messages_rv Optional logging object for event logging
+#' @param log_event Optional logging function for event logging
 #'
 #' @return A list containing two elements:
 #' \itemize{
@@ -131,6 +132,7 @@ create_structure_logger <- function(session) {
 #'     \item new_rows: Number of rows after cleaning
 #'     \item dropped_rows: Number of rows removed
 #'     \item na_counts: Named vector of NA counts per column
+#'     \item empty_columns_removed: Number of fully NA columns removed
 #'   }
 #' }
 #'
@@ -139,8 +141,9 @@ create_structure_logger <- function(session) {
 #' 1. Validates input data and column names
 #' 2. Counts NA values in specified columns
 #' 3. Removes rows with NA values
-#' 4. Generates statistics about the cleaning process
-#' 5. Displays a visual alert with cleaning summary
+#' 4. Removes columns that are fully NA
+#' 5. Generates statistics about the cleaning process
+#' 6. Displays a visual alert with cleaning summary
 #'
 #' @examples
 #' \dontrun{
@@ -174,7 +177,18 @@ create_structure_logger <- function(session) {
 #' \code{\link[dplyr]{drop_na}}, \code{\link[shinyalert]{shinyalert}}
 #'
 
-diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages = NULL, log_event = NULL) {
+diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages_rv = NULL, log_event = NULL) {
+  
+  # Add debug logging at function start
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("Function called at %s with params: pvalue_col=%s, fold_col=%s, annotation_col=%s",
+                      format(Sys.time(), "%H:%M:%S.%OS3"),
+                      pvalue_col, fold_col, annotation_col),
+              "DEBUG from diagnose_input_columns_and_remove_NA")
+  }
+  
+  
   # Input validation
   if (is.null(df) || !is.data.frame(df)) {
     stop("Input must be a valid data frame")
@@ -187,11 +201,12 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
   
   # Store initial state
   original_rows <- nrow(df)
+  original_cols <- ncol(df)
   
   # Log initial state
-  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
-    log_event(log_messages, 
-              sprintf("Initial number of rows: %d", original_rows), 
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv, 
+              sprintf("Initial number of rows: %d, columns: %d", original_rows, original_cols), 
               "INFO")
   }
   
@@ -204,8 +219,8 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
   })
   
   # Log NA counts
-  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
-    log_event(log_messages, 
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv, 
               sprintf("NA counts in columns before filtering:\n%s", 
                       paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), 
               "INFO")
@@ -219,19 +234,39 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
     stop(sprintf("Error removing NA values: %s", e$message))
   })
   
+  # Remove columns that are fully NA
+  empty_columns <- colnames(df_cleaned)[colSums(is.na(df_cleaned)) == nrow(df_cleaned)]
+  df_cleaned <- df_cleaned[, !colnames(df_cleaned) %in% empty_columns, drop = FALSE]
+  empty_columns_removed <- length(empty_columns)
+  
+  # Log empty columns removal
+  if (!is.null(log_messages_rv)) {
+    if (empty_columns_removed > 0) {
+      log_event(log_messages_rv, 
+                sprintf("Removed %d empty columns: %s", 
+                        empty_columns_removed, paste(empty_columns, collapse = ", ")), 
+                "INFO")
+    } else {
+      log_event(log_messages_rv, 
+                "No empty columns were removed", 
+                "INFO")
+    }
+  }
+  
   # Calculate statistics
   new_rows <- nrow(df_cleaned)
   dropped_rows <- original_rows - new_rows
+  new_cols <- ncol(df_cleaned)
   
   # Log results
-  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
+  if (!is.null(log_messages_rv)) {
     if (dropped_rows > 0) {
-      log_event(log_messages,
+      log_event(log_messages_rv,
                 sprintf("Removed %d rows with missing values (%d -> %d rows)",
                         dropped_rows, original_rows, new_rows),
                 "INFO")
     } else {
-      log_event(log_messages,
+      log_event(log_messages_rv,
                 "No rows were removed - no missing values found",
                 "INFO")
     }
@@ -242,16 +277,22 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
     HTML(sprintf(
       "<div style='text-align: left;'>
             <strong>Data Processing Summary:</strong><br><br>
-            Initial number of rows: %d<br><br>
+            Initial number of rows: %d<br>
+            Initial number of columns: %d<br><br>
             <strong>Missing values found:</strong><br>
             %s<br>
             <strong>Rows removed:</strong> %d<br>
-            <strong>Remaining rows:</strong> %d
+            <strong>Remaining rows:</strong> %d<br>
+            <strong>Empty columns removed:</strong> %d<br>
+            <strong>Remaining columns:</strong> %d
             </div>",
       original_rows,
+      original_cols,
       paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
       dropped_rows,
-      new_rows
+      new_rows,
+      empty_columns_removed,
+      new_cols
     ))
   }, error = function(e) {
     stop(sprintf("Error creating alert message: %s", e$message))
@@ -282,7 +323,10 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
       original_rows = original_rows,
       new_rows = new_rows,
       dropped_rows = dropped_rows,
-      na_counts = na_counts
+      na_counts = na_counts,
+      empty_columns_removed = empty_columns_removed,
+      original_cols = original_cols,
+      new_cols = new_cols
     )
   ))
 }
@@ -2289,7 +2333,7 @@ ui <- semanticPage(
           # Dataset preview
           segment(
             class = "raised",
-            div(class = "ui grey ribbon label", "Dataset Preview"),
+            div(class = "ui grey ribbon label", "State of data source preview"),
             semantic_DTOutput("dataset_summary", height = "auto")
           ),
           segment(
@@ -2406,25 +2450,71 @@ observeEvent(input$clientWidth, {
           )
       )
     })
-    
-   observeEvent(input$upload_check, {
-     req(input$upload_check)
-     req(input$pvalue_col, input$fold_col, input$annotation_col)
-     
-     runjs('
-      document.getElementById("upload_check").classList.remove("primary");
-      document.getElementById("upload_check").classList.add("positive");
-      document.querySelector("#upload_check .visible.content").textContent = "Columns Checked ✓";
-    ')
-   })
- 
+
+
    
+   
+## Column upload observer ----   
+       
+   observeEvent(input$upload_check, {
+    req(input$upload_check)
+    req(input$pvalue_col, input$fold_col, input$annotation_col)
     
+    # Add debug logging
+    log_event(log_messages, 
+             sprintf("Starting column check at %s - Upload check value: %s", 
+                     format(Sys.time(), "%H:%M:%S.%OS3"),
+                     input$upload_check), 
+             "DEBUG")
+    
+    # The isolate makes the function not retriggered when the reactive value inside the observer is updated
+    results <- isolate({
+        log_event(log_messages, "Entering isolate block", "DEBUG")
+        diagnose_input_columns_and_remove_NA(
+            df = uploaded_df(),
+            pvalue_col = input$pvalue_col,
+            fold_col = input$fold_col,
+            annotation_col = input$annotation_col,
+            log_messages_rv = log_messages,
+            log_event = log_event
+        )
+    })
+    
+    # Add debug logging before updating reactive value
+    log_event(log_messages, 
+             sprintf("Before updating uploaded_df - Results stats: %d rows dropped", 
+                     results$statistics$dropped_rows), 
+             "DEBUG")
+    
+    # Update the reactive value with cleaned data
+    uploaded_df(results$cleaned_data)
+    
+    # Update button appearance using runjs
+    runjs('
+        document.getElementById("upload_check").classList.remove("primary");
+        document.getElementById("upload_check").classList.add("positive");
+        document.querySelector("#upload_check .visible.content").textContent = "Columns selected and checked ✓";
+    ')
+    
+    # Log events after successful processing
+    log_event(log_messages, 
+             sprintf("Columns selected and checked. Removed %d rows with NAs", 
+                     results$statistics$dropped_rows), 
+             "INFO from input$upload_check")
+    
+    log_structure(log_messages, 
+                 results$cleaned_data, 
+                 "The structure of the dataset after column selection and checking:", 
+                 "INFO from input$upload_check")
+}, ignoreInit = TRUE, once = TRUE)  # Add these parameters
+   
+# Render DT data preview ----    
+   
     output$dataset_summary <- renderDT({
       log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
       
       table <- semantic_DT(
-        data.frame(df, check.names = FALSE), # Convert to data.frame if not already
+        data.frame(uploaded_df(), check.names = FALSE), # Convert to data.frame if not already
         options = list(
           responsive = TRUE,
           pageLength = 3,
@@ -3233,17 +3323,11 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
     input$custom_gene_labels
   })
   
-  
+## Draw volcano observer ----  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
-    diagnose_input_columns_and_remove_NA(uploaded_df(),
-                                         input$pvalue_col,
-                                         input$fold_col,
-                                         input$annotation_col,
-                                         log_messages, log_event)
-    
-   
+
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
     
