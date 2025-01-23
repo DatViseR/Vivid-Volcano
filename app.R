@@ -108,6 +108,175 @@ create_structure_logger <- function(session) {
   }
 }
 
+
+#' Diagnose and Remove NA Values from Input Columns
+#'
+#' @description
+#' Analyzes specified columns in a data frame for NA values, removes rows with NAs,
+#' and provides comprehensive statistics and user feedback about the cleaning process.
+#'
+#' @param df A data frame containing the input data
+#' @param pvalue_col Character string specifying the name of the p-value column
+#' @param fold_col Character string specifying the name of the fold change column
+#' @param annotation_col Character string specifying the name of the annotation column
+#' @param log_messages Optional logging object for event logging
+#'
+#' @return A list containing two elements:
+#' \itemize{
+#'   \item cleaned_data: Data frame with NA values removed
+#'   \item statistics: List containing:
+#'   \itemize{
+#'     \item original_rows: Number of rows in original data
+#'     \item new_rows: Number of rows after cleaning
+#'     \item dropped_rows: Number of rows removed
+#'     \item na_counts: Named vector of NA counts per column
+#'   }
+#' }
+#'
+#' @details
+#' The function performs the following steps:
+#' 1. Validates input data and column names
+#' 2. Counts NA values in specified columns
+#' 3. Removes rows with NA values
+#' 4. Generates statistics about the cleaning process
+#' 5. Displays a visual alert with cleaning summary
+#'
+#' @examples
+#' \dontrun{
+#' results <- diagnose_input_columns_and_remove_NA(
+#'   df = my_data,
+#'   pvalue_col = "pvalue",
+#'   fold_col = "log2FC",
+#'   annotation_col = "gene_id"
+#' )
+#' 
+#' # Access cleaned data
+#' cleaned_data <- results$cleaned_data
+#' 
+#' # Access statistics
+#' stats <- results$statistics
+#' }
+#'
+#' @dependencies 
+#' Requires the following packages:
+#' \itemize{
+#'   \item dplyr
+#'   \item shinyalert
+#'   \item htmltools
+#' }
+#'
+#' @export
+#'
+#' @author DatViseR
+#'
+#' @note 
+#' This function is part of the Vivid-Volcano package, designed for 
+#' custom analyses of preprocessed omics data.
+#'
+#' @seealso 
+#' \code{\link{drop_na}}, \code{\link{shinyalert}}
+#'
+diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages = NULL) {
+  # Input validation
+  if (is.null(df) || !is.data.frame(df)) {
+    stop("Input must be a valid data frame")
+  }
+  
+  if (!all(c(pvalue_col, fold_col, annotation_col) %in% colnames(df))) {
+    missing_cols <- setdiff(c(pvalue_col, fold_col, annotation_col), colnames(df))
+    stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Store initial state
+  original_rows <- nrow(df)
+  
+  # Log initial state
+  if (!is.null(log_event)) {
+    log_event(log_messages, 
+              sprintf("Initial number of rows: %d", original_rows), 
+              "INFO")
+  }
+  
+  # Count NA values in specified columns
+  na_counts <- sapply(df[c(pvalue_col, fold_col, annotation_col)], 
+                      function(x) sum(is.na(x)))
+  
+  # Log NA counts
+  if (!is.null(log_event)) {
+    log_event(log_messages, 
+              sprintf("NA counts in columns before filtering:\n%s", 
+                      paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), 
+              "INFO")
+  }
+  
+  # Remove rows with NA values in specified columns
+  df_cleaned <- df %>% 
+    drop_na(all_of(c(pvalue_col, fold_col, annotation_col)))
+  
+  # Calculate statistics
+  new_rows <- nrow(df_cleaned)
+  dropped_rows <- original_rows - new_rows
+  
+  # Log results
+  if (!is.null(log_event)) {
+    if (dropped_rows > 0) {
+      log_event(log_messages,
+                sprintf("Removed %d rows with missing values (%d -> %d rows)",
+                        dropped_rows, original_rows, new_rows),
+                "INFO")
+    } else {
+      log_event(log_messages,
+                "No rows were removed - no missing values found",
+                "INFO")
+    }
+  }
+  
+  # Create alert message
+  alert_message <- HTML(sprintf(
+    "<div style='text-align: left;'>
+          <strong>Data Processing Summary:</strong><br><br>
+          Initial number of rows: %d<br><br>
+          <strong>Missing values found:</strong><br>
+          %s<br>
+          <strong>Rows removed:</strong> %d<br>
+          <strong>Remaining rows:</strong> %d
+          </div>",
+    original_rows,
+    paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
+    dropped_rows,
+    new_rows
+  ))
+  
+  # Show alert
+  shinyalert(
+    title = "Data Processing Information",
+    text = alert_message,
+    type = "warning",
+    html = TRUE,
+    size = "m",
+    closeOnEsc = TRUE,
+    closeOnClickOutside = TRUE,
+    showConfirmButton = TRUE,
+    confirmButtonText = "Continue",
+    timer = 0
+  )
+  
+  # Return results as a list
+  return(list(
+    cleaned_data = df_cleaned,
+    statistics = list(
+      original_rows = original_rows,
+      new_rows = new_rows,
+      dropped_rows = dropped_rows,
+      na_counts = na_counts
+    )
+  ))
+}
+
+
+
+
+
 #' Clean Gene Names
 #' @param genes Vector of gene names to clean
 #' @param log_messages_rv Reactive value for storing log messages (optional)
@@ -127,6 +296,7 @@ clean_gene_names <- function(genes,
   
   # Clean gene names using pipe
   cleaned_genes <- genes %>%
+    na.omit() %>%
     sub(pattern = "[;|,\\s].*", replacement = "") %>%
     trimws() %>%
     .[. != ""] %>%
@@ -2208,6 +2378,8 @@ server <- function(input, output, session) {
       )
     })
     
+    [ build an observer and a button d]
+    
  
     
     output$dataset_summary <- renderDT({
@@ -2609,7 +2781,53 @@ server <- function(input, output, session) {
                         !is.null(enrichment_results$top_results),
                         length(enrichment_results$missing_genes)),
                 "DEBUG")
+  
+    
+      # Create summary log for top_results
+      if (!is.null(enrichment_results$top_results) && !is.null(log_event)) {
+        # Header for the summary
+        log_event(log_messages,
+                  "Summary of significant GO terms from top results:",
+                  "INFO")
+        
+        # Process each regulation group
+        for (reg_group in names(enrichment_results$top_results)) {
+          results_df <- enrichment_results$top_results[[reg_group]]
+          
+          if (!is.null(results_df) && nrow(results_df) > 0) {
+            # Log header for regulation group
+            log_event(log_messages,
+                      sprintf("\n%s regulation:", toupper(reg_group)),
+                      "INFO")
+            
+            # Process each term using apply instead of for loop
+            apply(results_df, 1, function(row) {
+              term_summary <- sprintf(
+                "- %s: %.2f-fold enrichment (p-adj=%.2e), %d/%d genes",
+                row["name"],
+                as.numeric(row["fold_enrichment"]),
+                as.numeric(row["p_adj"]),
+                as.numeric(row["regulated_count"]),
+                as.numeric(row["total_count"])
+              )
+              log_event(log_messages, term_summary, "INFO")
+            })
+            
+          } else {
+            # Log when no significant terms found
+            log_event(log_messages,
+                      sprintf("\n%s regulation: No significant terms found", toupper(reg_group)),
+                      "INFO")
+          }
+        }
+      }
+                     
+        
     }
+    
+    
+   
+    
     
     # Store results
     gsea_results(enrichment_results)
