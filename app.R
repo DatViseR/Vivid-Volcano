@@ -5,6 +5,7 @@ options(shiny.maxRequestSize = 25*1024^2)  # Set to 25MB
 ####################### LIBRARY SETUP ############################
 
 library(shiny)
+library(shinyjs)
 library(readr)
 library(dplyr)
 library(ggplot2)
@@ -157,13 +158,9 @@ create_structure_logger <- function(session) {
 #' stats <- results$statistics
 #' }
 #'
-#' @dependencies 
-#' Requires the following packages:
-#' \itemize{
-#'   \item dplyr
-#'   \item shinyalert
-#'   \item htmltools
-#' }
+#' @importFrom dplyr drop_na %>%
+#' @importFrom shinyalert shinyalert
+#' @importFrom htmltools HTML
 #'
 #' @export
 #'
@@ -174,9 +171,10 @@ create_structure_logger <- function(session) {
 #' custom analyses of preprocessed omics data.
 #'
 #' @seealso 
-#' \code{\link{drop_na}}, \code{\link{shinyalert}}
+#' \code{\link[dplyr]{drop_na}}, \code{\link[shinyalert]{shinyalert}}
 #'
-diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages = NULL) {
+
+diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages = NULL, log_event = NULL) {
   # Input validation
   if (is.null(df) || !is.data.frame(df)) {
     stop("Input must be a valid data frame")
@@ -191,34 +189,42 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
   original_rows <- nrow(df)
   
   # Log initial state
-  if (!is.null(log_event)) {
+  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
     log_event(log_messages, 
               sprintf("Initial number of rows: %d", original_rows), 
               "INFO")
   }
   
-  # Count NA values in specified columns
-  na_counts <- sapply(df[c(pvalue_col, fold_col, annotation_col)], 
-                      function(x) sum(is.na(x)))
+  # Count NA values in specified columns using tryCatch for safer evaluation
+  na_counts <- tryCatch({
+    sapply(df[c(pvalue_col, fold_col, annotation_col)], 
+           function(x) sum(is.na(x)))
+  }, error = function(e) {
+    stop(sprintf("Error counting NA values: %s", e$message))
+  })
   
   # Log NA counts
-  if (!is.null(log_event)) {
+  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
     log_event(log_messages, 
               sprintf("NA counts in columns before filtering:\n%s", 
                       paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), 
               "INFO")
   }
   
-  # Remove rows with NA values in specified columns
-  df_cleaned <- df %>% 
-    drop_na(all_of(c(pvalue_col, fold_col, annotation_col)))
+  # Remove rows with NA values in specified columns using tryCatch
+  df_cleaned <- tryCatch({
+    df %>% 
+      drop_na(all_of(c(pvalue_col, fold_col, annotation_col)))
+  }, error = function(e) {
+    stop(sprintf("Error removing NA values: %s", e$message))
+  })
   
   # Calculate statistics
   new_rows <- nrow(df_cleaned)
   dropped_rows <- original_rows - new_rows
   
   # Log results
-  if (!is.null(log_event)) {
+  if (!is.null(log_messages)) {  # Changed from log_event to log_messages
     if (dropped_rows > 0) {
       log_event(log_messages,
                 sprintf("Removed %d rows with missing values (%d -> %d rows)",
@@ -231,35 +237,43 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
     }
   }
   
-  # Create alert message
-  alert_message <- HTML(sprintf(
-    "<div style='text-align: left;'>
-          <strong>Data Processing Summary:</strong><br><br>
-          Initial number of rows: %d<br><br>
-          <strong>Missing values found:</strong><br>
-          %s<br>
-          <strong>Rows removed:</strong> %d<br>
-          <strong>Remaining rows:</strong> %d
-          </div>",
-    original_rows,
-    paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
-    dropped_rows,
-    new_rows
-  ))
+  # Create alert message with safe HTML creation
+  alert_message <- tryCatch({
+    HTML(sprintf(
+      "<div style='text-align: left;'>
+            <strong>Data Processing Summary:</strong><br><br>
+            Initial number of rows: %d<br><br>
+            <strong>Missing values found:</strong><br>
+            %s<br>
+            <strong>Rows removed:</strong> %d<br>
+            <strong>Remaining rows:</strong> %d
+            </div>",
+      original_rows,
+      paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
+      dropped_rows,
+      new_rows
+    ))
+  }, error = function(e) {
+    stop(sprintf("Error creating alert message: %s", e$message))
+  })
   
-  # Show alert
-  shinyalert(
-    title = "Data Processing Information",
-    text = alert_message,
-    type = "warning",
-    html = TRUE,
-    size = "m",
-    closeOnEsc = TRUE,
-    closeOnClickOutside = TRUE,
-    showConfirmButton = TRUE,
-    confirmButtonText = "Continue",
-    timer = 0
-  )
+  # Show alert with error handling
+  tryCatch({
+    shinyalert(
+      title = "Data Processing Information",
+      text = alert_message,
+      type = "warning",
+      html = TRUE,
+      size = "m",
+      closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE,
+      showConfirmButton = TRUE,
+      confirmButtonText = "Continue",
+      timer = 0
+    )
+  }, error = function(e) {
+    warning(sprintf("Error showing alert: %s", e$message))
+  })
   
   # Return results as a list
   return(list(
@@ -2106,12 +2120,14 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
 
 
 ui <- semanticPage(
-
+  useShinyjs(),
   # Includes custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
               type = "text/css", 
               href = paste0("custom.css?v=", Sys.time())),
+    tags$link(rel = "stylesheet", 
+              href = "https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.3/dist/semantic.min.css"),
 
   tags$script(HTML(
     "
@@ -2165,6 +2181,8 @@ ui <- semanticPage(
                       width = 3,
                       # Data Upload Card
                       div(class = "ui raised segment",
+                          
+                         
                           header(title = "Upload your data", description = "", icon = "upload"),
                           div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
                           div(class = "ui file input", 
@@ -2188,7 +2206,7 @@ ui <- semanticPage(
                                   div(class = "field",
                                       div(style = "display: flex; flex-direction: column; gap: 5px;",
                                           div(style = "font-weight: bold;", "Header"),  # Styled label
-                                          toggle("header", "", is_marked = TRUE)
+                                          shiny.semantic::toggle("header", "", is_marked = TRUE)
                                       )
                                   ),
                                   # Separator Radio Buttons
@@ -2290,13 +2308,17 @@ ui <- semanticPage(
 
 
 server <- function(input, output, session) {
+  
+
+  
+## Reactive values ----  
   uploaded_df <- reactiveVal()
   volcano_plot_rv <- reactiveVal()
   log_messages <- reactiveVal("")
   is_mobile <- reactiveVal(FALSE)
   gsea_results <- reactiveVal(NULL)
   
-# Creates session variables at server start
+#Creates session variables at server start
   session_id <- substr(digest::digest(session$token), 1, 6)
   session_start_time <- Sys.time()
   
@@ -2304,11 +2326,10 @@ server <- function(input, output, session) {
   log_event <- create_logger(session)
   log_structure <- create_structure_logger(session)
   
-  
-  
-  
+
+## Screen width observer ----  
   # Immediate logging of initial display state
-  observeEvent(input$clientWidth, {
+observeEvent(input$clientWidth, {
     req(input$clientWidth)  # Ensure the value is available
     current_is_mobile <- input$clientWidth <= 800
     is_mobile(current_is_mobile)
@@ -2334,7 +2355,7 @@ server <- function(input, output, session) {
     }
   })
   
- 
+# Upload observer ---- 
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
@@ -2365,7 +2386,7 @@ server <- function(input, output, session) {
     
    log_structure(log_messages, df, "The structure of the uploaded dataset after 1st diagnostic preprocesing:", "INFO from upload observer")
     
-
+## Reactive column select UI ----
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
@@ -2374,13 +2395,30 @@ server <- function(input, output, session) {
           div(class = "ui grey ribbon label", "Select Data"),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
-          selectInput("annotation_col", "Select human gene symbols column", choices = names(df))
+          selectInput("annotation_col", "Select human gene symbols column", choices = names(df)),
+          div(
+            id = "upload_check",
+            class = "ui animated fade button primary",
+            type = "button",
+            onclick = "Shiny.setInputValue('upload_check', true, {priority: 'event'})",  # Trigger Shiny input
+            div(class = "visible content", "Upload and Check Columns"),
+            div(class = "hidden content", icon("check"))
+          )
       )
     })
     
-    [ build an observer and a button d]
-    
+   observeEvent(input$upload_check, {
+     req(input$upload_check)
+     req(input$pvalue_col, input$fold_col, input$annotation_col)
+     
+     runjs('
+      document.getElementById("upload_check").classList.remove("primary");
+      document.getElementById("upload_check").classList.add("positive");
+      document.querySelector("#upload_check .visible.content").textContent = "Columns Checked ✓";
+    ')
+   })
  
+   
     
     output$dataset_summary <- renderDT({
       log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
@@ -3199,65 +3237,11 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
-    # Get the original data
-    df <- uploaded_df()
-    original_rows <- nrow(df)
-    
-    # Log the initial state
-    log_event(log_messages, sprintf("Initial number of rows: %d", original_rows), "INFO")
-    
-    # Add error checking for NA values before dropping
-    na_counts <- sapply(df[c(input$pvalue_col, input$fold_col, input$annotation_col)], function(x) sum(is.na(x)))
-    log_event(log_messages, sprintf("NA counts in columns before filtering:\n%s", 
-                                    paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), "INFO")
-    
-    # Drop NA values and capture the new data frame
-    df <- df %>% drop_na(!!sym(input$pvalue_col), !!sym(input$fold_col), !!sym(input$annotation_col))
-    new_rows <- nrow(df)
-    
-    # Calculate and log the difference
-    dropped_rows <- original_rows - new_rows
-    if (dropped_rows > 0) {
-      log_event(log_messages, 
-                sprintf("Removed %d rows with missing values (%d -> %d rows)", 
-                        dropped_rows, original_rows, new_rows), "INFO")
-    } else {
-      log_event(log_messages, "No rows were removed - no missing values found", "INFO")
-    }
-    
-    # Update the reactive value
-    uploaded_df(df)
-    
-    # Create alert message
-    alert_message <- HTML(sprintf(
-      "<div style='text-align: left;'>
-        <strong>Data Processing Summary:</strong><br><br>
-        Initial number of rows: %d<br><br>
-        <strong>Missing values found:</strong><br>
-        %s<br>
-        <strong>Rows removed:</strong> %d<br>
-        <strong>Remaining rows:</strong> %d
-        </div>",
-      original_rows,
-      paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
-      dropped_rows,
-      new_rows
-    ))
-    
-    # Show alert with the information
-    shinyalert(
-      title = "Data Processing Information",
-      text = alert_message,
-      type = "warning",
-      html = TRUE,
-      size = "m",
-      closeOnEsc = TRUE,
-      closeOnClickOutside = TRUE,
-      showConfirmButton = TRUE,
-      confirmButtonText = "Continue",
-      timer = 0
-    )
-    
+    diagnose_input_columns_and_remove_NA(uploaded_df(),
+                                         input$pvalue_col,
+                                         input$fold_col,
+                                         input$annotation_col,
+                                         log_messages, log_event)
     
    
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
