@@ -2361,6 +2361,7 @@ server <- function(input, output, session) {
   log_messages <- reactiveVal("")
   is_mobile <- reactiveVal(FALSE)
   gsea_results <- reactiveVal(NULL)
+  column_select_module_state <- reactiveVal("initial")
   
 #Creates session variables at server start
   session_id <- substr(digest::digest(session$token), 1, 6)
@@ -2429,7 +2430,8 @@ observeEvent(input$clientWidth, {
     }
     
    log_structure(log_messages, df, "The structure of the uploaded dataset after 1st diagnostic preprocesing:", "INFO from upload observer")
-    
+   column_select_module_state("reseted")
+   
 ## Reactive column select UI ----
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
@@ -2440,13 +2442,24 @@ observeEvent(input$clientWidth, {
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
           selectInput("annotation_col", "Select human gene symbols column", choices = names(df)),
-          div(
-            id = "upload_check",
-            class = "ui animated fade button primary",
-            type = "button",
-            onclick = "Shiny.setInputValue('upload_check', true, {priority: 'event'})",  # Trigger Shiny input
-            div(class = "visible content", "Upload and Check Columns"),
-            div(class = "hidden content", icon("check"))
+          # Add buttons in a button group
+          div(class = "ui two buttons",
+              div(
+                id = "upload_check",
+                class = "ui animated fade button primary",
+                type = "button",
+                onclick = "Shiny.setInputValue('upload_check', Math.random(), {priority: 'event'})",  # Use random value to ensure new trigger
+                div(class = "visible content", "Upload and Check Columns"),
+                div(class = "hidden content", icon("check"))
+              ),
+              div(
+                id = "reset_columns",
+                class = "ui animated fade button negative",
+                type = "button",
+                onclick = "Shiny.setInputValue('reset_columns', true, {priority: 'event'})",
+                div(class = "visible content", "Reset Selection"),
+                div(class = "hidden content", icon("undo"))
+              )
           )
       )
     })
@@ -2456,58 +2469,114 @@ observeEvent(input$clientWidth, {
    
 ## Column upload observer ----   
        
-   observeEvent(input$upload_check, {
-    req(input$upload_check)
-    req(input$pvalue_col, input$fold_col, input$annotation_col)
-    
-    # Add debug logging
-    log_event(log_messages, 
-             sprintf("Starting column check at %s - Upload check value: %s", 
-                     format(Sys.time(), "%H:%M:%S.%OS3"),
-                     input$upload_check), 
-             "DEBUG")
-    
-    # The isolate makes the function not retriggered when the reactive value inside the observer is updated
-    results <- isolate({
-        log_event(log_messages, "Entering isolate block", "DEBUG")
-        diagnose_input_columns_and_remove_NA(
-            df = uploaded_df(),
-            pvalue_col = input$pvalue_col,
-            fold_col = input$fold_col,
-            annotation_col = input$annotation_col,
-            log_messages_rv = log_messages,
-            log_event = log_event
-        )
-    })
-    
-    # Add debug logging before updating reactive value
-    log_event(log_messages, 
-             sprintf("Before updating uploaded_df - Results stats: %d rows dropped", 
-                     results$statistics$dropped_rows), 
-             "DEBUG")
-    
-    # Update the reactive value with cleaned data
-    uploaded_df(results$cleaned_data)
-    
-    # Update button appearance using runjs
-    runjs('
-        document.getElementById("upload_check").classList.remove("primary");
-        document.getElementById("upload_check").classList.add("positive");
-        document.querySelector("#upload_check .visible.content").textContent = "Columns selected and checked ✓";
+   # In server, add observer for reset
+   observeEvent(input$reset_columns, {
+     req(input$reset_columns)
+     
+     # Log the reset action
+     log_event(log_messages, "Column selection reset requested", "INFO from reset_columns")
+     
+     # Reset the button appearance
+     runjs('
+        document.getElementById("upload_check").classList.remove("positive");
+        document.getElementById("upload_check").classList.add("primary");
+        document.querySelector("#upload_check .visible.content").textContent = "Upload and Check Columns";
     ')
-    
-    # Log events after successful processing
-    log_event(log_messages, 
-             sprintf("Columns selected and checked. Removed %d rows with NAs", 
-                     results$statistics$dropped_rows), 
-             "INFO from input$upload_check")
-    
-    log_structure(log_messages, 
-                 results$cleaned_data, 
-                 "The structure of the dataset after column selection and checking:", 
-                 "INFO from input$upload_check")
-}, ignoreInit = TRUE, once = TRUE)  # Add these parameters
+     
+     # Reset column selections to NULL or first choice
+     updateSelectInput(session, "pvalue_col", selected = character(0))
+     updateSelectInput(session, "fold_col", selected = character(0))
+     updateSelectInput(session, "annotation_col", selected = character(0))
+     
+     log_event(log_messages, "Column selections have been reset", "SUCCESS from reset_columns")
+   })
    
+   # Modify the upload_check observer to handle reselection
+   # Modify the upload_check observer
+   observeEvent(input$upload_check, {
+     req(input$upload_check)
+     req(input$pvalue_col, input$fold_col, input$annotation_col)
+     
+     # Only proceed if state is "pending" or "reset"
+     if (column_select_module_state() %in% c("reset", "initial_or_reseted", "reseted")) {
+       log_event(log_messages, 
+                 sprintf("Starting column check at %s - State: %s", 
+                         format(Sys.time(), "%H:%M:%S.%OS3"),
+                         column_select_module_state()), 
+                 "DEBUG")
+       
+       results <- isolate({
+         diagnose_input_columns_and_remove_NA(
+           df = uploaded_df(),
+           pvalue_col = input$pvalue_col,
+           fold_col = input$fold_col,
+           annotation_col = input$annotation_col,
+           log_messages_rv = log_messages,
+           log_event = log_event
+         )
+       })
+       
+       uploaded_df(results$cleaned_data)
+       
+       # Update validation state
+       column_select_module_state("validated - columns uploaded")
+       
+       runjs('
+                document.getElementById("upload_check").classList.remove("primary");
+                document.getElementById("upload_check").classList.add("positive");
+                document.querySelector("#upload_check .visible.content").textContent = "Columns Checked ✓";
+            ')
+       
+       log_event(log_messages, 
+                 sprintf("Columns selected and checked. Removed %d rows with NAs", 
+                         results$statistics$dropped_rows), 
+                 "INFO from upload_check")
+       
+       log_structure(log_messages, 
+                     results$cleaned_data, 
+                     "The structure of the dataset after column selection and checking:", 
+                     "INFO from upload_check")
+     } else {
+       log_event(log_messages, 
+                 sprintf("Column check skipped - Current state: %s", 
+                         column_select_module_state()), 
+                 "DEBUG")
+     }
+   }, ignoreInit = TRUE)
+   
+   # Modify the reset observer
+   observeEvent(input$reset_columns, {
+     req(input$reset_columns)
+     
+     log_event(log_messages, "Column selection reset requested", "INFO from reset_columns")
+     
+     # Reset the validation state
+     column_select_module_state("reseted")
+     
+     # Reset the button appearance
+     runjs('
+            document.getElementById("upload_check").classList.remove("positive");
+            document.getElementById("upload_check").classList.add("primary");
+            document.querySelector("#upload_check .visible.content").textContent = "Upload and Check Columns";
+        ')
+     
+     # Reset column selections to NULL or first choice
+     updateSelectInput(session, "pvalue_col", selected = character(0))
+     updateSelectInput(session, "fold_col", selected = character(0))
+     updateSelectInput(session, "annotation_col", selected = character(0))
+     
+     log_event(log_messages, "Column selections have been reset", "SUCCESS from reset_columns")
+   })
+   
+   observeEvent(column_select_module_state(), {
+     log_event(log_messages,
+               sprintf("State changed to: %s at %s", 
+                       column_select_module_state(),
+                       format(Sys.time(), "%H:%M:%S.%OS3")),
+               "DEBUG state_monitor")
+   }, ignoreInit = TRUE) 
+   
+ 
 # Render DT data preview ----    
    
     output$dataset_summary <- renderDT({
