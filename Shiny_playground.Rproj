@@ -14,3 +14,6 @@ RnwWeave: Sweave
 LaTeX: pdfLaTeX
 
 UseNativePipeOperator: Yes
+
+MarkdownWrap: Column
+MarkdownWrapAtColumn: 72
