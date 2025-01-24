@@ -55,7 +55,7 @@ GO <- arrow::read_parquet("GO.parquet2")
 
 
 
-##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
+##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS----###################
 
 # The logger factory function that creates a logger function for a specific session  
 
@@ -2187,7 +2187,7 @@ ui <- semanticPage(
     
     
   ),
-  
+## navbar ----  
   segment(class = "navbar",
         img(src = "Vivid_volcano_logo.png", alt = "Logo", class = "logo"),
       div(class = "left-section",
@@ -2216,6 +2216,7 @@ ui <- semanticPage(
           
       )
   ),
+
   
   div(class = "ui fluid container",
       # Main layout using sidebar
@@ -2223,7 +2224,8 @@ ui <- semanticPage(
         # Sidebar panel with controls
         sidebar_panel(
                       width = 3,
-                      # Data Upload Card
+                      
+                      ## Data Upload Segment ----
                       div(class = "ui raised segment",
                           
                          
@@ -2235,7 +2237,7 @@ ui <- semanticPage(
                                          accept = c(".csv", ".tsv"))
                           ),
                           
-                          # Add download link for demo data
+                          ####  download link for demo data ----
                           tags$a(
                             href = "demo_data.csv",  # This will be served from www/demo_data.csv
                             download = NA,
@@ -2243,7 +2245,7 @@ ui <- semanticPage(
                             tags$i(class = "download icon"),
                             "Download tab separated demo data for upload"
                           ),
-                          # Form layout for checkbox and radio buttons
+                          #### layout for checkbox and radio buttons ----
                           div(class = "ui form",
                               div(class = "three fields",
                                   # Header Checkbox
@@ -2277,12 +2279,12 @@ ui <- semanticPage(
                                        class = "ui primary button")
                       ),
                       
-                      
+                      ## Column Selection Segment ----
                       uiOutput("column_select_ui"),
                       
                       
                       
-                      # Analysis Options Card
+                      ## Analysis Options ----
                       div(class = "ui raised segment",
                            # ribbon
                            header(title = "Analysis Options", description = "Customize GSEA and volcano plot options",icon = "cogs"),
@@ -2298,9 +2300,7 @@ ui <- semanticPage(
                                           choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
                                           value = "BH"),
                            numericInput("alpha", "Significance Threshold", value = 0.050, min = 0.0001, max = 1, step = 0.0001,
-                                        # it was interfering with cancel button javascript making it reddish at the initial step...?
-                                        
-                                        ),
+                                                                               ),
                            
                            div(class = "ui grey ribbon label", "GSEA analysis controls"),
                            toggle("GSEA_acvited", "I want to run GSEA", FALSE),
@@ -2333,12 +2333,13 @@ ui <- semanticPage(
         
         main_panel(
           width = 12,
-          # Dataset preview
+          ## Dataset preview ----
           segment(
             class = "raised",
             div(class = "ui grey ribbon label", "State of data source preview"),
             semantic_DTOutput("dataset_summary", height = "auto")
           ),
+          ## Results ----
           segment(
             class = "placeholder",
             header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
@@ -2351,8 +2352,7 @@ ui <- semanticPage(
 
 
 
-##########################-----SERVER----####################################
-
+# SERVER----
 
 server <- function(input, output, session) {
   
@@ -2585,7 +2585,7 @@ observeEvent(input$clientWidth, {
    
    
    
-# Render DT data preview ----    
+## Render DT data preview ----    
    
     output$dataset_summary <- renderDT({
       log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
@@ -2677,7 +2677,7 @@ observeEvent(input$clientWidth, {
     }
   })
   
-##### Reactive  4 tabset appearing if GSEA is activated and 3 tabset if not #########
+## Reactive 4 tabset appearing if GSEA is activated and 3 tabset if not ----
   
   # Add these to your server function
   tab_list <- reactive({
@@ -2747,7 +2747,7 @@ observeEvent(input$clientWidth, {
       )
     )
     
-    # Add GSEA tab conditionally
+    ## Add GSEA tab conditionally ----
     if (isTRUE(input$GSEA_acvited)) {
       gsea_tab <- list(
         menu = "GSEA Results",
@@ -2808,16 +2808,16 @@ observeEvent(input$clientWidth, {
     }
   })
   
-  # Render the dynamic tabset
+  ### Render the dynamic tabset ----
   output$dynamic_tabset <- renderUI({
     tabset(tabs = tab_list())
   })
   
- 
+## Run GSEA observer ---- 
   observeEvent(input$run_gsea, {
     req(input$GSEA_acvited, input$gsea_ontology, 
         uploaded_df(), input$annotation_col, input$fold_col, input$alpha)
-    #
+   
     
     # Log the GSEA analysis start
     log_event(log_messages, 
@@ -2847,7 +2847,7 @@ observeEvent(input$clientWidth, {
       return()
     }
     
-    # Check and unlog p-values
+    ### Check unlog and adjust p-values before GSEA ----
     df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages, log_event)
     uploaded_df(df)  # Update the reactive value with unlogged p-values
     log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO pvalues module")
@@ -2861,7 +2861,7 @@ observeEvent(input$clientWidth, {
     log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
     log_structure(log_messages, df, "The structure of the uploaded dataset after adjusting p-values is:", "INFO")
     
-    # Define gene sets based on regulation
+    ### Define gene sets based on regulation ----
     regulated_sets <- list(
       up = df %>%
         filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>%
@@ -2905,6 +2905,7 @@ observeEvent(input$clientWidth, {
     # for a particular ontology) and run the enrichment analysis
     
     
+    ## Filtering of the source GO data to make the computations more efficient ----
     
     # More efficient GO filtering - first filter by detected genes and ontology
     go_filtered <- GO %>%
@@ -2960,7 +2961,7 @@ observeEvent(input$clientWidth, {
                 "ERROR from GSEA observer")
       return()
     }
-    
+# GSEA ----     
     
     # Run enrichment analysis using identify_top_go_enrichment
     enrichment_results <- identify_top_go_enrichment(
@@ -3030,12 +3031,9 @@ observeEvent(input$clientWidth, {
         
     }
     
-    
-   
-    
-    
+
     # Store results
-    gsea_results(enrichment_results)
+gsea_results(enrichment_results)
     
     # Log completion    
         
@@ -3043,15 +3041,15 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
  
  
     
-    # # Validate we got results
-    # if (is.null(enrichment_results) || nrow(enrichment_results) == 0) {
-    #   shinyalert(
-    #     title = "No Enrichment Found",
-    #     text = "No significant GO term enrichment found with current parameters",
-    #     type = "warning"
-    #   )
-    #   return()
-    # }
+    # Validate we got results
+    if (is.null(enrichment_results) || nrow(enrichment_results) == 0) {
+      shinyalert(
+        title = "No Enrichment Found",
+        text = "No significant GO term enrichment found with current parameters",
+        type = "warning"
+      )
+      return()
+    }
     
     # Use the enrichment results to create the gt table
     # gsea_gt_table <- produce_GSEA_GT_table_for_overepresented_tags(
@@ -3085,7 +3083,7 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
     # output$gsea_plot <- renderPlot({ ... })
   })
   
-  
+## GSEA result downloaders ----   
   output$download_full_gsea <- downloadHandler(
     filename = function() {
       paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
@@ -3274,7 +3272,8 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
     }
   )
   
-  
+# Color highlight observer and reactive UI color pickers ----
+    
   # Observe changes to the color_highlight input
   observeEvent(input$color_highlight, {
     if (input$color_highlight) {
@@ -3293,6 +3292,8 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
       )
     }
   })
+
+# GO category selection observer and reactive UI color pickers ----
   
   # Observe changes to the show_go_category input
   observeEvent(input$show_go_category, {
@@ -3329,8 +3330,8 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
   color_palette <- c("#440154FF", "darkblue","gold","darkorange","darkcyan","deeppink","black") 
   
   
+## Dynaic UI for additional color pickers ---- 
   
-  # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       log_event(log_messages, "Color pickers for GO categories are disabled", "INFO from output$color_picker_ui")
@@ -3361,6 +3362,7 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
   
   })
   
+## Custom gene labels observer and UI ----  
   
   # Observe changes to the select_custom_labels input
   observeEvent(input$select_custom_labels, {
@@ -3400,7 +3402,7 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
     input$custom_gene_labels
   })
   
-## Draw volcano observer ----  
+# Draw volcano observer ----  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
