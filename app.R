@@ -843,172 +843,6 @@ identify_top_go_enrichment <- function(detected_genes,
   ))
 }
 
-#' Produce a gt table of top enriched GO categories.
-#'
-#' This function wraps around identify_top_go_enrichment() and calculate_go_enrichment_table(),
-#' returning the final gt table for the user.
-#'
-#' @param df A data frame containing expressions/annotations, typically used by calculate_go_enrichment_table().
-#' @param detected_genes A character vector of all genes detected in the experiment.
-#' @param regulated_genes A character vector of significantly regulated genes.
-#' @param go_data A data frame (or list) containing GO annotations.
-#' @param ontology Character string specifying the ontology (e.g., "BP", "MF", "CC").
-#' @param annotation_col The column in df used to match genes (default: "gene").
-#' @param fold_col The column in df containing fold changes (default: "logFC").
-#' @param alpha Significance level for p-value filtering (default: 0.05).
-#' @param max_categories Maximum number of top categories to include in the final output.
-#' @param log_messages_rv ReactiveValues object for logging events (optional).
-#' @param log_event Character string identifying the log event (optional).
-#' @param log_structure Data structure for additional logging (optional).
-#' @param color_highlight A color for highlighting rows in the final table (default: "lightblue").
-#'
-#' @return A gt object (or similar structure) representing the enriched GO categories.
-produce_GSEA_GT_table_for_overepresented_tags <- function(df,
-                                                          detected_genes,
-                                                          regulated_genes,
-                                                          go_data,
-                                                          ontology,
-                                                          annotation_col = "gene",
-                                                          fold_col = "logFC",
-                                                          alpha = 0.05,
-                                                          max_categories = 10,
-                                                          log_messages_rv = NULL,
-                                                          log_event = NULL,
-                                                          log_structure = NULL,
-                                                          color_highlight = "lightblue") {
-  
-  # Initial function call logging
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Starting GSEA GT table production:\n- Ontology: %s\n- Alpha: %g\n- Max categories: %d\n- Annotation column: %s\n- Fold change column: %s",
-                      ontology, alpha, max_categories, annotation_col, fold_col),
-              "INFO from produce_GSEA_GT_table()")
-    
-    # Log input data dimensions and gene counts
-    log_event(log_messages_rv,
-              sprintf("Input data summary:\n- Data frame rows: %d\n- Detected genes: %d\n- Regulated genes: %d\n- GO terms available: %d",
-                      nrow(df),
-                      length(detected_genes),
-                      length(regulated_genes),
-                      n_distinct(go_data$name)),
-              "INFO from produce_GSEA_GT_table()")
-  }
-  
-  # Log structure of input data if logger available
-  if (!is.null(log_structure)) {
-    log_structure(log_messages_rv, df, 
-                  "Input data frame structure:", 
-                  "DEBUG from produce_GSEA_GT_table()")
-    log_structure(log_messages_rv, go_data, 
-                  "GO data structure:", 
-                  "DEBUG from produce_GSEA_GT_table()")
-  }
-  
-  # STEP 1: Identify enriched categories
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              "Starting enrichment analysis with identify_top_go_enrichment()",
-              "INFO from produce_GSEA_GT_table()")
-  }
-  
-  enrichment_results <- identify_top_go_enrichment(
-    detected_genes = detected_genes,
-    regulated_genes = regulated_genes,
-    go_data = go_data,
-    ontology = ontology,
-    p_adj_method = "BH",
-    alpha = alpha,
-    max_categories = max_categories,
-    log_messages_rv = log_messages_rv,
-    log_event = log_event
-  )
-  
-  # Validate enrichment results
-  if (is.null(enrichment_results) || nrow(enrichment_results) == 0) {
-    log_event(log_messages_rv,
-              "No enriched GO terms found. Returning NULL.",
-              "WARNING from produce_GSEA_GT_table()")
-    return(NULL)
-  }
-  
-  # Log enrichment results
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Enrichment analysis completed:\n- Found %d enriched terms\n- P-value range: %g to %g",
-                      nrow(enrichment_results),
-                      min(enrichment_results$p_value),
-                      max(enrichment_results$p_value)),
-              "SUCCESS from produce_GSEA_GT_table()")
-  }
-  
-  # STEP 2: Extract top GO categories
-  top_go_categories <- enrichment_results$name
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Selected top %d GO categories for detailed analysis",
-                      length(top_go_categories)),
-              "INFO from produce_GSEA_GT_table()")
-  }
-  
-  # STEP 3: Calculate GO enrichment table
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              "Starting detailed GO enrichment calculation with calculate_go_enrichment_table()",
-              "INFO from produce_GSEA_GT_table()")
-  }
-  
-  go_enrichment_table <- calculate_go_enrichment_table(
-    df = df,
-    annotation_col = annotation_col,
-    go_categories = top_go_categories,
-    go_data = go_data,
-    alpha = alpha,
-    fold_col = fold_col,
-    log_messages_rv = log_messages_rv,
-    log_event = log_event,
-    log_structure = log_structure
-  )
-  
-  # Validate enrichment table
-  if (is.null(go_enrichment_table)) {
-    log_event(log_messages_rv,
-              "GO enrichment table calculation failed. Returning NULL.",
-              "ERROR from produce_GSEA_GT_table()")
-    return(NULL)
-  }
-  
-  # STEP 4: Build GT table
-  if (!is.null(log_messages_rv)) {
-    log_event(log_messages_rv,
-              sprintf("Building final GT table with color highlight: %s",
-                      color_highlight),
-              "INFO from produce_GSEA_GT_table()")
-  }
-  
-  final_gt <- build_gt_table(
-    enrichment_results_list = go_enrichment_table,
-    upregulated_count = length(regulated_genes),
-    downregulated_count = 0,
-    color_highlight = color_highlight,
-    log_messages_rv = log_messages_rv,
-    log_event = log_event
-  )
-  
-  # Final validation and logging
-  if (!is.null(log_messages_rv)) {
-    if (is.null(final_gt)) {
-      log_event(log_messages_rv,
-                "GT table creation failed. Returning NULL.",
-                "ERROR from produce_GSEA_GT_table()")
-    } else {
-      log_event(log_messages_rv,
-                "GSEA GT table production completed successfully",
-                "SUCCESS from produce_GSEA_GT_table()")
-    }
-  }
-  
-  return(final_gt)
-}
 
 
 
@@ -1290,6 +1124,142 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   
   return(publication_plot)
 }
+
+build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_messages_rv, log_event) {
+  # Log function start
+  log_event(log_messages_rv,
+            sprintf("Starting GSEA GT table build with parameters:\n Colors: %s, %s",
+                    color_highlight[1], color_highlight[2]),
+            "INFO from build_gsea_gt_table()")
+  
+  down_color <- color_highlight[1]
+  up_color <- color_highlight[2]
+  
+  # Early return if no results or all empty
+  if (is.null(enrichment_results_list) || 
+      is.null(enrichment_results_list$top_results) || 
+      all(sapply(enrichment_results_list$top_results, function(x) nrow(x) == 0))) {
+    
+    return(
+      tibble(Message = "No significant functional group of genes is overrepresented in this set") %>%
+        gt() %>%
+        tab_options(
+          table.width = pct(100),
+          table.font.size = px(12),
+          column_labels.visible = FALSE
+        )
+    )
+  }
+  
+  # Process results for each regulation type
+  process_results <- function(df, regulation_type) {
+    if (is.null(df) || nrow(df) == 0) return(NULL)
+    
+    df %>%
+      mutate(
+        Regulation = regulation_type,
+        Genes_Ratio = sprintf("%d/%d", regulated_count, total_count),
+        Fold_Enrichment = round(fold_enrichment, 2),
+        P_Value = ifelse(p_value < 0.001, "<0.001", sprintf("%.3f", p_value)),
+        Adjusted_P_Value = ifelse(p_adj < 0.001, "<0.001", sprintf("%.3f", p_adj))
+      ) %>%
+      select(
+        Regulation,
+        GO_Term = name,
+        Genes_Total = total_count,
+        Genes_Found = regulated_count,
+        Fold_Enrichment,
+        P_Value,
+        Adjusted_P_Value
+      )
+  }
+  
+  # Process each regulation type
+  regulated_df <- process_results(enrichment_results_list$top_results$bidirectional, "Bidirectional")
+  upregulated_df <- process_results(enrichment_results_list$top_results$up, "Up-regulated")
+  downregulated_df <- process_results(enrichment_results_list$top_results$down, "Down-regulated")
+  
+  # Combine results
+  combined_df <- bind_rows(
+    regulated_df,
+    upregulated_df,
+    downregulated_df
+  )
+  
+  # Create GT table
+  gt_table <- combined_df %>%
+    gt(groupname_col = "Regulation") %>%
+    tab_header(
+      title = "Gene Set Enrichment Analysis Results",
+      subtitle = "Significantly enriched Gene Ontology terms"
+    ) %>%
+    cols_label(
+      GO_Term = "GO Term",
+      Genes_Total = "Total Genes in Term",
+      Genes_Found = "Enriched Genes",
+      Fold_Enrichment = "Fold Enrichment",
+      P_Value = "P-value",
+      Adjusted_P_Value = "Adjusted P-value"
+    ) %>%
+    fmt_number(
+      columns = Fold_Enrichment,
+      decimals = 2
+    ) %>%
+    tab_footnote(
+      footnote = "P-values adjusted using Benjamini-Hochberg method",
+      locations = cells_column_labels("Adjusted_P_Value")
+    ) %>%
+    tab_options(
+      table.width = pct(100),
+      table.font.size = px(12),
+      column_labels.font.weight = "bold",
+      row_group.font.weight = "bold"
+    )
+  
+  # Style row groups
+  if (!is.null(regulated_df) && nrow(regulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = "#D3D3D3")
+        ),
+        locations = cells_row_groups(groups = "Bidirectional")
+      )
+  }
+  
+  if (!is.null(upregulated_df) && nrow(upregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = up_color)
+        ),
+        locations = cells_row_groups(groups = "Up-regulated")
+      )
+  }
+  
+  if (!is.null(downregulated_df) && nrow(downregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = down_color)
+        ),
+        locations = cells_row_groups(groups = "Down-regulated")
+      )
+  }
+  
+  log_event(log_messages_rv,
+            "GSEA GT table build completed successfully",
+            "INFO from build_gsea_gt_table()")
+  
+  return(gt_table)
+}
+
+
+
+
 
 # Creates a GT table with color-coded row groups for regulated genes based on the input enrichment results list 
 
@@ -2793,7 +2763,7 @@ observeEvent(input$clientWidth, {
                         class = "ui tiny fluid buttons",
                         downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
                       ),
-                      gt_output("gsea_results_gt")
+                      gt_output("gsea_results_table")
                     )
                 )
             )
@@ -2961,10 +2931,10 @@ observeEvent(input$clientWidth, {
                 "ERROR from GSEA observer")
       return()
     }
-# GSEA ----     
+## GSEA ----     
     
     # Run enrichment analysis using identify_top_go_enrichment
-    enrichment_results <- identify_top_go_enrichment(
+    enrichment_results_list <- identify_top_go_enrichment(
       detected_genes = detected_genes,
       regulated_sets = regulated_sets,  # Use the regulated_sets list we already created
       go_filtered = go_filtered,        # Use the filtered GO data
@@ -2983,22 +2953,22 @@ observeEvent(input$clientWidth, {
     if (!is.null(log_event)) {
       log_event(log_messages,
                 sprintf("GSEA Results Structure:\n- Has all_results: %s\n- Has top_results: %s\n- Number of missing genes: %d",
-                        !is.null(enrichment_results$all_results),
-                        !is.null(enrichment_results$top_results),
-                        length(enrichment_results$missing_genes)),
+                        !is.null(enrichment_results_list$all_results),
+                        !is.null(enrichment_results_list$top_results),
+                        length(enrichment_results_list$missing_genes)),
                 "DEBUG")
   
     
       # Create summary log for top_results
-      if (!is.null(enrichment_results$top_results) && !is.null(log_event)) {
+      if (!is.null(enrichment_results_list$top_results) && !is.null(log_event)) {
         # Header for the summary
         log_event(log_messages,
                   "Summary of significant GO terms from top results:",
                   "INFO")
         
         # Process each regulation group
-        for (reg_group in names(enrichment_results$top_results)) {
-          results_df <- enrichment_results$top_results[[reg_group]]
+        for (reg_group in names(enrichment_results_list$top_results)) {
+          results_df <- enrichment_results_list$top_results[[reg_group]]
           
           if (!is.null(results_df) && nrow(results_df) > 0) {
             # Log header for regulation group
@@ -3033,24 +3003,49 @@ observeEvent(input$clientWidth, {
     
 
     # Store results
-gsea_results(enrichment_results)
+gsea_results(enrichment_results_list)
     
     # Log completion    
         
-log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS from GSEA observer")    
- 
+log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS from GSEA observer")
+log_structure(log_messages, enrichment_results_list, "The structure of the GSEA results is:", "INFO from GSEA observer")
+log_structure(log_messages, enrichment_results_list$top_results, "The structure of the top GSEA results is:", "INFO from GSEA observer") 
  
     
-    # Validate we got results
-    if (is.null(enrichment_results) || nrow(enrichment_results) == 0) {
-      shinyalert(
-        title = "No Enrichment Found",
-        text = "No significant GO term enrichment found with current parameters",
-        type = "warning"
-      )
-      return()
-    }
+# Validate we got results
+if (is.null(enrichment_results_list) || 
+    is.null(enrichment_results_list$top_results) || 
+    all(sapply(enrichment_results_list$top_results, function(x) nrow(x) == 0))) {
+  shinyalert(
+    title = "No Enrichment Found",
+    text = "No significant GO term enrichment found with current parameters",
+    type = "warning"
+  )
+  return()
+}
     
+## Build GSEA GT table ----
+
+# In your server function
+output$gsea_results_table <- render_gt({
+  req(gsea_results())
+  
+  build_gsea_gt_table(
+    enrichment_results_list = gsea_results(),
+    color_highlight = if(input$color_highlight) {
+      c(input$down_color, input$up_color)
+    } else {
+      c("#D3D3D3", "#D3D3D3")
+    },
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+})
+
+
+
+
+
     # Use the enrichment results to create the gt table
     # gsea_gt_table <- produce_GSEA_GT_table_for_overepresented_tags(
     #   df = df,
@@ -3406,6 +3401,7 @@ log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS fro
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
+    df <- uploaded_df() 
 
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
