@@ -1125,6 +1125,74 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   return(publication_plot)
 }
 
+
+build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", log_messages_rv, log_event) {
+  log_event(log_messages_rv,
+            "Starting build_gsea_plots with ontology",
+            "DEBUG from build_gsea_plots")
+  
+  # Process only downregulated genes data
+  down_data <- if (!is.null(enrichment_results_list$top_results$down) && 
+                   nrow(enrichment_results_list$top_results$down) > 0) {
+    enrichment_results_list$top_results$down %>%
+      slice_head(n = 20) %>%
+      mutate(
+        term_label = sprintf("%s\n(%d/%d)", name, regulated_count, total_count),
+        neg_log10_padj = -log10(p_adj),
+        is_significant = p_adj < 0.05
+      ) %>%
+      arrange(fold_enrichment) %>%
+      mutate(
+        term_label = factor(term_label, levels = term_label)
+      )
+  } else {
+    NULL
+  }
+  
+  if (is.null(down_data)) {
+    log_event(log_messages_rv,
+              "No downregulated data available",
+              "DEBUG from build_gsea_plots")
+    return(NULL)
+  }
+  
+  # Create single plot for downregulated genes
+  plot <- ggplot(down_data, aes(x = fold_enrichment, y = term_label)) +
+    geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
+             stat = "identity",
+             width = 0.2) +  # Even narrower bars
+    scale_fill_continuous(
+      name = "-log10(adj.P)",
+      na.value = "grey90",
+      low = "yellow", 
+      high = "red"
+    ) +
+    labs(
+      title = sprintf("GSEA Enrichment Plot for %s\nDown-regulated Genes", ontology),
+      x = "Fold Enrichment",
+      y = NULL
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.y = element_text(size = 8),
+      axis.text.x = element_text(size = 8),
+      axis.title.x = element_text(size = 8),
+      plot.title = element_text(size = 9, face = "bold"),
+      legend.title = element_text(size = 8),
+      legend.text = element_text(size = 8),
+      plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
+      # Reduce line spacing in y-axis text
+      axis.text.y.left = element_text(lineheight = 0.2)
+    )
+  
+  return(plot)
+}
+
+
+
+
+
+
 build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_messages_rv, log_event) {
   # Log function start
   log_event(log_messages_rv,
@@ -1206,7 +1274,14 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
       decimals = 2
     ) %>%
     tab_footnote(
-      footnote = "P-values adjusted using Benjamini-Hochberg method",
+      footnote = "Adjusted p-values were calculated using the Benjamini-Hochberg (BH) 
+      method to control the False Discovery Rate (FDR). Note that BH treats all
+      GO terms as independent, which may lead to over-adjustment (conservative results)
+      for broad terms with many dependent child terms or under-adjustment (liberal results) 
+      for terms whose significance is driven by overlapping child terms
+      see https://github.com/DatViseR/Vivid-Volcano/Notes on GSEA statistics.md 
+      for details examples and explenation"
+            ,
       locations = cells_column_labels("Adjusted_P_Value")
     ) %>%
     tab_options(
@@ -1256,6 +1331,7 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
   
   return(gt_table)
 }
+
 
 
 
@@ -2745,7 +2821,7 @@ observeEvent(input$clientWidth, {
                     segment(
                       class = "basic",
                       h4(class = "ui header", "GSEA Enrichment Plot"),
-                      plotOutput("gsea_plot", width = "100%", height = "600px"),
+                      plotOutput("gsea_plot"),
                       div(
                         style = "margin-top: 10px;",
                         class = "ui tiny fluid buttons",
@@ -3004,6 +3080,10 @@ observeEvent(input$clientWidth, {
 
     # Store results
 gsea_results(enrichment_results_list)
+# 
+
+
+
     
     # Log completion    
         
@@ -3024,6 +3104,58 @@ if (is.null(enrichment_results_list) ||
   return()
 }
     
+## Build GSEA plots ----
+## Use enrichment results to create the GSEA plot
+## Build 3 barpolots with the same width and height
+## The first plot will show the upregulated genes,
+## the second the downregulated genes and the third the bidirectionaly regulaed
+## genes. The plot will show top 20 enriched terms for each regulation group.
+## The y-axis will show the GO terms.The x axis will show the fold enrichment.
+## The - log10 adjusted pvalue will be used to color the bars with scale continous
+## The non-significant terms will have no color fill. The plot should use ggplot2.
+## Under each go term the number of genes in the term among detected and the number of genes among regulated set
+## should be displayed. The plot should have a title and the x-axis should be labeled but not y.
+## The plot should have a legend with the color scale and the title should be "GSEA Enrichment Plot for [ontology]"
+
+
+
+# In server:
+output$gsea_plot <- renderPlot({
+  req(gsea_results())
+  
+  log_event(log_messages,
+            "Rendering GSEA plot",
+            "INFO from gsea_plot")
+  
+  tryCatch({
+    plot <- build_gsea_plots(
+      enrichment_results_list = gsea_results(), 
+      ontology = input$go_ontology,
+      log_messages_rv = log_messages,
+      log_event = log_event
+    )
+    
+    if (is.null(plot)) {
+      ggplot() + 
+        annotate("text", x = 0.5, y = 0.5, 
+                 label = "No significant enrichment found") +
+        theme_void()
+    } else {
+      plot
+    }
+  }, error = function(e) {
+    log_event(log_messages,
+              sprintf("Error in GSEA plot generation: %s", e$message),
+              "ERROR from gsea_plot")
+    
+    ggplot() + 
+      annotate("text", x = 0.5, y = 0.5, 
+               label = "Error generating GSEA plot. Please try again.") +
+      theme_void()
+  })
+})  # Set fixed height to 500px
+
+
 ## Build GSEA GT table ----
 
 # In your server function
@@ -3266,8 +3398,60 @@ output$gsea_results_table <- render_gt({
       })
     }
   )
+
+  output$download_gsea_results <- downloadHandler(
+    filename = function() {
+      paste0("GSEA_Results_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
+    },
+    content = function(file) {
+      req(gsea_results())
+      
+      # Log download attempt
+      log_event(log_messages,
+                "GSEA results table download initiated",
+                "INFO from download_gsea_results")
+      
+      tryCatch({
+        # Create table with current color settings
+        gt_table <- build_gsea_gt_table(
+          enrichment_results_list = gsea_results(),
+          color_highlight = if(input$color_highlight) {
+            c(input$down_color, input$up_color)
+          } else {
+            c("#D3D3D3", "#D3D3D3")
+          },
+          log_messages_rv = log_messages,
+          log_event = log_event
+        )
+        
+        # Save as HTML with inline CSS
+        log_event(log_messages,
+                  "GSEA results table created successfully and ready for saving as formatted html",
+                  "SUCCESS from download_gsea_results")
+        
+        gtsave(gt_table, file, inline_css = TRUE)
+        
+      }, error = function(e) {
+        log_event(log_messages,
+                  sprintf("Error in GSEA results table download: %s", e$message),
+                  "ERROR from download_gsea_results")
+        
+        # Create and save empty table with error message
+        empty_table <- gt(tibble(
+          Message = "Error generating GSEA results table. Please try again."
+        )) %>%
+          tab_options(
+            table.width = pct(40),
+            container.width = pct(40),
+            column_labels.visible = FALSE
+          )
+        gtsave(empty_table, file, inline_css = TRUE)
+      })
+    }
+  )  
   
-# Color highlight observer and reactive UI color pickers ----
+    
+# Color highlight observer and reactive UI color pickers----
     
   # Observe changes to the color_highlight input
   observeEvent(input$color_highlight, {
