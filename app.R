@@ -2297,7 +2297,10 @@ ui <- semanticPage(
                                           
                                           choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
                                           value = "BH"),
-                           numericInput("alpha", "Significance Threshold", value = 0.05, min = 0.0001, max = 1, step = 0.001),
+                           numericInput("alpha", "Significance Threshold", value = 0.050, min = 0.0001, max = 1, step = 0.0001,
+                                        # it was interfering with cancel button javascript making it reddish at the initial step...?
+                                        
+                                        ),
                            
                            div(class = "ui grey ribbon label", "GSEA analysis controls"),
                            toggle("GSEA_acvited", "I want to run GSEA", FALSE),
