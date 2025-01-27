@@ -1129,45 +1129,53 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 
 build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", show_not_significant = FALSE, log_messages_rv, log_event) {
   log_event(log_messages_rv,
-            paste("Starting build_gsea_plots with ontology and show_not_significant =", show_not_significant),
+            sprintf("Starting build_gsea_plots with ontology = %s, show_not_significant = %s", 
+                    ontology, show_not_significant),
             "DEBUG from build_gsea_plots")
   
   # Select the appropriate results based on show_not_significant parameter
   results_to_use <- if (show_not_significant) {
+    log_event(log_messages_rv, "Using all_results$down", "DEBUG")
     enrichment_results_list$all_results$down
   } else {
+    log_event(log_messages_rv, "Using top_results$down", "DEBUG")
     enrichment_results_list$top_results$down
   }
   
-  # Process downregulated genes data
-  down_data <- if (!is.null(results_to_use) && nrow(results_to_use) > 0) {
-    results_to_use %>%
-      slice_head(n = 20) %>%
-      mutate(
-        term_label = sprintf("<b>%s</b>\n%d/%d [regulated/detected]", name, regulated_count, total_count),
-        neg_log10_padj = -log10(p_adj),
-        is_significant = p_adj < 0.05
-      ) %>%
-      arrange(fold_enrichment) %>%
-      mutate(
-        term_label = factor(term_label, levels = term_label)
-      )
-  } else {
-    NULL
-  }
-  
-  if (is.null(down_data)) {
+  # Add validation check
+  if (is.null(results_to_use) || nrow(results_to_use) == 0) {
     log_event(log_messages_rv,
-              "No downregulated data available",
-              "DEBUG from build_gsea_plots")
+              "No data available for plotting",
+              "WARNING from build_gsea_plots")
     return(NULL)
   }
   
-  # Create single plot for downregulated genes
+  log_event(log_messages_rv,
+            sprintf("Processing %d rows of data", nrow(results_to_use)),
+            "DEBUG from build_gsea_plots")
+  
+  down_data <- results_to_use %>%
+    slice_head(n = 20) %>%
+    mutate(
+      term_label = sprintf("<b>%s</b>\n%d/%d [regulated/detected]", 
+                           name, regulated_count, total_count),
+      neg_log10_padj = -log10(p_adj),
+      is_significant = p_adj < 0.05
+    ) %>%
+    arrange(fold_enrichment) %>%
+    mutate(
+      term_label = factor(term_label, levels = term_label)
+    )
+  
+  log_event(log_messages_rv,
+            sprintf("Created plot data with %d rows", nrow(down_data)),
+            "DEBUG from build_gsea_plots")
+  
+  # Create plot
   plot <- ggplot(down_data, aes(x = fold_enrichment, y = term_label)) +
     geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
              stat = "identity",
-             width = 0.3) +  # narrow bars
+             width = 0.3) +
     scale_fill_continuous(
       name = "-log10(adj.P)",
       na.value = "grey90",
@@ -1179,7 +1187,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
       x = "Fold Enrichment",
       y = NULL
     ) +
-    scale_y_discrete(expand = c(0, 0))+
+    scale_y_discrete(expand = c(0, 0)) +
     theme_minimal() +
     theme(
       axis.text = element_markdown(),
@@ -1194,6 +1202,12 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
       plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
       axis.text.y.left = element_text(lineheight = 0.9)
     )
+  
+  log_event(log_messages_rv, "Plot created successfully", "DEBUG from build_gsea_plots")
+  
+  # Explicitly print the plot
+  print(plot)
+  
   return(plot)
 }
 
@@ -2701,6 +2715,7 @@ observeEvent(input$clientWidth, {
                   )
               )
           ),
+          div(class = "ui divider"),
           toggle("hide_nonsig", "Hide non-significant results", FALSE),
           
           
@@ -3114,7 +3129,10 @@ if (is.null(enrichment_results_list) ||
 
 # In server:
 output$gsea_plot <- renderPlot({
-  req(gsea_results())
+ 
+  req(gsea_results())  # Ensure gsea_results exists
+  req(input$go_ontology)  # Ensure ontology input exists
+  req(input$hide_nonsig)  # Ensure hide_nonsig input exists
   
   log_event(log_messages,
             "Rendering GSEA plot",
@@ -3126,7 +3144,7 @@ output$gsea_plot <- renderPlot({
       ontology = input$go_ontology,
       log_messages_rv = log_messages,
       log_event = log_event,
-      show_not_significant = !input$hide_nonsig,
+      show_not_significant = !input$hide_nonsig
     )
     
     if (is.null(plot)) {
