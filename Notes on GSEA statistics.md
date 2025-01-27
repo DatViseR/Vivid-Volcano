@@ -6,7 +6,7 @@
 
 ### BH is Too Conservative (Over-Adjusts)
 
-##### Scenario: 
+##### Scenario:
 
 A parent term is truly biologically meaningful, but its significance is
 diluted because many dependent child terms (which inherit its genes) are
@@ -30,7 +30,7 @@ Outcome: The truly meaningful parent term ("Immune response") is missed
 because BH over-penalizes it due to the large number of dependent child
 terms tested.
 
-###  BH is Too Liberal (Under-Adjusts)
+### BH is Too Liberal (Under-Adjusts)
 
 ##### Scenario:
 

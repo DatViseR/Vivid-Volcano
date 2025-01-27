@@ -9,6 +9,7 @@ library(shinyjs)
 library(readr)
 library(dplyr)
 library(ggplot2)
+library(ggtext)
 library(colourpicker)
 library(ggrepel)
 library(arrow)
@@ -1126,18 +1127,24 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 }
 
 
-build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", log_messages_rv, log_event) {
+build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", show_not_significant = FALSE, log_messages_rv, log_event) {
   log_event(log_messages_rv,
-            "Starting build_gsea_plots with ontology",
+            paste("Starting build_gsea_plots with ontology and show_not_significant =", show_not_significant),
             "DEBUG from build_gsea_plots")
   
-  # Process only downregulated genes data
-  down_data <- if (!is.null(enrichment_results_list$top_results$down) && 
-                   nrow(enrichment_results_list$top_results$down) > 0) {
-    enrichment_results_list$top_results$down %>%
+  # Select the appropriate results based on show_not_significant parameter
+  results_to_use <- if (show_not_significant) {
+    enrichment_results_list$all_results$down
+  } else {
+    enrichment_results_list$top_results$down
+  }
+  
+  # Process downregulated genes data
+  down_data <- if (!is.null(results_to_use) && nrow(results_to_use) > 0) {
+    results_to_use %>%
       slice_head(n = 20) %>%
       mutate(
-        term_label = sprintf("%s\n(%d/%d)", name, regulated_count, total_count),
+        term_label = sprintf("<b>%s</b>\n%d/%d [regulated/detected]", name, regulated_count, total_count),
         neg_log10_padj = -log10(p_adj),
         is_significant = p_adj < 0.05
       ) %>%
@@ -1160,7 +1167,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
   plot <- ggplot(down_data, aes(x = fold_enrichment, y = term_label)) +
     geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
              stat = "identity",
-             width = 0.2) +  # Even narrower bars
+             width = 0.3) +  # narrow bars
     scale_fill_continuous(
       name = "-log10(adj.P)",
       na.value = "grey90",
@@ -1172,22 +1179,23 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
       x = "Fold Enrichment",
       y = NULL
     ) +
+    scale_y_discrete(expand = c(0, 0))+
     theme_minimal() +
     theme(
-      axis.text.y = element_text(size = 8),
-      axis.text.x = element_text(size = 8),
-      axis.title.x = element_text(size = 8),
-      plot.title = element_text(size = 9, face = "bold"),
-      legend.title = element_text(size = 8),
-      legend.text = element_text(size = 8),
+      axis.text = element_markdown(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(), 
+      axis.text.y = element_text(size = 11),
+      axis.text.x = element_text(size = 11),
+      axis.title.x = element_text(size = 11),
+      plot.title = element_text(size = 12, face = "bold"),
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 11),
       plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
-      # Reduce line spacing in y-axis text
-      axis.text.y.left = element_text(lineheight = 0.2)
+      axis.text.y.left = element_text(lineheight = 0.9)
     )
-  
   return(plot)
 }
-
 
 
 
@@ -2677,24 +2685,6 @@ observeEvent(input$clientWidth, {
               # First column - Gene Set Selection
               div(class = "field",
                   multiple_radio(
-                    "gsea_gene_set",
-                    "Select Gene Set",
-                    choices = list(
-                      "Bidirectionally regulated",
-                      "Upregulated",
-                      "Downregulated"
-                    ),
-                    choices_value = c(
-                      "bidirectional",
-                      "up",
-                      "down"
-                    ),
-                    selected = "bidirectional"
-                  )
-              ),
-              # Second column - Ontology Selection
-              div(class = "field",
-                  multiple_radio(
                     "gsea_ontology",
                     "Ontology",
                     choices = list(
@@ -2711,6 +2701,9 @@ observeEvent(input$clientWidth, {
                   )
               )
           ),
+          toggle("hide_nonsig", "Hide non-significant results", FALSE),
+          
+          
           # Run GSEA button below the grid
           div(style = "margin-top: 15px; text-align: center;",
               actionButton(
@@ -3132,7 +3125,8 @@ output$gsea_plot <- renderPlot({
       enrichment_results_list = gsea_results(), 
       ontology = input$go_ontology,
       log_messages_rv = log_messages,
-      log_event = log_event
+      log_event = log_event,
+      show_not_significant = !input$hide_nonsig,
     )
     
     if (is.null(plot)) {
@@ -3153,7 +3147,7 @@ output$gsea_plot <- renderPlot({
                label = "Error generating GSEA plot. Please try again.") +
       theme_void()
   })
-})  # Set fixed height to 500px
+})  
 
 
 ## Build GSEA GT table ----
