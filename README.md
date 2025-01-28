@@ -4,6 +4,8 @@
 
 #### Key Features:
 
+Currently under development: [User-friendly GSEA analysis with publication-ready plot and table outputs]  
+
 • Upload user data in TSV/CSV format or use the provided demo data\
 • Interactive preview of the uploaded data table\
 • Server-friendly binary format for gene ontology data\
