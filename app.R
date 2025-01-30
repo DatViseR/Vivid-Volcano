@@ -839,23 +839,42 @@ identify_top_go_enrichment <- function(detected_genes,
   top10_results <- list(
     up = tryCatch({
       all_results$up %>%
-        filter(!is.na(p_adj)) %>%
-        arrange(p_adj) %>%
-        slice_head(n = 10)
+        # First sort significant results (p_adj < 1)
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1  # Add 1 to ensure p_adj < 1 results come first
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)  # Remove the temporary sorting column
     }, error = function(e) { empty_result }),
     
     down = tryCatch({
       all_results$down %>%
-        filter(!is.na(p_adj)) %>%
-        arrange(p_adj) %>%
-        slice_head(n = 10)
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)
     }, error = function(e) { empty_result }),
     
     bidirectional = tryCatch({
       all_results$bidirectional %>%
-        filter(!is.na(p_adj)) %>%
-        arrange(p_adj) %>%
-        slice_head(n = 10)
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)
     }, error = function(e) { empty_result })
   )
   
@@ -2990,8 +3009,42 @@ observeEvent(input$clientWidth, {
     ## Filtering of the source GO data to make the computations more efficient ----
     
     # More efficient GO filtering - first filter by detected genes and ontology
+    # Calculate coverage and filter GO terms
     go_filtered <- GO %>%
-      filter(gene %in% detected_genes & ontology == input$gsea_ontology)
+      # First get total counts per GO term before filtering
+      group_by(name) %>%
+      mutate(
+        total_genes_in_term = n_distinct(gene)
+      ) %>%
+      ungroup() %>%
+      # Then filter by ontology and detected genes
+      filter(ontology == input$gsea_ontology) %>%
+      # Calculate detected genes and coverage per term
+      group_by(name) %>%
+      mutate(
+        detected_genes_in_term = n_distinct(intersect(gene, detected_genes)),
+        category_coverage = detected_genes_in_term / total_genes_in_term
+      ) %>%
+      ungroup() %>%
+      # Apply coverage and size filters
+      filter(
+        gene %in% detected_genes,
+        total_genes_in_term >= 5,
+        total_genes_in_term <= 500,
+        category_coverage  >= 0.05   
+        )
+      
+    
+    # Add diagnostic logging if needed
+    if (!is.null(log_messages) && !is.null(log_event)) {
+      log_event(log_messages,
+                sprintf("GO filtering results:\n- Original terms: %d\n- Terms after coverage filtering: %d\n- Coverage threshold: %.2f\n- Minimum detected genes: %d",
+                        length(unique(GO$name)),
+                        length(unique(go_filtered$name)),
+                        0.05,    # Fixed coverage threshold
+                        5),      # Fixed minimum genes
+                "INFO")
+    }
     
     # Get missing genes and prepare ontology name
     missing_genes <- setdiff(detected_genes, go_filtered$gene)
