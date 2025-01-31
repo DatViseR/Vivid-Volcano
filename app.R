@@ -1168,106 +1168,141 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 }
 
 
-build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
-                             show_not_significant = FALSE, log_messages_rv, log_event) {
-  log_event(log_messages_rv,
-            sprintf("Starting build_gsea_plots with ontology = %s, show_not_significant = %s", 
-                    ontology, show_not_significant),
-            "DEBUG from build_gsea_plots")
-  
-  # Select the appropriate results based on show_not_significant parameter
-  results_to_use <- if (show_not_significant) {
-    log_event(log_messages_rv, 
-              sprintf("Using top10_results$down with %d rows", 
-                      if(!is.null(enrichment_results_list$top10_results$down)) nrow(enrichment_results_list$top10_results$down) else 0),
-              "DEBUG")
-    enrichment_results_list$top10_results$down
-  } else {
-    log_event(log_messages_rv, 
-              sprintf("Using top_results$down with %d rows", 
-                      if(!is.null(enrichment_results_list$top_results$down)) nrow(enrichment_results_list$top_results$down) else 0),
-              "DEBUG")
-    enrichment_results_list$top_results$down
-  }
-  
-  # Add validation check
-  if (is.null(results_to_use) || nrow(results_to_use) == 0) {
-    log_event(log_messages_rv,
-              "No data available for plotting",
-              "WARNING from build_gsea_plots")
-    return(NULL)
-  }
-  
-  log_event(log_messages_rv,
-            sprintf("Processing %d rows of data", nrow(results_to_use)),
-            "DEBUG from build_gsea_plots")
-  
-  # Process the data with fixed label format using colon separator - previously it was / but some ratios
-  # were not renered properly 
-  
- # Issue explanation: The original problem occurred because ggplot2's element_markdown()
+
+
+# Process the data with fixed label format using colon separator - previously it was / but some ratios
+# were not rendered properly 
+
+# Issue explanation: The original problem occurred because ggplot2's element_markdown()
 # was interpreting single-digit fractions (like 1/5, 1/7, 1/9) as special fraction notations
 # when both numerator and denominator were single digits. This caused these specific
 # number combinations to be rendered incorrectly or become invisible. The solution was
 # to use a colon instead of a forward slash to prevent the fraction interpretation
 # while maintaining a clear ratio representation.
+
+
+build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
+                             show_not_significant = FALSE, log_messages_rv, log_event) {
   
-  
-  down_data <- results_to_use %>%
-    mutate(
-      term_label = sprintf("<b>%s</b>\n%d:%d [regulated:detected]", 
-                           name, regulated_count, total_count),
-      neg_log10_padj = -log10(p_adj),
-      is_significant = p_adj < 0.05
-    ) %>%
-    arrange(desc(fold_enrichment)) %>%
-    mutate(
-      term_label = factor(term_label, levels = rev(term_label))
-    )
-  
+  # 1. Initial logging and input validation
   log_event(log_messages_rv,
-            sprintf("Created plot data with %d rows, %d significant", 
-                    nrow(down_data),
-                    sum(down_data$is_significant)),
+            sprintf("Starting build_gsea_plots with ontology = %s, show_not_significant = %s", 
+                    ontology, show_not_significant),
             "DEBUG from build_gsea_plots")
   
-  # Create plot with modified title based on mode
-  plot <- ggplot(down_data, aes(x = fold_enrichment, y = term_label)) +
-    geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
-             stat = "identity",
-             width = 0.3) +
-    scale_fill_continuous(
-      name = "-log10(adj.P)",
-      na.value = "grey90",
-      low = "yellow", 
-      high = "red"
-    ) +
-    labs(
-      title = sprintf("GSEA Enrichment Plot for %s\nDown-regulated Genes%s", 
-                      ontology,
-                      if(show_not_significant) "\nShowing top 10 terms by adjusted p-value" else ""),
-      x = "Fold Enrichment",
-      y = NULL
-    ) +
-    scale_y_discrete(expand = c(0, 0)) +
-    theme_minimal() +
-    theme(
-      axis.text = element_markdown(),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor.y = element_blank(), 
-      axis.text.y = element_text(size = 11),
-      axis.text.x = element_text(size = 11),
-      axis.title.x = element_text(size = 11),
-      plot.title = element_text(size = 12, face = "bold"),
-      legend.title = element_text(size = 11),
-      legend.text = element_text(size = 11),
-      plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
-      axis.text.y.left = element_text(lineheight = 0.9)
-    )
+  # 2. Data preparation: Select appropriate results based on show_not_significant parameter
+  results_to_use <- list(
+    bidirectional = if (show_not_significant) enrichment_results_list$top10_results$both else enrichment_results_list$top_results$both,
+    up = if (show_not_significant) enrichment_results_list$top10_results$up else enrichment_results_list$top_results$up,
+    down = if (show_not_significant) enrichment_results_list$top10_results$down else enrichment_results_list$top_results$down
+  )
   
-  log_event(log_messages_rv, "Plot created successfully", "DEBUG from build_gsea_plots")
+  # 3. Early validation of data sources
+  log_event(log_messages_rv,
+            sprintf("Checking data availability - Bidirectional: %s, Up: %s, Down: %s",
+                    !is.null(results_to_use$bidirectional),
+                    !is.null(results_to_use$up),
+                    !is.null(results_to_use$down)),
+            "DEBUG from build_gsea_plots")
   
-  return(plot)
+  # 4. Prepare plot titles
+  plot_titles <- list(
+    bidirectional = sprintf("%s\nBidirectionally-regulated Genes\n%s",
+                            ontology,
+                            if(show_not_significant) 
+                              "Top 10 terms\nsignificant in color" 
+                            else 
+                              "Top 10 significant terms"),
+    up = sprintf("%s\nUp-regulated Genes\n%s",
+                 ontology,
+                 if(show_not_significant) 
+                   "Top 10 terms\nsignificant in color" 
+                 else 
+                   "Top 10 significant terms"),
+    down = sprintf("%s\nDown-regulated Genes\n%s",
+                   ontology,
+                   if(show_not_significant) 
+                     "Top 10 terms\nsignificant in color" 
+                   else 
+                     "Top 10 significant terms")
+  )
+  
+  # 5. Define helper function for plot creation
+  create_single_plot <- function(results_data, plot_title, log_messages_rv) {
+    # Input validation
+    if (is.null(results_data) || nrow(results_data) == 0) {
+      log_event(log_messages_rv,
+                sprintf("No data available for %s plot", plot_title),
+                "WARNING from build_gsea_plots")
+      return(NULL)
+    }
+    
+    # Data processing
+    # Note: Using colon instead of slash to avoid markdown fraction interpretation
+    plot_data <- results_data %>%
+      mutate(
+        term_label = sprintf("<b>%s</b>\n%d:%d [regulated:detected]", 
+                             name, regulated_count, total_count),
+        neg_log10_padj = -log10(p_adj),
+        is_significant = p_adj < 0.05
+      ) %>%
+      arrange(desc(fold_enrichment)) %>%
+      mutate(
+        term_label = factor(term_label, levels = rev(term_label))
+      )
+    
+    # Log processed data info
+    log_event(log_messages_rv,
+              sprintf("Created plot data with %d rows, %d significant", 
+                      nrow(plot_data),
+                      sum(plot_data$is_significant)),
+              "DEBUG from build_gsea_plots")
+    
+    # Plot creation
+    plot <- ggplot(plot_data, aes(x = fold_enrichment, y = term_label)) +
+      geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
+               stat = "identity",
+               width = 0.3) +
+      scale_fill_continuous(
+        name = "-log10(adj.P)",
+        na.value = "grey90",
+        low = "lightblue", 
+        high = "darkblue"
+      ) +
+      labs(
+        title = plot_title,
+        x = "Fold Enrichment",
+        y = NULL
+      ) +
+      scale_y_discrete(expand = c(0, 0)) +
+      theme_minimal() +
+      theme(
+        axis.text = element_markdown(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        axis.text.y = element_text(size = 11),
+        axis.text.x = element_text(size = 11),
+        axis.title.x = element_text(size = 11),
+        plot.title = element_text(size = 12, face = "bold"),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 11),
+        plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
+        axis.text.y.left = element_text(lineheight = 0.9)
+      )
+    
+    return(plot)
+  }
+  
+  # 6. Create all three plots
+  plots <- list(
+    bidirectional = create_single_plot(results_to_use$bidirectional, plot_titles$bidirectional, log_messages_rv),
+    up = create_single_plot(results_to_use$up, plot_titles$up, log_messages_rv),
+    down = create_single_plot(results_to_use$down, plot_titles$down, log_messages_rv)
+  )
+  
+  # 7. Final logging and return
+  log_event(log_messages_rv, "All plots created successfully", "DEBUG from build_gsea_plots")
+  return(plots)
 }
 
 
@@ -2891,6 +2926,18 @@ observeEvent(input$clientWidth, {
                     segment(
                       class = "basic",
                       h4(class = "ui header", "GSEA Enrichment Plot"),
+                      div(style = "margin-bottom: 15px;",
+                          multiple_radio(
+                            input_id = "plot_category",
+                            label = "Which category to show on the barplot:",
+                            choices = c(
+                              "bidirectional" = "bidirectional",
+                              "upregulated" = "up",
+                              "downregulated" = "down"
+                            ),
+                            selected = "up"
+                          )
+                      ),
                       plotOutput("gsea_plot"),
                       div(
                         style = "margin-top: 10px;",
@@ -3209,7 +3256,9 @@ if (is.null(enrichment_results_list) ||
   return()
 }
     
-## Build GSEA plots ----
+## Build GSEA plots (observer and downloader for barplot) ----
+
+
 ## Use enrichment results to create the GSEA plot
 ## Build 3 barpolots with the same width and height
 ## The first plot will show the upregulated genes,
@@ -3224,36 +3273,21 @@ if (is.null(enrichment_results_list) ||
 
 
 
+# GSEA Plot Output
+# GSEA Plot Output
+# Server
+# GSEA Plot Output
 output$gsea_plot <- renderPlot({
-  # Log start time and user info
+  # Validate required inputs
+  req(gsea_results(), input$gsea_ontology, input$plot_category)
+  
   log_event(log_messages,
-            sprintf("[%s][User:%s] Starting GSEA plot render", "2025-01-27 14:59:16", "DatViseR"),
+            sprintf("Starting GSEA plot generation for ontology: %s, category: %s, hide_nonsig: %s",
+                    input$gsea_ontology, input$plot_category, input$hide_nonsig),
             "DEBUG from gsea_plot")
   
-  # Validate each requirement separately with logging
-  if (is.null(gsea_results())) {
-    log_event(log_messages, "gsea_results() is NULL", "DEBUG from gsea_plot")
-    return(NULL)
-  }
-  log_event(log_messages, "gsea_results() exists", "DEBUG from gsea_plot")
-  
-  if (is.null(input$gsea_ontology)) {
-    log_event(log_messages, "gsea_ontology is NULL", "DEBUG from gsea_plot")
-    return(NULL)
-  }
-  log_event(log_messages, sprintf("gsea_ontology exists: %s", input$gsea_ontology), "DEBUG from gsea_plot")
-  
-  if (is.null(input$hide_nonsig)) {
-    log_event(log_messages, "hide_nonsig is NULL", "DEBUG from gsea_plot")
-    return(NULL)
-  }
-  log_event(log_messages, sprintf("hide_nonsig exists: %s", input$hide_nonsig), "DEBUG from gsea_plot")
-  
-  # Log that all requirements are met
-  log_event(log_messages, "All requirements met, proceeding with plot generation", "INFO from gsea_plot")
-  
-  # Try to create the plot with error handling
-  plot <- tryCatch({
+  # Try to create the plots with error handling
+  plots <- tryCatch({
     build_gsea_plots(
       enrichment_results_list = gsea_results(),
       ontology = input$gsea_ontology,
@@ -3268,24 +3302,56 @@ output$gsea_plot <- renderPlot({
     return(NULL)
   })
   
-  # Log whether plot was created
-  log_event(log_messages,
-            sprintf("Plot object created: %s", !is.null(plot)),
-            "DEBUG from gsea_plot")
-  
-  # Return appropriate plot
-  if (is.null(plot)) {
-    log_event(log_messages, "Returning placeholder plot", "DEBUG from gsea_plot")
-    ggplot() +
-      annotate("text", x = 0.5, y = 0.5,
-               label = "No significant enrichment found") +
-      theme_void()
-  } else {
-    log_event(log_messages, "Returning valid plot", "DEBUG from gsea_plot")
-    plot
+  # Handle case when no plots are available
+  if (is.null(plots) || is.null(plots[[input$plot_category]])) {
+    log_event(log_messages, 
+              "No valid plot available for selected category", 
+              "DEBUG from gsea_plot")
+    
+    return(ggplot() +
+             annotate("text", x = 0.5, y = 0.5,
+                      label = "No significant enrichment found") +
+             theme_void())
   }
+  
+  # Return the selected plot
+  plots[[input$plot_category]]
 })
 
+# Download handler for GSEA plot
+output$download_gsea_plot <- downloadHandler(
+  filename = function() {
+    log_event(log_messages,
+              "Preparing GSEA plot download",
+              "DEBUG from download_gsea_plot")
+    
+    paste0("GSEA_plot_", input$gsea_ontology, "_", 
+           input$plot_category, "_",
+           format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
+  },
+  content = function(file) {
+    log_event(log_messages,
+              sprintf("Starting GSEA plot save to file: %s", file),
+              "DEBUG from download_gsea_plot")
+    
+    tryCatch({
+      # Save plot to PDF
+      ggsave(file, 
+             plot = last_plot(), 
+             width = 10, 
+             height = 8, 
+             device = "pdf")
+      
+      log_event(log_messages,
+                "GSEA plot saved successfully",
+                "DEBUG from download_gsea_plot")
+    }, error = function(e) {
+      log_event(log_messages,
+                sprintf("Error saving GSEA plot: %s", e$message),
+                "ERROR from download_gsea_plot")
+    })
+  }
+)
 
 ## Build GSEA GT table ----
 

@@ -1,5 +1,6 @@
  TO DO:
  
- 1.MUSZĘ PRZYJRZEĆ SIĘ KALKULACJI FOLDÓW BO SĄ ZA DUZE
- 2.MUSZĘ ZROBIĆ I SPRAWDZIĆ CAŁĄ STATYSTYKĘ I FILTROWANIE GO I ZROBIĆ OPIS
- 3. 
+
+ 1.Opisy do statystyki i filtrowania w formie caption albo interaktywnej info
+ 2. Rearanżacja UI 
+ 3. Dodać semantic filter na redundant GO terms
