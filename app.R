@@ -1184,19 +1184,60 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
                              show_not_significant = FALSE, log_messages_rv, log_event) {
   
-  # 1. Initial logging and input validation
+  # 1. Initial logging
   log_event(log_messages_rv,
             sprintf("Starting build_gsea_plots with ontology = %s, show_not_significant = %s", 
                     ontology, show_not_significant),
             "DEBUG from build_gsea_plots")
   
-  # 2. Data preparation: Select appropriate results based on show_not_significant parameter
+  # 2. Data preparation: Check if each category exists in the input data
+  # Fix: Check both top10_results and top_results for data availability
+  has_bidirectional <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$bidirectional) && 
+      nrow(enrichment_results_list$top10_results$bidirectional) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$bidirectional) && 
+      nrow(enrichment_results_list$top_results$bidirectional) > 0
+  }
+  
+  has_up <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$up) && 
+      nrow(enrichment_results_list$top10_results$up) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$up) && 
+      nrow(enrichment_results_list$top_results$up) > 0
+  }
+  
+  has_down <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$down) && 
+      nrow(enrichment_results_list$top10_results$down) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$down) && 
+      nrow(enrichment_results_list$top_results$down) > 0
+  }
+  
+  # Store availability information
+  enrichment_results_list$has_bidirectional <- has_bidirectional
+  enrichment_results_list$has_up <- has_up
+  enrichment_results_list$has_down <- has_down
+  
+  # Select appropriate results based on show_not_significant parameter
   results_to_use <- list(
-    bidirectional = if (show_not_significant) enrichment_results_list$top10_results$both else enrichment_results_list$top_results$both,
-    up = if (show_not_significant) enrichment_results_list$top10_results$up else enrichment_results_list$top_results$up,
-    down = if (show_not_significant) enrichment_results_list$top10_results$down else enrichment_results_list$top_results$down
+    bidirectional = if (has_bidirectional) {
+      if (show_not_significant) enrichment_results_list$top10_results$bidirectional 
+      else enrichment_results_list$top_results$bidirectional
+    } else NULL,
+    up = if (has_up) {
+      if (show_not_significant) enrichment_results_list$top10_results$up 
+      else enrichment_results_list$top_results$up
+    } else NULL,
+    down = if (has_down) {
+      if (show_not_significant) enrichment_results_list$top10_results$down 
+      else enrichment_results_list$top_results$down
+    } else NULL
   )
   
+
   # 3. Early validation of data sources
   log_event(log_messages_rv,
             sprintf("Checking data availability - Bidirectional: %s, Up: %s, Down: %s",
@@ -1263,12 +1304,15 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
       geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
                stat = "identity",
                width = 0.3) +
-      scale_fill_continuous(
+      scale_fill_gradient2(
         name = "-log10(adj.P)",
-        na.value = "grey90",
-        low = "lightblue", 
-        high = "darkblue"
-      ) +
+        low = "#E6F3FF",      # Light blue
+        mid = "#2185D0",      # Semantic UI Blue
+        high = "#084B8A",     # Navy blue
+        limits = c(1.30, max(plot_data$neg_log10_padj, na.rm = TRUE)),  # From -log10(0.05) to max value
+        midpoint = (1.30 + max(plot_data$neg_log10_padj, na.rm = TRUE))/2,  # Set midpoint halfway
+        na.value = "grey90"
+      )+
       labs(
         title = plot_title,
         x = "Fold Enrichment",
@@ -1287,7 +1331,12 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 11),
         plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
-        axis.text.y.left = element_text(lineheight = 0.9)
+        axis.text.y.left = element_text(lineheight = 0.9),
+        legend.position = c(0.95, 0.05),  # x=0.95 and y=0.05 positions (bottom right)
+        legend.justification = c(1, 0),    # Anchor point at bottom right
+        legend.box.just = "right",
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.background = element_rect(fill = "white", color = NA)
       )
     
     return(plot)
@@ -2920,9 +2969,9 @@ observeEvent(input$clientWidth, {
             ),
             
             
-            div(class = "ui two column grid",
-                # First column (50%) - GSEA Plot
-                div(class = "column",
+            div(class = "ui grid", # Remove "two column" as we'll specify widths manually
+                # First column (9/16)
+                div(class = "nine wide column", # Changed from just "column" to "eleven wide column"
                     segment(
                       class = "basic",
                       h4(class = "ui header", "GSEA Enrichment Plot"),
@@ -2943,12 +2992,11 @@ observeEvent(input$clientWidth, {
                         style = "margin-top: 10px;",
                         class = "ui tiny fluid buttons",
                         downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button"),
-                        
                       )
                     )
                 ),
-                # Second column (50%) - GSEA Results Table
-                div(class = "column",
+                # Second column ( 7/16)
+                div(class = "seven wide column", # Changed from just "column" to "five wide column"
                     segment(
                       class = "basic",
                       h4(class = "ui header", "GSEA Results Table"),
