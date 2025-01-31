@@ -1202,17 +1202,27 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
             sprintf("Processing %d rows of data", nrow(results_to_use)),
             "DEBUG from build_gsea_plots")
   
-  # Process the data - no need for slice_head since we already have the right number of results
+  # Process the data with fixed label format using colon separator - previously it was / but some ratios
+  # were not renered properly 
+  
+ # Issue explanation: The original problem occurred because ggplot2's element_markdown()
+# was interpreting single-digit fractions (like 1/5, 1/7, 1/9) as special fraction notations
+# when both numerator and denominator were single digits. This caused these specific
+# number combinations to be rendered incorrectly or become invisible. The solution was
+# to use a colon instead of a forward slash to prevent the fraction interpretation
+# while maintaining a clear ratio representation.
+  
+  
   down_data <- results_to_use %>%
     mutate(
-      term_label = sprintf("<b>%s</b>\n%d/%d [regulated/detected]", 
+      term_label = sprintf("<b>%s</b>\n%d:%d [regulated:detected]", 
                            name, regulated_count, total_count),
       neg_log10_padj = -log10(p_adj),
       is_significant = p_adj < 0.05
     ) %>%
-    arrange(desc(fold_enrichment)) %>%  # Changed to descending order
+    arrange(desc(fold_enrichment)) %>%
     mutate(
-      term_label = factor(term_label, levels = rev(term_label))  # Reverse the levels
+      term_label = factor(term_label, levels = rev(term_label))
     )
   
   log_event(log_messages_rv,
@@ -2869,6 +2879,11 @@ observeEvent(input$clientWidth, {
               class = "ui tiny fluid buttons",
             downloadButton("download_top_gsea", "Download Top GSEA Results", class = "ui button")
                 ),
+            div( 
+              class = "ui tiny fluid buttons",
+              downloadButton("download_top10_gsea", "Download Top GSEA Results", class = "ui button")
+            ),
+            
             
             div(class = "ui two column grid",
                 # First column (50%) - GSEA Plot
@@ -3178,7 +3193,8 @@ gsea_results(enrichment_results_list)
         
 log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS from GSEA observer")
 log_structure(log_messages, enrichment_results_list, "The structure of the GSEA results is:", "INFO from GSEA observer")
-log_structure(log_messages, enrichment_results_list$top_results, "The structure of the top GSEA results is:", "INFO from GSEA observer") 
+log_structure(log_messages, enrichment_results_list$top_results, "The structure of the top (significant) GSEA results is:", "INFO from GSEA observer") 
+log_structure(log_messages, enrichment_results_list$top10_results, "The structure of the top_10 (including nonsignificant) GSEA results is:", "INFO from GSEA observer") 
  
     
 # Validate we got results
@@ -3514,6 +3530,129 @@ output$gsea_results_table <- render_gt({
     }
   )
 
+  
+  output$download_top10_gsea <- downloadHandler(
+    filename = function() {
+      # Create filename with timestamp
+      paste0("GSEA_top10_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+    },
+    content = function(file) {
+      # Verify results exist
+      req(gsea_results())
+      req(gsea_results()$top10_results)
+      
+      tryCatch({
+        # Log download attempt if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Download top10 results triggered at %s by %s",
+                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                            "DatViseR"),
+                    "INFO")
+        }
+        
+        # Combine top results from all regulation groups
+        top10_results_df <- bind_rows(
+          gsea_results()$top10_results,
+          .id = "regulation_group"
+        ) %>%
+          select(
+            regulation_group,    # Regulation direction (up/down/bidirectional)
+            name,               # GO term name
+            gene_set,           # Gene set identifier
+            total_count,        # Total genes in GO term
+            genes_in_term,      # All genes in the GO term
+            regulated_count,    # Number of regulated genes
+            regulated_genes,    # List of regulated genes
+            expected_count,     # Expected number by chance
+            fold_enrichment,    # Enrichment ratio
+            p_value,           # Raw p-value
+            p_adj              # Adjusted p-value
+          )
+        
+        # Log data summary if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                            nrow(top10_results_df),
+                            paste(unique(top10_results_df$regulation_group), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write data or empty structure based on whether we have results
+        if (nrow(top10_results_df) > 0) {
+          write.csv(top10_results_df, file, row.names = FALSE)
+          
+          # Log successful write if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      sprintf("Successfully wrote %d rows of top GSEA results to file",
+                              nrow(top10_results_df)),
+                      "SUCCESS")
+          }
+        } else {
+          # Create empty data frame with correct structure
+          empty_df <- data.frame(
+            regulation_group = character(),
+            name = character(),
+            gene_set = character(),
+            total_count = integer(),
+            genes_in_term = character(),
+            regulated_count = integer(),
+            regulated_genes = character(),
+            expected_count = numeric(),
+            fold_enrichment = numeric(),
+            p_value = numeric(),
+            p_adj = numeric(),
+            stringsAsFactors = FALSE
+          )
+          
+          # Write empty structure
+          write.csv(empty_df, file, row.names = FALSE)
+          
+          # Log empty result if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      "No significant results found, wrote empty structure",
+                      "WARNING")
+          }
+        }
+        
+      }, error = function(e) {
+        # Log error if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in top results download: %s", e$message),
+                    "ERROR")
+        }
+        
+        # Create and write empty structure on error
+        empty_df <- data.frame(
+          regulation_group = character(),
+          name = character(),
+          gene_set = character(),
+          total_count = integer(),
+          genes_in_term = character(),
+          regulated_count = integer(),
+          regulated_genes = character(),
+          expected_count = numeric(),
+          fold_enrichment = numeric(),
+          p_value = numeric(),
+          p_adj = numeric(),
+          stringsAsFactors = FALSE
+        )
+        write.csv(empty_df, file, row.names = FALSE)
+      })
+    }
+  )
+  
+  
+  
+  
+  
+  
+  
+  
   output$download_gsea_results <- downloadHandler(
     filename = function() {
       paste0("GSEA_Results_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
