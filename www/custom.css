@@ -586,9 +586,16 @@ div.ui.raised.segment:hover {
 }   
 
 /*GSEA SECTION STYLING*/
+/* The h4 titles in the GSEA tabset now appear at the same height
+.segment-header {
+  position: relative;
+  height: auto;
+  margin-bottom: 1rem;
+}
 
-
-
+.segment-content {
+  position: relative;
+}
 
 
 

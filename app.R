@@ -2834,7 +2834,7 @@ observeEvent(input$clientWidth, {
       
   })
   
-# REACTIVE UI FOR OPTIONAL GSEA ANALYSIS 
+# REACTIVE UI FOR OPTIONAL GSEA ANALYSIS ----
   
   output$gsea_controls_ui <- renderUI({
     if (input$GSEA_acvited) {
@@ -2860,7 +2860,7 @@ observeEvent(input$clientWidth, {
               )
           ),
           div(class = "ui divider"),
-          toggle("hide_nonsig", "Hide non-significant results", FALSE),
+         
           
           
           # Run GSEA button below the grid
@@ -2962,42 +2962,51 @@ observeEvent(input$clientWidth, {
             ),
             
             
-            div(class = "ui grid", # Remove "two column" as we'll specify widths manually
+            div(class = "ui grid",
                 # First column (9/16)
-                div(class = "nine wide column", # Changed from just "column" to "eleven wide column"
+                div(class = "nine wide column",
                     segment(
                       class = "basic",
-                      h4(class = "ui header", "GSEA Enrichment Plot"),
-                      div(style = "margin-bottom: 15px;",
-                          multiple_radio(
-                            input_id = "plot_category",
-                            label = "Which category to show on the barplot:",
-                            choices = c(
-                              "bidirectional" = "bidirectional",
-                              "upregulated" = "up",
-                              "downregulated" = "down"
-                            ),
-                            selected = "up"
-                          )
+                      div(class = "segment-header",  # Added wrapper div for header
+                          h4(class = "ui header", "GSEA Enrichment Plot")
                       ),
-                      plotOutput("gsea_plot"),
-                      div(
-                        style = "margin-top: 10px;",
-                        class = "ui tiny fluid buttons",
-                        downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button"),
+                      div(class = "segment-content",  # Wrapped content in a div
+                          div(style = "margin-top: 15px; margin-bottom: 15px;",
+                              multiple_radio(
+                                input_id = "plot_category",
+                                label = "Which category to show on the barplot:",
+                                choices = c(
+                                  "bidirectional" = "bidirectional",
+                                  "upregulated" = "up",
+                                  "downregulated" = "down"
+                                ),
+                                selected = "up"
+                              )
+                          ),
+                          toggle("hide_nonsig", "Hide non-significant results", FALSE),
+                          div(
+                            style = "margin-top: 10px;",
+                            class = "ui tiny fluid buttons",
+                            downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button"),
+                          ),
+                          plotOutput("gsea_plot")
                       )
                     )
                 ),
-                # Second column ( 7/16)
-                div(class = "seven wide column", # Changed from just "column" to "five wide column"
+                # Second column (7/16)
+                div(class = "seven wide column",
                     segment(
                       class = "basic",
-                      h4(class = "ui header", "GSEA Results Table"),
-                      div(
-                        class = "ui tiny fluid buttons",
-                        downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
+                      div(class = "segment-header",  # Added wrapper div for header
+                          h4(class = "ui header", "GSEA Results Table")
                       ),
-                      gt_output("gsea_results_table")
+                      div(class = "segment-content",  # Wrapped content in a div
+                          div(
+                            class = "ui tiny fluid buttons",
+                            downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
+                          ),
+                          gt_output("gsea_results_table")
+                      )
                     )
                 )
             )
