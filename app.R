@@ -2571,6 +2571,9 @@ server <- function(input, output, session) {
   
   # Data source and plots
   uploaded_df <- reactiveVal()
+
+  regulated_sets <- reactiveVal(NULL)
+  
   volcano_plot_rv <- reactiveVal()
   # logging system
   log_messages <- reactiveVal("")
@@ -2792,7 +2795,7 @@ observeEvent(input$clientWidth, {
    }, ignoreInit = TRUE)
 
    
-   
+
    
 ## Render DT data preview ----    
    
@@ -2952,10 +2955,10 @@ observeEvent(input$clientWidth, {
             h4(class = "ui header", "GSEA Analysis Results"),
             div(
               class = "ui tiny fluid buttons",
-              downloadButton("reg_gene_list", "Download regulated gene list", class = "ui button"),
-              downloadButton("download_full_gsea", "Download Full GSEA Results" , class = "ui button"),
-              downloadButton("download_top_gsea", "Download Top GSEA Results", class = "ui button"),
-              downloadButton("download_top10_gsea", "Download Top GSEA Results", class = "ui button")
+              downloadButton("reg_gene_list", "Download regulated genes lists", class = "ui button"),
+              downloadButton("download_full_gsea", "Full GSEA Results" , class = "ui button"),
+              downloadButton("download_top_gsea", "Top 10 significant GSEA results", class = "ui button"),
+              downloadButton("download_top10_gsea", "Top 10 GSEA Results(inc. nonsig)", class = "ui button")
             ),
             
             
@@ -3079,6 +3082,8 @@ observeEvent(input$clientWidth, {
         pull(!!sym(input$annotation_col)) %>%
         clean_gene_names(., log_messages, log_event)
     )
+    
+    regulated_sets(regulated_sets)  # stored in the reactive for future use 
     
     # Log gene set counts
     log_event(log_messages,
@@ -3445,7 +3450,60 @@ output$gsea_results_table <- render_gt({
     # output$gsea_plot <- renderPlot({ ... })
   })
   
-## GSEA result downloaders ----   
+## GSEA result downloaders ----
+  
+  output$reg_gene_list <- downloadHandler(
+    filename = function() {
+      current_datetime <- format(Sys.time(), "%Y%m%d_%H%M%S")
+      paste0(
+        "reg_genes_adj_pval_",
+        input$alpha,
+        "_method_",
+        input$adj,
+        "_",
+        current_datetime,
+        ".csv"
+      )
+    },
+    content = function(file) {
+      req(regulated_sets())
+      
+      tryCatch({
+        # Get the regulated sets
+        sets <- regulated_sets()
+        
+        # Log the start of download process
+        log_event(log_messages, 
+                  "Starting regulated genes list download using GSEA-processed sets", 
+                  "INFO")
+        
+        # Create a data frame with two columns
+        max_length <- max(length(sets$up), length(sets$down))
+        reg_genes_df <- data.frame(
+          Upregulated = c(sets$up, rep(NA, max_length - length(sets$up))),
+          Downregulated = c(sets$down, rep(NA, max_length - length(sets$down)))
+        )
+        
+        # Write to CSV
+        write.csv(reg_genes_df, file, row.names = FALSE)
+        
+        # Log successful download
+        log_event(log_messages, 
+                  sprintf("Download successful: %d up-regulated and %d down-regulated genes", 
+                          length(sets$up), 
+                          length(sets$down)), 
+                  "SUCCESS")
+        
+      }, error = function(e) {
+        log_event(log_messages, 
+                  sprintf("Error during download: %s", e$message), 
+                  "ERROR")
+        stop(paste("Error generating file:", e$message))
+      })
+    }
+  ) 
+  
+  
   output$download_full_gsea <- downloadHandler(
     filename = function() {
       paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
