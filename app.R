@@ -2950,21 +2950,11 @@ observeEvent(input$clientWidth, {
           segment(
             class = "basic",
             h4(class = "ui header", "GSEA Analysis Results"),
-            div( 
-            class = "ui tiny fluid buttons",
-            downloadButton("reg_gene_list", "Download regulated gene list", class = "ui button"),
-            ),
-            
-            div( 
+            div(
               class = "ui tiny fluid buttons",
-            downloadButton("download_full_gsea", "Download Full GSEA Results" , class = "ui button")
-            ),
-            div( 
-              class = "ui tiny fluid buttons",
-            downloadButton("download_top_gsea", "Download Top GSEA Results", class = "ui button")
-                ),
-            div( 
-              class = "ui tiny fluid buttons",
+              downloadButton("reg_gene_list", "Download regulated gene list", class = "ui button"),
+              downloadButton("download_full_gsea", "Download Full GSEA Results" , class = "ui button"),
+              downloadButton("download_top_gsea", "Download Top GSEA Results", class = "ui button"),
               downloadButton("download_top10_gsea", "Download Top GSEA Results", class = "ui button")
             ),
             
