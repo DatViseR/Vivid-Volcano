@@ -3410,27 +3410,17 @@ output$gsea_plot <- renderPlot({
   # Adjust the plot if in mobile mode:
   # Use axis.text.x and axis.text.y separately to avoid merging issues with axis.text.
   if (is_mobile()) {
-    p <- p + theme(
-  
-      # Ensure axis text is horizontal (angle = 90) and centered
-     
-      axis.text = element_markdown(),
-      axis.title = element_text(size = 9),
-      plot.title = element_text(size = 10, face = "bold"),
-      legend.text = element_text(size = 8),
-      legend.title = element_text(size = 9),
-      plot.margin = margin(5, 5, 5, 5),
-        #move legend to upper left position
-        # Move legend to upper left position (e.g., 10% from left and 90% from bottom)
-        legend.position = c(0.1, 0.9)
-        # make the axis text also horizontal
-       
-      
+    p <- p + theme_classic() +  # Apply classic theme first
+      theme(
+        axis.text.x = element_markdown(size = 8),
+        axis.text.y = element_markdown(size = 8),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        plot.margin = margin(5, 5, 5, 5),
         
-      
-    ) +
-      theme_classic()
-   #   coord_flip()  # Flip coordinates 90 degrees for better mobile visibility
+      )
   }
   
   p
