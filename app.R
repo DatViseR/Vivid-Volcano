@@ -1182,7 +1182,8 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 
 
 build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
-                             show_not_significant = FALSE, log_messages_rv, log_event) {
+                             show_not_significant = FALSE, log_messages_rv, log_event,
+                             plotOntologyValue) {  # Add plotOntologyValue as parameter
   
   # 1. Initial logging
   log_event(log_messages_rv,
@@ -1246,34 +1247,36 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
                     !is.null(results_to_use$down)),
             "DEBUG from build_gsea_plots")
   
-  # 4. Prepare plot titles
+  # 4. Prepare plot titles using the plotOntologyValue instead of ontology
+  current_ontology <- plotOntologyValue  # Get the stored ontology value
+  
   plot_titles <- list(
     bidirectional = sprintf("%s\nBidirectionally-regulated Genes\n%s",
-                            switch(ontology,
+                            switch(current_ontology,
                                    "P" = "Biological Processes",
                                    "F" = "Molecular Functions",
                                    "C" = "Cellular Compartments",
-                                   ontology),  # fallback to original value if not P,F,C
+                                   current_ontology),  # fallback to original value if not P,F,C
                             if(show_not_significant) 
                               "Top 10 terms\nsignificant in color" 
                             else 
                               "Top 10 significant terms"),
     up = sprintf("%s\nUp-regulated Genes\n%s",
-                 switch(ontology,
+                 switch(current_ontology,
                         "P" = "Biological Processes",
                         "F" = "Molecular Functions",
                         "C" = "Cellular Compartments",
-                        ontology),  # fallback to original value if not P,F,C
+                        current_ontology),
                  if(show_not_significant) 
                    "Top 10 terms\nsignificant in color" 
                  else 
                    "Top 10 significant terms"),
     down = sprintf("%s\nDown-regulated Genes\n%s",
-                   switch(ontology,
+                   switch(current_ontology,
                           "P" = "Biological Processes",
                           "F" = "Molecular Functions",
                           "C" = "Cellular Compartments",
-                          ontology),  # fallback to original value if not P,F,C
+                          current_ontology),
                    if(show_not_significant) 
                      "Top 10 terms\n(significant in color)" 
                    else 
@@ -2593,6 +2596,8 @@ server <- function(input, output, session) {
   is_mobile <- reactiveVal(FALSE)
   #analysis
   gsea_results <- reactiveVal(NULL)
+  # chosen ontology used for creation of non-reactive title after GSEA was run
+  plotOntologyValue <- reactiveVal("P")
   # State management
   column_select_module_state <- reactiveVal("initial")
   # to prevent multiple triggers of cancel button
@@ -3054,11 +3059,13 @@ observeEvent(input$clientWidth, {
     tabset(tabs = tab_list())
   })
   
+
 ## Run GSEA observer ---- 
   observeEvent(input$run_gsea, {
     req(input$GSEA_acvited, input$gsea_ontology, 
         uploaded_df(), input$annotation_col, input$fold_col, input$alpha)
    
+    plotOntologyValue(input$gsea_ontology)
     
     # Log the GSEA analysis start
     log_event(log_messages, 
@@ -3240,6 +3247,9 @@ observeEvent(input$clientWidth, {
     }
 ## GSEA ----     
     
+    
+    
+    
     # Run enrichment analysis using identify_top_go_enrichment
     enrichment_results_list <- identify_top_go_enrichment(
       detected_genes = detected_genes,
@@ -3359,9 +3369,13 @@ if (is.null(enrichment_results_list) ||
 # GSEA Plot Output
 
 # Download handler for GSEA plot
+# GSEA Plot Renderer
 output$gsea_plot <- renderPlot({
-  # Validate that required inputs are available
-  req(gsea_results(), input$gsea_ontology, input$plot_category)
+  req(gsea_results(), 
+      input$gsea_ontology, 
+      input$plot_category, 
+      plotOntologyValue(),
+      input$hide_nonsig)
   
   log_event(
     log_messages,
@@ -3370,14 +3384,14 @@ output$gsea_plot <- renderPlot({
     "DEBUG from gsea_plot"
   )
   
-  # Create the plots using error handling
   plots <- tryCatch({
     build_gsea_plots(
       enrichment_results_list = gsea_results(),
       ontology = input$gsea_ontology,
       show_not_significant = !input$hide_nonsig,
       log_messages_rv = log_messages,
-      log_event = log_event
+      log_event = log_event,
+      plotOntologyValue = plotOntologyValue()
     )
   }, error = function(e) {
     log_event(
@@ -3388,7 +3402,6 @@ output$gsea_plot <- renderPlot({
     return(NULL)
   })
   
-  # Fallback plot if no valid plot is available
   if (is.null(plots) || is.null(plots[[input$plot_category]])) {
     log_event(
       log_messages, 
@@ -3404,13 +3417,10 @@ output$gsea_plot <- renderPlot({
     )
   }
   
-  # Retrieve the selected plot
   p <- plots[[input$plot_category]]
   
-  # Adjust the plot if in mobile mode:
-  # Use axis.text.x and axis.text.y separately to avoid merging issues with axis.text.
   if (is_mobile()) {
-    p <- p + theme_classic() +  # Apply classic theme first
+    p <- p + theme_classic() +
       theme(
         axis.text.x = element_markdown(size = 8),
         axis.text.y = element_markdown(size = 8),
@@ -3418,48 +3428,33 @@ output$gsea_plot <- renderPlot({
         plot.title = element_text(size = 10, face = "bold"),
         legend.text = element_text(size = 8),
         legend.title = element_text(size = 9),
-        plot.margin = margin(5, 5, 5, 5),
-        
+        plot.margin = margin(5, 5, 5, 5)
       )
   }
   
   p
 })
 
+# GSEA Results Table Renderer
+output$gsea_results_table <- render_gt({
+  req(gsea_results())
+  
+  if (input$color_highlight) {
+    req(input$down_color, input$up_color)
+  }
+  
+  build_gsea_gt_table(
+    enrichment_results_list = gsea_results(),
+    color_highlight = if(input$color_highlight) {
+      c(input$down_color, input$up_color)
+    } else {
+      c("#D3D3D3", "#D3D3D3")
+    },
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+})
 
-
-
-    # Use the enrichment results to create the gt table
-    # gsea_gt_table <- produce_GSEA_GT_table_for_overepresented_tags(
-    #   df = df,
-    #   detected_genes = detected_genes,
-    #   regulated_genes = gsea_gene_set,
-    #   go_data = go_filtered,
-    #   ontology = input$gsea_ontology,
-    #   annotation_col = input$annotation_col,
-    #   fold_col = input$fold_col,
-    #   alpha = input$alpha,
-    #   max_categories = 10,
-    #   log_messages_rv = log_messages,
-    #   log_event = log_event,
-    #   log_structure = log_structure,
-    #   color_highlight = if(input$color_highlight) c(input$down_color, input$up_color) else c("#000000", "#000000")
-    # )
-    
-    # # Render the GSEA results table
-    # output$gsea_results_gt <- render_gt({
-    #   gsea_gt_table
-    # })
-    # 
-    # Log completion
-    # log_event(log_messages,
-    #           sprintf("GSEA analysis completed successfully with %d enriched terms", 
-    #                   nrow(enrichment_results)),
-    #           "SUCCESS from GSEA observer")
-    # 
-    # # TODO: Add GSEA plot generation here if needed
-    # output$gsea_plot <- renderPlot({ ... })
-  })
   
 ## GSEA result downloaders ----
   
