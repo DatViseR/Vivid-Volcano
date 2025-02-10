@@ -1249,21 +1249,33 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
   # 4. Prepare plot titles
   plot_titles <- list(
     bidirectional = sprintf("%s\nBidirectionally-regulated Genes\n%s",
-                            ontology,
+                            switch(ontology,
+                                   "P" = "Biological Processes",
+                                   "F" = "Molecular Functions",
+                                   "C" = "Cellular Compartments",
+                                   ontology),  # fallback to original value if not P,F,C
                             if(show_not_significant) 
                               "Top 10 terms\nsignificant in color" 
                             else 
                               "Top 10 significant terms"),
     up = sprintf("%s\nUp-regulated Genes\n%s",
-                 ontology,
+                 switch(ontology,
+                        "P" = "Biological Processes",
+                        "F" = "Molecular Functions",
+                        "C" = "Cellular Compartments",
+                        ontology),  # fallback to original value if not P,F,C
                  if(show_not_significant) 
                    "Top 10 terms\nsignificant in color" 
                  else 
                    "Top 10 significant terms"),
     down = sprintf("%s\nDown-regulated Genes\n%s",
-                   ontology,
+                   switch(ontology,
+                          "P" = "Biological Processes",
+                          "F" = "Molecular Functions",
+                          "C" = "Cellular Compartments",
+                          ontology),  # fallback to original value if not P,F,C
                    if(show_not_significant) 
-                     "Top 10 terms\nsignificant in color" 
+                     "Top 10 terms\n(significant in color)" 
                    else 
                      "Top 10 significant terms")
   )
@@ -2962,50 +2974,66 @@ observeEvent(input$clientWidth, {
             ),
             
             
-            div(class = "ui grid",
+            div(class = "ui grid stackable mobile reversed", # Added stackable and mobile reversed
                 # First column (9/16)
-                div(class = "nine wide column",
+                div(class = "nine wide computer wide tablet sixteen wide mobile column",  # Added responsive widths
                     segment(
                       class = "basic",
-                      div(class = "segment-header",  # Added wrapper div for header
+                      div(class = "segment-header",
                           h4(class = "ui header", "GSEA Enrichment Plot")
                       ),
-                      div(class = "segment-content",  # Wrapped content in a div
-                          div(style = "margin-top: 15px; margin-bottom: 15px;",
-                              multiple_radio(
-                                input_id = "plot_category",
-                                label = "Which category to show on the barplot:",
-                                choices = c(
-                                  "bidirectional" = "bidirectional",
-                                  "upregulated" = "up",
-                                  "downregulated" = "down"
-                                ),
-                                selected = "up"
+                      # Controls container with responsive grid
+                      div(class = "ui stackable grid",
+                          div(class = "equal width row",
+                              # Radio buttons column
+                              div(class = "column",
+                                  multiple_radio(
+                                    input_id = "plot_category",
+                                    label = "Which category to show:",
+                                    choices = c(
+                                      "bidirectional" = "bidirectional",
+                                      "upregulated" = "up",
+                                      "downregulated" = "down"
+                                    ),
+                                    selected = "up"
+                                  )
+                              ),
+                              # Toggle column
+                              div(class = "column",
+                                  div(style = "margin-top: 22px;",
+                                      toggle("hide_nonsig", "Hide non-significant results", FALSE)
+                                  )
+                              ),
+                              # Download button column
+                              div(class = "column",
+                                  div(style = "margin-top: 22px;",
+                                      downloadButton("download_gsea_plot", "Download GSEA Plot", 
+                                                     class = "ui tiny fluid button")
+                                  )
                               )
-                          ),
-                          toggle("hide_nonsig", "Hide non-significant results", FALSE),
-                          div(
-                            style = "margin-top: 10px;",
-                            class = "ui tiny fluid buttons",
-                            downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui button"),
-                          ),
-                          plotOutput("gsea_plot")
+                          )
+                      ),
+                      div(class = "segment-content",
+                          div(class = "mobile-shrink-plot",  # Add this wrapper div
+                              plotOutput("gsea_plot")
+                          )
                       )
                     )
                 ),
                 # Second column (7/16)
-                div(class = "seven wide column",
+                div(class = "seven wide computer wide tablet sixteen wide mobile column", # Added responsive widths
                     segment(
                       class = "basic",
-                      div(class = "segment-header",  # Added wrapper div for header
+                      div(class = "segment-header",
                           h4(class = "ui header", "GSEA Results Table")
                       ),
-                      div(class = "segment-content",  # Wrapped content in a div
+                      div(class = "segment-content",
                           div(
                             class = "ui tiny fluid buttons",
                             downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
                           ),
-                          gt_output("gsea_results_table")
+                         
+                          gt_output("gsea_results_table"),
                       )
                     )
                 )
@@ -3329,16 +3357,20 @@ if (is.null(enrichment_results_list) ||
 # GSEA Plot Output
 # Server
 # GSEA Plot Output
+
+# Download handler for GSEA plot
 output$gsea_plot <- renderPlot({
-  # Validate required inputs
+  # Validate that required inputs are available
   req(gsea_results(), input$gsea_ontology, input$plot_category)
   
-  log_event(log_messages,
-            sprintf("Starting GSEA plot generation for ontology: %s, category: %s, hide_nonsig: %s",
-                    input$gsea_ontology, input$plot_category, input$hide_nonsig),
-            "DEBUG from gsea_plot")
+  log_event(
+    log_messages,
+    sprintf("Starting GSEA plot generation for ontology: %s, category: %s, hide_nonsig: %s",
+            input$gsea_ontology, input$plot_category, input$hide_nonsig),
+    "DEBUG from gsea_plot"
+  )
   
-  # Try to create the plots with error handling
+  # Create the plots using error handling
   plots <- tryCatch({
     build_gsea_plots(
       enrichment_results_list = gsea_results(),
@@ -3348,81 +3380,61 @@ output$gsea_plot <- renderPlot({
       log_event = log_event
     )
   }, error = function(e) {
-    log_event(log_messages,
-              sprintf("Error in build_gsea_plots: %s", e$message),
-              "ERROR from gsea_plot")
+    log_event(
+      log_messages,
+      sprintf("Error in build_gsea_plots: %s", e$message),
+      "ERROR from gsea_plot"
+    )
     return(NULL)
   })
   
-  # Handle case when no plots are available
+  # Fallback plot if no valid plot is available
   if (is.null(plots) || is.null(plots[[input$plot_category]])) {
-    log_event(log_messages, 
-              "No valid plot available for selected category", 
-              "DEBUG from gsea_plot")
+    log_event(
+      log_messages, 
+      "No valid plot available for selected category", 
+      "DEBUG from gsea_plot"
+    )
     
-    return(ggplot() +
-             annotate("text", x = 0.5, y = 0.5,
-                      label = "No significant enrichment found") +
-             theme_void())
+    return(
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5,
+                 label = "No significant enrichment found") +
+        theme_void()
+    )
   }
   
-  # Return the selected plot
-  plots[[input$plot_category]]
-})
-
-# Download handler for GSEA plot
-output$download_gsea_plot <- downloadHandler(
-  filename = function() {
-    log_event(log_messages,
-              "Preparing GSEA plot download",
-              "DEBUG from download_gsea_plot")
-    
-    paste0("GSEA_plot_", input$gsea_ontology, "_", 
-           input$plot_category, "_",
-           format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
-  },
-  content = function(file) {
-    log_event(log_messages,
-              sprintf("Starting GSEA plot save to file: %s", file),
-              "DEBUG from download_gsea_plot")
-    
-    tryCatch({
-      # Save plot to PDF
-      ggsave(file, 
-             plot = last_plot(), 
-             width = 10, 
-             height = 8, 
-             device = "pdf")
+  # Retrieve the selected plot
+  p <- plots[[input$plot_category]]
+  
+  # Adjust the plot if in mobile mode:
+  # Use axis.text.x and axis.text.y separately to avoid merging issues with axis.text.
+  if (is_mobile()) {
+    p <- p + theme(
+  
+      # Ensure axis text is horizontal (angle = 90) and centered
+     
+      axis.text = element_markdown(),
+      axis.title = element_text(size = 9),
+      plot.title = element_text(size = 10, face = "bold"),
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9),
+      plot.margin = margin(5, 5, 5, 5),
+        #move legend to upper left position
+        # Move legend to upper left position (e.g., 10% from left and 90% from bottom)
+        legend.position = c(0.1, 0.9)
+        # make the axis text also horizontal
+       
       
-      log_event(log_messages,
-                "GSEA plot saved successfully",
-                "DEBUG from download_gsea_plot")
-    }, error = function(e) {
-      log_event(log_messages,
-                sprintf("Error saving GSEA plot: %s", e$message),
-                "ERROR from download_gsea_plot")
-    })
+        
+      
+    ) +
+      theme_classic()
+   #   coord_flip()  # Flip coordinates 90 degrees for better mobile visibility
   }
-)
-
-## Build GSEA GT table ----
-
-# In your server function
-output$gsea_results_table <- render_gt({
-  req(gsea_results())
   
-  build_gsea_gt_table(
-    enrichment_results_list = gsea_results(),
-    color_highlight = if(input$color_highlight) {
-      c(input$down_color, input$up_color)
-    } else {
-      c("#D3D3D3", "#D3D3D3")
-    },
-    log_messages_rv = log_messages,
-    log_event = log_event
-  )
+  p
 })
-
 
 
 

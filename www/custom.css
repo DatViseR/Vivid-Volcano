@@ -586,18 +586,55 @@ div.ui.raised.segment:hover {
 }   
 
 /*GSEA SECTION STYLING*/
-/* The h4 titles in the GSEA tabset now appear at the same height
+/* The h4 titles in the GSEA tabset now appear at the same height*/
+
 .segment-header {
   position: relative;
   height: auto;
   margin-bottom: 1rem;
 }
 
-.segment-content {
-  position: relative;
+
+
+/* Ensure proper spacing in the controls grid */
+.ui.stackable.grid {
+  margin-top: 0.3rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Adjust radio button group alignment */
+.radiobuttongroup {
+  margin-bottom: 0 !important;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 801px) {
+  .ui.stackable.grid > .column:not(.row) {
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+  }
+}
+
+/* Adjust spacing for mobile view */
+@media only screen and (max-width: 801px) {
+  .ui.grid.stackable.mobile.reversed > .column:not(.row) {
+    margin-bottom: 2rem !important;
+  }
+  
+  .ui.grid.stackable.mobile.reversed > .column:last-child {
+    margin-bottom: 0 !important;
+  }
 }
 
 
 
-
-
+/* CSS styling for mobile devices to shrink the plot without rotating it.
+   This ensures that the plot container adapts to smaller screen sizes. */
+@media only screen and (max-width: 800px) {
+  .mobile-shrink-plot {
+    width: 90%;
+    height: auto;
+    margin: 20px auto; /* Centers the container */
+    overflow: visible;
+  }
+}
