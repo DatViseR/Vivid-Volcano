@@ -1183,7 +1183,7 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 
 build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
                              show_not_significant = FALSE, log_messages_rv, log_event,
-                             plotOntologyValue) {  # Add plotOntologyValue as parameter
+                             plotOntologyValue) {  
   
   # 1. Initial logging
   log_event(log_messages_rv,
@@ -3374,8 +3374,8 @@ output$gsea_plot <- renderPlot({
   req(gsea_results(), 
       input$gsea_ontology, 
       input$plot_category, 
-      plotOntologyValue(),
-      input$hide_nonsig)
+      plotOntologyValue()
+     )
   
   log_event(
     log_messages,
@@ -4630,5 +4630,5 @@ output$gsea_results_table <- render_gt({
     
   
 })
-}
+  })}
 shinyApp(ui = ui, server = server)
