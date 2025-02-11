@@ -529,31 +529,100 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
 }
 
 
-#' Identify top enriched GO categories for multiple sets of regulated genes.
+#' Identify top enriched GO categories for multiple sets of regulated genes
 #'
-#' @description 
-#' Performs Gene Ontology enrichment analysis for multiple sets of regulated genes (up, down, bidirectional)
-#' using hypergeometric testing and controlling for multiple testing.
+#' @description
+#' Performs Gene Ontology (GO) enrichment analysis using hypergeometric testing for multiple
+#' sets of regulated genes (up-regulated, down-regulated, and bidirectionally regulated).
+#' The function implements multiple testing correction and various filtering criteria to
+#' identify statistically significant GO terms.
 #'
-#' @param detected_genes A character vector of all genes detected in the experiment.
-#' @param regulated_sets A list of character vectors containing regulated genes. 
-#'        Must be named (e.g., "up", "down", "bidirectional").
-#' @param go_filtered A pre-filtered data frame containing GO annotations matching detected genes 
-#'        and selected ontology. Must contain columns: 'name' (GO term), 'gene', 'ontology'.
-#' @param ontology Character string specifying the ontology (e.g., "P", "F", "C").
-#' @param p_adj_method String for the p-value adjustment method (default: "BH").
-#' @param alpha Numeric specifying the significance level after p-value adjustment (default: 0.05).
-#' @param max_categories Maximum number of top categories to be returned (default: 10).
-#' @param min_genes_in_term Minimum number of genes required in a GO term (default: 5).
-#' @param max_genes_in_term Maximum number of genes allowed in a GO term (default: 500).
-#' @param min_fold_enrichment Minimum fold enrichment required (default: 1.5).
-#' @param log_messages_rv A reactiveValues object for logging events (optional).
-#' @param log_event Function for logging events (optional).
+#' @details
+#' The function performs the following steps:
+#' 1. Validates input parameters and GO annotations
+#' 2. Calculates background statistics for GO terms
+#' 3. Processes each gene set (up/down/bidirectional) separately
+#' 4. Performs hypergeometric testing for enrichment
+#' 5. Adjusts p-values for multiple testing
+#' 6. Filters results based on significance criteria
+#' 7. Returns both top significant terms and complete analysis results
 #'
-#' @return A list containing three elements:
-#'   \item{top_results}{A list of data frames with top significant GO terms for each gene set}
-#'   \item{all_results}{A list of data frames with all GO terms and statistics for each gene set}
-#'   \item{missing_genes}{Character vector of genes without GO annotations}
+#' @param detected_genes A character vector of all genes detected in the experiment (background set).
+#' @param regulated_sets A named list of character vectors containing regulated genes.
+#'        Names should be "up", "down", and/or "bidirectional".
+#'        Example: list(up = c("gene1", "gene2"), down = c("gene3", "gene4"))
+#' @param go_filtered A data frame containing filtered GO annotations with columns:
+#'        \itemize{
+#'          \item name - GO term name/ID
+#'          \item gene - Gene identifier
+#'          \item ontology - GO category (P: Process, F: Function, C: Component)
+#'        }
+#' @param ontology Character string specifying the GO category to analyze ("P", "F", or "C").
+#' @param p_adj_method Method for p-value adjustment. Default: "BH" (Benjamini-Hochberg).
+#'        See ?p.adjust for available methods.
+#' @param alpha Significance level threshold after p-value adjustment. Default: 0.05
+#' @param max_categories Maximum number of top enriched categories to return. Default: 10
+#' @param min_genes_in_term Minimum number of genes required in a GO term. Default: 5
+#' @param max_genes_in_term Maximum number of genes allowed in a GO term. Default: 500
+#' @param min_fold_enrichment Minimum fold enrichment required. Default: 1.5
+#' @param log_messages_rv Optional reactiveValues object for Shiny app logging.
+#' @param log_event Optional function for logging events in Shiny app.
+#'
+#' @return A list containing four elements:
+#' \describe{
+#'   \item{top_results}{A list of data frames (one per gene set) containing significantly
+#'         enriched GO terms that pass all filters, sorted by adjusted p-value}
+#'   \item{all_results}{A list of data frames (one per gene set) containing all tested
+#'         GO terms and their statistics}
+#'   \item{top10_results}{A list of data frames (one per gene set) containing the top 10
+#'         GO terms sorted by significance, regardless of filtering criteria}
+#'   \item{missing_genes}{Character vector of input genes without GO annotations}
+#' }
+#'
+#' Each results data frame contains the following columns:
+#' \describe{
+#'   \item{name}{GO term name/ID}
+#'   \item{gene_set}{Name of the gene set (up/down/bidirectional)}
+#'   \item{total_count}{Total number of genes associated with the GO term}
+#'   \item{genes_in_term}{Semicolon-separated list of all genes in the term}
+#'   \item{regulated_count}{Number of regulated genes in the term}
+#'   \item{regulated_genes}{Semicolon-separated list of regulated genes in the term}
+#'   \item{expected_count}{Expected number of genes by chance}
+#'   \item{fold_enrichment}{Observed/Expected ratio}
+#'   \item{p_value}{Raw p-value from hypergeometric test}
+#'   \item{p_adj}{Adjusted p-value}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Prepare input data
+#' detected <- c("gene1", "gene2", "gene3", "gene4", "gene5")
+#' regulated <- list(
+#'   up = c("gene1", "gene2"),
+#'   down = c("gene3", "gene4")
+#' )
+#' go_data <- data.frame(
+#'   name = c("GO:0001", "GO:0002"),
+#'   gene = c("gene1", "gene2"),
+#'   ontology = c("P", "P")
+#' )
+#'
+#' # Run enrichment analysis
+#' results <- identify_top_go_enrichment(
+#'   detected_genes = detected,
+#'   regulated_sets = regulated,
+#'   go_filtered = go_data,
+#'   ontology = "P"
+#' )
+#' }
+#'
+#' @seealso
+#' \code{\link[stats]{p.adjust}} for p-value adjustment methods
+#'
+#' @importFrom dplyr group_by summarise filter inner_join mutate arrange %>%
+#' @importFrom stats p.adjust phyper
+#'
+#' @export
 identify_top_go_enrichment <- function(detected_genes,
                                        regulated_sets,
                                        go_filtered,
@@ -1396,6 +1465,104 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
         )
     )
   }
+  
+  #' Filter GSEA Results by GO Term Name Pattern
+  #'
+  #' @description
+  #' Given a GSEA results object (as produced by identify_top_go_enrichment) that contains 
+  #' enrichment result data frames for each gene set (up, down, bidirectional) in the slots
+  #' 'top_results', 'all_results', and 'top10_results', this function filters each result 
+  #' data frame by a user-specified pattern. For each category in each slot, only the top hit
+  #' (i.e. the row with the lowest adjusted p-value among those whose GO term names match the pattern)
+  #' is retained. If no match is found in a particular data frame, the original data frame is returned.
+  #'
+  #' @param gsea_results A list containing the GSEA results with the following structure:
+  #' \describe{
+  #'   \item{top_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
+  #'   \item{all_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
+  #'   \item{top10_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
+  #'   \item{missing_genes}{A character vector of genes without GO annotations}
+  #' }
+  #' Each data frame is expected to include at least the columns "name" and "p_adj".
+  #'
+  #' @param pattern A character string pattern to filter the GO term names. The matching is 
+  #'   case-insensitive and based on partial matching.
+  #'
+  #' @return A new GSEA results object (list) with the same structure as the input, but with
+  #'   each data frame in 'top_results', 'all_results', and 'top10_results' filtered so that 
+  #'   only the top hit (lowest adjusted p-value) among the GO terms containing the pattern is retained.
+  #'   If a particular data frame has no matching GO term, the original data frame is returned for that category.
+  #'
+  #' @examples
+  #' \dontrun{
+  #' # Assume 'gsea_results' is a reactive value containing the structure as described:
+  #' # List of 4 elements: top_results, all_results, top10_results, and missing_genes.
+  #' # For instance, filtering results for GO terms related to "ribosom":
+  #' 
+  #' filtered_results <- filter_gsea_by_name(gsea_results, "ribosom")
+  #' 
+  #' # The 'filtered_results' can then be assigned back to the reactive value if desired.
+  #' }
+  #'
+  #' @export
+  #' 
+filter_gsea_by_name <- function(gsea_results, pattern) {
+    
+    # Helper function: filters a data frame to retain the top hit that matches the pattern.
+    filter_and_pick <- function(df, pattern) {
+      # If the input data frame is empty, return it as is.
+      if (nrow(df) == 0) return(df)
+      
+      # Identify rows where the 'name' column matches the pattern (case-insensitive)
+      matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
+      matching_results <- df[matching_idx, , drop = FALSE]
+      
+      # If there are no matches, return the original data frame
+      if (nrow(matching_results) == 0) {
+        return(df)
+      }
+      
+      # Order matching results by adjusted p-value (lowest p_adj first)
+      matching_results <- matching_results[order(matching_results$p_adj), ]
+      
+      # Return the top result (first row)
+      return(matching_results[1, , drop = FALSE])
+    }
+    
+    # Categories to process
+    categories <- c("up", "down", "bidirectional")
+    
+    # Create new lists to store filtered data frames for each result slot
+    filtered_top_results <- list()
+    filtered_all_results <- list()
+    filtered_top10_results <- list()
+    
+    # Process each category for each slot in the gsea_results
+    for (cat in categories) {
+      filtered_top_results[[cat]] <- filter_and_pick(gsea_results$top_results[[cat]], pattern)
+      filtered_all_results[[cat]] <- filter_and_pick(gsea_results$all_results[[cat]], pattern)
+      filtered_top10_results[[cat]] <- filter_and_pick(gsea_results$top10_results[[cat]], pattern)
+    }
+    
+    # Assemble and return the new GSEA results object with the filtered data frames.
+    filtered_gsea_results <- list(
+      top_results = filtered_top_results,
+      all_results = filtered_all_results,
+      top10_results = filtered_top10_results,
+      missing_genes = gsea_results$missing_genes
+    )
+    
+    return(filtered_gsea_results)
+  } 
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   # Process results for each regulation type
   process_results <- function(df, regulation_type) {
@@ -2984,34 +3151,60 @@ observeEvent(input$clientWidth, {
                 div(class = "nine wide computer wide tablet sixteen wide mobile column",
                     div(class = "ui segment basic",
                         div(class = "segment-header",
-                            # Header and download button stacked vertically
                             h4(class = "ui header", "GSEA Enrichment Plot"),
-                            downloadButton("download_gsea_plot", "Download GSEA Plot", 
-                                           class = "ui tiny button")
+                            downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui tiny button")
                         ),
-                        # Controls container with responsive grid
-                        div(class = "ui stackable grid",
-                            div(class = "equal width row",
-                                # Radio buttons column
-                                div(class = "column",
-                                    multiple_radio(
-                                      input_id = "plot_category",
-                                      label = "Which category to show:",
-                                      choices = c(
-                                        "bidirectional" = "bidirectional",
-                                        "upregulated" = "up",
-                                        "downregulated" = "down"
-                                      ),
-                                      selected = "up"
-                                    )
+                        # Responsive controls aligned together in a single row using a semantic stackable grid.
+                        div(
+                          class = "ui stackable grid",
+                          div(
+                            class = "row",
+                            # Column for radio buttons (Which category to show)
+                            div(
+                              class = "four wide computer four wide tablet sixteen wide mobile column",
+                              multiple_radio(
+                                input_id = "plot_category",
+                                label = "Which category to show:",
+                                choices = c(
+                                  "bidirectional" = "bidirectional",
+                                  "upregulated" = "up",
+                                  "downregulated" = "down"
                                 ),
-                                # Toggle column
-                                div(class = "column",
-                                    div(style = "margin-top: 22px;",
-                                        toggle("hide_nonsig", "Hide non-significant results", FALSE)
-                                    )
+                                selected = "up"
+                              )
+                            ),
+                            # Column for toggle: Hide non-significant results
+                            div(
+                              class = "three wide computer three wide tablet sixteen wide mobile column",
+                              div(style = "margin-top: 22px;",
+                                  toggle("hide_nonsig", "Hide non-significant results", FALSE)
+                              )
+                            ),
+                            # Column for text input and action button in vertical layout
+                            div(
+                              class = "five wide computer five wide tablet sixteen wide mobile column",
+                              div(
+                                # Text input on top
+                                div(style = "margin-bottom: 5px;",
+                                    textInput("gsea_filter_pattern", "", placeholder = "Filter GO terms by name")
+                                ),
+                                # Action button below text input
+                                div(
+                                  actionButton("apply_filter", "Apply Filter", class = "ui button")
                                 )
+                              )
+                            ),
+                            # Column for conditional toggle: Show original results (appears after apply_filter is clicked)
+                            div(
+                              class = "three wide computer three wide tablet sixteen wide mobile column",
+                              conditionalPanel(
+                                condition = "input.apply_filter > 0",
+                                div(style = "margin-top: 22px;",
+                                    toggle("show_original", "Switch back to nonfiltered results", FALSE)
+                                )
+                              )
                             )
+                          )
                         ),
                         div(class = "segment-content",
                             div(class = "mobile-shrink-plot",
