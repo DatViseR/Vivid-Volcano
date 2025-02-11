@@ -1466,94 +1466,54 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
     )
   }
   
-  #' Filter GSEA Results by GO Term Name Pattern
-  #'
-  #' @description
-  #' Given a GSEA results object (as produced by identify_top_go_enrichment) that contains 
-  #' enrichment result data frames for each gene set (up, down, bidirectional) in the slots
-  #' 'top_results', 'all_results', and 'top10_results', this function filters each result 
-  #' data frame by a user-specified pattern. For each category in each slot, only the top hit
-  #' (i.e. the row with the lowest adjusted p-value among those whose GO term names match the pattern)
-  #' is retained. If no match is found in a particular data frame, the original data frame is returned.
-  #'
-  #' @param gsea_results A list containing the GSEA results with the following structure:
-  #' \describe{
-  #'   \item{top_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
-  #'   \item{all_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
-  #'   \item{top10_results}{A named list (with elements "up", "down", "bidirectional") of data frames}
-  #'   \item{missing_genes}{A character vector of genes without GO annotations}
-  #' }
-  #' Each data frame is expected to include at least the columns "name" and "p_adj".
-  #'
-  #' @param pattern A character string pattern to filter the GO term names. The matching is 
-  #'   case-insensitive and based on partial matching.
-  #'
-  #' @return A new GSEA results object (list) with the same structure as the input, but with
-  #'   each data frame in 'top_results', 'all_results', and 'top10_results' filtered so that 
-  #'   only the top hit (lowest adjusted p-value) among the GO terms containing the pattern is retained.
-  #'   If a particular data frame has no matching GO term, the original data frame is returned for that category.
-  #'
-  #' @examples
-  #' \dontrun{
-  #' # Assume 'gsea_results' is a reactive value containing the structure as described:
-  #' # List of 4 elements: top_results, all_results, top10_results, and missing_genes.
-  #' # For instance, filtering results for GO terms related to "ribosom":
-  #' 
-  #' filtered_results <- filter_gsea_by_name(gsea_results, "ribosom")
-  #' 
-  #' # The 'filtered_results' can then be assigned back to the reactive value if desired.
-  #' }
-  #'
-  #' @export
-  #' 
-filter_gsea_by_name <- function(gsea_results, pattern) {
+ 
+filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
+    log_event(log_messages_rv, sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), "INFO")
     
-    # Helper function: filters a data frame to retain the top hit that matches the pattern.
     filter_and_pick <- function(df, pattern) {
-      # If the input data frame is empty, return it as is.
-      if (nrow(df) == 0) return(df)
-      
-      # Identify rows where the 'name' column matches the pattern (case-insensitive)
+      if (nrow(df) == 0) {
+        log_event(log_messages_rv, "Encountered empty data frame; returning as is.", "INFO")
+        return(df)
+      }
       matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
       matching_results <- df[matching_idx, , drop = FALSE]
       
-      # If there are no matches, return the original data frame
       if (nrow(matching_results) == 0) {
+        log_event(log_messages_rv, "No matching entries found; returning original data frame.", "INFO")
         return(df)
       }
-      
-      # Order matching results by adjusted p-value (lowest p_adj first)
       matching_results <- matching_results[order(matching_results$p_adj), ]
-      
-      # Return the top result (first row)
+      log_event(log_messages_rv, sprintf("Found %d matching entries; selecting top hit.", nrow(matching_results)), "INFO")
       return(matching_results[1, , drop = FALSE])
     }
     
-    # Categories to process
     categories <- c("up", "down", "bidirectional")
-    
-    # Create new lists to store filtered data frames for each result slot
     filtered_top_results <- list()
     filtered_all_results <- list()
     filtered_top10_results <- list()
     
-    # Process each category for each slot in the gsea_results
     for (cat in categories) {
-      filtered_top_results[[cat]] <- filter_and_pick(gsea_results$top_results[[cat]], pattern)
-      filtered_all_results[[cat]] <- filter_and_pick(gsea_results$all_results[[cat]], pattern)
-      filtered_top10_results[[cat]] <- filter_and_pick(gsea_results$top10_results[[cat]], pattern)
+      log_event(log_messages_rv, sprintf("Filtering category '%s' in top_results.", cat), "INFO")
+      filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], filter_pattern)
+      
+      log_event(log_messages_rv, sprintf("Filtering category '%s' in all_results.", cat), "INFO")
+      filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], filter_pattern)
+      
+      log_event(log_messages_rv, sprintf("Filtering category '%s' in top10_results.", cat), "INFO")
+      filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], filter_pattern)
     }
     
-    # Assemble and return the new GSEA results object with the filtered data frames.
+    log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS")
+    
     filtered_gsea_results <- list(
       top_results = filtered_top_results,
       all_results = filtered_all_results,
       top10_results = filtered_top10_results,
-      missing_genes = gsea_results$missing_genes
+      missing_genes = enrichment_results_list$missing_genes
     )
     
     return(filtered_gsea_results)
-  } 
+  }
   
   
   
@@ -2763,6 +2723,9 @@ server <- function(input, output, session) {
   is_mobile <- reactiveVal(FALSE)
   #analysis
   gsea_results <- reactiveVal(NULL)
+  
+  gsea_filtered_results <- reactiveVal(NULL)
+  
   # chosen ontology used for creation of non-reactive title after GSEA was run
   plotOntologyValue <- reactiveVal("P")
   # State management
@@ -3547,7 +3510,18 @@ if (is.null(enrichment_results_list) ||
 ## The plot should have a legend with the color scale and the title should be "GSEA Enrichment Plot for [ontology]"
 
 
-
+# Reactive expression to determine which results to use for plotting.
+selected_gsea_results <- reactive({
+  # If the Apply Filter button was pressed, and "Switch back" toggle is NOT active,
+  # then use the filtered results. Otherwise, use the original results.
+  if (input$apply_filter > 0 && !isTRUE(input$show_original)) {
+    req(gsea_filtered_results())
+    gsea_filtered_results()
+  } else {
+    req(gsea_results())
+    gsea_results()
+  }
+})
 # GSEA Plot Output
 # GSEA Plot Output
 # Server
@@ -3571,7 +3545,7 @@ output$gsea_plot <- renderPlot({
   
   plots <- tryCatch({
     build_gsea_plots(
-      enrichment_results_list = gsea_results(),
+      enrichment_results_list = selected_gsea_results(),
       ontology = input$gsea_ontology,
       show_not_significant = !input$hide_nonsig,
       log_messages_rv = log_messages,
@@ -3620,7 +3594,7 @@ output$gsea_plot <- renderPlot({
   p
 })
 
-# GSEA Results Table Renderer
+# GSEA Results Table Renderer----
 output$gsea_results_table <- render_gt({
   req(gsea_results())
   
@@ -3640,7 +3614,35 @@ output$gsea_results_table <- render_gt({
   )
 })
 
+
+# Observer for GSEA filter pattern----
+observeEvent(input$apply_filter, {
+  req(input$apply_filter, input$gsea_filter_pattern)
   
+  # Log the start of filtering process.
+  log_event(log_messages, 
+            sprintf("Applying filter pattern: %s", input$gsea_filter_pattern), 
+            "INFO from GSEA filter observer")
+  
+  # Apply the filter using our function.
+  filtered_results <- filter_gsea_results(
+    enrichment_results_list = gsea_results(),
+    filter_pattern = input$gsea_filter_pattern,
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+  
+  # Store the filtered results.
+  gsea_filtered_results(filtered_results)
+  
+  # Log the completion of filtering.
+  log_event(log_messages, 
+            "Filter pattern applied successfully", 
+            "SUCCESS from GSEA filter observer")
+}, ignoreInit = TRUE)
+
+
+
 ## GSEA result downloaders ----
 
 output$download_gsea_plot <- downloadHandler(
