@@ -2979,67 +2979,59 @@ observeEvent(input$clientWidth, {
             ),
             
             
-            div(class = "ui grid stackable mobile reversed", # Added stackable and mobile reversed
+            div(class = "ui grid stackable mobile reversed",
                 # First column (9/16)
-                div(class = "nine wide computer wide tablet sixteen wide mobile column",  # Added responsive widths
-                    segment(
-                      class = "basic",
-                      div(class = "segment-header",
-                          h4(class = "ui header", "GSEA Enrichment Plot")
-                      ),
-                      # Controls container with responsive grid
-                      div(class = "ui stackable grid",
-                          div(class = "equal width row",
-                              # Radio buttons column
-                              div(class = "column",
-                                  multiple_radio(
-                                    input_id = "plot_category",
-                                    label = "Which category to show:",
-                                    choices = c(
-                                      "bidirectional" = "bidirectional",
-                                      "upregulated" = "up",
-                                      "downregulated" = "down"
-                                    ),
-                                    selected = "up"
-                                  )
-                              ),
-                              # Toggle column
-                              div(class = "column",
-                                  div(style = "margin-top: 22px;",
-                                      toggle("hide_nonsig", "Hide non-significant results", FALSE)
-                                  )
-                              ),
-                              # Download button column
-                              div(class = "column",
-                                  div(style = "margin-top: 22px;",
-                                      downloadButton("download_gsea_plot", "Download GSEA Plot", 
-                                                     class = "ui tiny fluid button")
-                                  )
-                              )
-                          )
-                      ),
-                      div(class = "segment-content",
-                          div(class = "mobile-shrink-plot",  # Add this wrapper div
-                              plotOutput("gsea_plot")
-                          )
-                      )
+                div(class = "nine wide computer wide tablet sixteen wide mobile column",
+                    div(class = "ui segment basic",
+                        div(class = "segment-header",
+                            # Header and download button stacked vertically
+                            h4(class = "ui header", "GSEA Enrichment Plot"),
+                            downloadButton("download_gsea_plot", "Download GSEA Plot", 
+                                           class = "ui tiny button")
+                        ),
+                        # Controls container with responsive grid
+                        div(class = "ui stackable grid",
+                            div(class = "equal width row",
+                                # Radio buttons column
+                                div(class = "column",
+                                    multiple_radio(
+                                      input_id = "plot_category",
+                                      label = "Which category to show:",
+                                      choices = c(
+                                        "bidirectional" = "bidirectional",
+                                        "upregulated" = "up",
+                                        "downregulated" = "down"
+                                      ),
+                                      selected = "up"
+                                    )
+                                ),
+                                # Toggle column
+                                div(class = "column",
+                                    div(style = "margin-top: 22px;",
+                                        toggle("hide_nonsig", "Hide non-significant results", FALSE)
+                                    )
+                                )
+                            )
+                        ),
+                        div(class = "segment-content",
+                            div(class = "mobile-shrink-plot",
+                                plotOutput("gsea_plot")
+                            )
+                        )
                     )
                 ),
                 # Second column (7/16)
-                div(class = "seven wide computer wide tablet sixteen wide mobile column", # Added responsive widths
-                    segment(
-                      class = "basic",
-                      div(class = "segment-header",
-                          h4(class = "ui header", "GSEA Results Table")
-                      ),
-                      div(class = "segment-content",
-                          div(
-                            class = "ui tiny fluid buttons",
-                            downloadButton("download_gsea_results", "Download GSEA Results", class = "ui button")
-                          ),
-                         
-                          gt_output("gsea_results_table"),
-                      )
+                div(class = "seven wide computer wide tablet sixteen wide mobile column",
+                    div(class = "ui segment basic",
+                        div(class = "segment-header",
+                            # Header and download button stacked vertically
+                            h4(class = "ui header", "GSEA Results Table"),
+                            downloadButton("download_gsea_results", "Download GSEA Table", 
+                                           class = "ui tiny button")
+                        ),
+                        div(class = "segment-content",
+                            gt_output("gsea_results_table")
+                        )
                     )
                 )
             )
