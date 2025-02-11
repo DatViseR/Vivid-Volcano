@@ -1258,7 +1258,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
                                    "C" = "Cellular Compartments",
                                    current_ontology),  # fallback to original value if not P,F,C
                             if(show_not_significant) 
-                              "Top 10 terms\nsignificant in color" 
+                              "Top 10 terms\n(significant in color)" 
                             else 
                               "Top 10 significant terms"),
     up = sprintf("%s\nUp-regulated Genes\n%s",
@@ -1268,7 +1268,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
                         "C" = "Cellular Compartments",
                         current_ontology),
                  if(show_not_significant) 
-                   "Top 10 terms\nsignificant in color" 
+                   "Top 10 terms\n(significant in color)" 
                  else 
                    "Top 10 significant terms"),
     down = sprintf("%s\nDown-regulated Genes\n%s",
@@ -1297,7 +1297,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
     # Note: Using colon instead of slash to avoid markdown fraction interpretation
     plot_data <- results_data %>%
       mutate(
-        term_label = sprintf("<b>%s</b>\n%d:%d [regulated:detected]", 
+        term_label = sprintf("<b>%s</b><br>%d:%d [regulated:detected]", 
                              name, regulated_count, total_count),
         neg_log10_padj = -log10(p_adj),
         is_significant = p_adj < 0.05
