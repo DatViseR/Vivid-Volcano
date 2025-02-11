@@ -1584,80 +1584,134 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
 
 #' Filter redundant GO terms from GSEA results
 #' 
-#' @description
-#' Removes redundant GO terms from GSEA results while keeping the most significant match
-#' (lowest adjusted p-value) and all non-matching terms.
-#' 
-#' @param enrichment_results_list List containing GSEA results with components:
-#'   - top_results, all_results, top10_results: Lists of tibbles (up/down/bidirectional)
-#'   - missing_genes: Character vector
+#' @param enrichment_results_list List containing GSEA results
 #' @param filter_pattern Pattern to match in GO term names
 #' @param log_messages_rv Reactive value for log storage
-#' @param log_event Logging function (log_messages_rv, message, level)
+#' @param log_event Logging function
 #'
-#' @return Filtered GSEA results list with same structure as input
+#' @return Filtered GSEA results list
 #' @export
 filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
-  # Log start of filtering process
-  log_event(log_messages_rv, sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), "INFO")
+  log_event(log_messages_rv, 
+            sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), 
+            "INFO from filter_gsea_results")
   
-  # Helper function to filter redundant terms and keep top hit
-  filter_and_pick <- function(df, pattern) {
+  filter_all_results <- function(df, pattern) {
     if (nrow(df) == 0) {
-      log_event(log_messages_rv, "Encountered empty data frame; returning as is.", "INFO")
+      log_event(log_messages_rv, 
+                "Encountered empty data frame; returning as is.", 
+                "INFO from filter_gsea_results")
       return(df)
     }
     
     # Split into matching and non-matching results
     matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
-    matching_results <- df[matching_idx, , drop = FALSE]
-    non_matching_results <- df[!matching_idx, , drop = FALSE]
     
-    if (nrow(matching_results) == 0) {
-      log_event(log_messages_rv, "No matching entries found; returning original data frame.", "INFO")
+    if (!any(matching_idx)) {
+      log_event(log_messages_rv, 
+                "No matching entries found; returning original data frame.", 
+                "INFO from filter_gsea_results")
       return(df)
     }
     
-    # Sort by adjusted p-value and keep top hit
+    # Get matching results and sort by adjusted p-value
+    matching_results <- df[matching_idx, , drop = FALSE]
     matching_results <- matching_results[order(matching_results$p_adj), ]
+    
     log_event(log_messages_rv, 
               sprintf("Found %d matching entries; keeping most significant (p_adj: %g)", 
                       nrow(matching_results), matching_results$p_adj[1]), 
-              "INFO")
+              "INFO from filter_gsea_results")
     
-    # Combine top hit with non-matching results and sort
-    filtered_results <- rbind(matching_results[1, , drop = FALSE], non_matching_results)
+    # Keep only the top matching result with all its original data
+    top_match <- matching_results[1, , drop = FALSE]
+    
+    # Get non-matching results preserving all original data
+    non_matching_results <- df[!matching_idx, , drop = FALSE]
+    
+    # Combine and sort while preserving all columns
+    filtered_results <- rbind(top_match, non_matching_results)
     filtered_results <- filtered_results[order(filtered_results$p_adj), ]
     
     return(filtered_results)
   }
   
-  # Process each category and result type
+  rebuild_top_results <- function(all_results_df, alpha = 0.05, min_fold_enrichment = 1.5, max_categories = 10) {
+    if (nrow(all_results_df) == 0) return(all_results_df[0, ])
+    
+    # Filter significant results while preserving all columns
+    significant_results <- all_results_df[
+      !is.na(all_results_df$p_adj) & 
+        all_results_df$p_adj < alpha &
+        !is.na(all_results_df$fold_enrichment) & 
+        all_results_df$fold_enrichment >= min_fold_enrichment, 
+    ]
+    
+    if (nrow(significant_results) == 0) return(all_results_df[0, ])
+    
+    # Sort and take top results while preserving all data
+    significant_results[order(significant_results$p_adj)[1:min(max_categories, nrow(significant_results))], ]
+  }
+  
+  rebuild_top10_results <- function(all_results_df) {
+    if (nrow(all_results_df) == 0) return(all_results_df[0, ])
+    
+    # Create temporary sorting value
+    sorting_values <- ifelse(all_results_df$p_adj < 1, 
+                             all_results_df$p_adj, 
+                             all_results_df$p_value + 1)
+    
+    # Sort and take top 10 while preserving all original data
+    all_results_df[order(sorting_values)[1:min(10, nrow(all_results_df))], ]
+  }
+  
   categories <- c("up", "down", "bidirectional")
   filtered_top_results <- list()
   filtered_all_results <- list()
   filtered_top10_results <- list()
   
   for (cat in categories) {
-    # Filter top results
-    log_event(log_messages_rv, sprintf("Filtering category '%s' in top_results.", cat), "INFO")
-    filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], 
-                                                   filter_pattern)
+    # Get original data safely
+    original_all <- enrichment_results_list$all_results[[cat]]
     
-    # Filter all results
-    log_event(log_messages_rv, sprintf("Filtering category '%s' in all_results.", cat), "INFO")
-    filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], 
-                                                   filter_pattern)
+    # Filter all_results first
+    filtered_all_results[[cat]] <- filter_all_results(original_all, filter_pattern)
     
-    # Filter top10 results
-    log_event(log_messages_rv, sprintf("Filtering category '%s' in top10_results.", cat), "INFO")
-    filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], 
-                                                     filter_pattern)
+    # Rebuild other results from filtered all_results
+    filtered_top_results[[cat]] <- rebuild_top_results(filtered_all_results[[cat]])
+    filtered_top10_results[[cat]] <- rebuild_top10_results(filtered_all_results[[cat]])
+    
+    # Get the original top10 for comparison
+    original_top10 <- enrichment_results_list$top10_results[[cat]]
+    
+    # Enhanced logging with safe comparison
+    changed_terms <- if (!is.null(original_top10) && nrow(original_top10) > 0) {
+      sum(!filtered_top10_results[[cat]]$name %in% original_top10$name)
+    } else {
+      NA
+    }
+    
+    log_event(log_messages_rv, 
+              sprintf(paste0(
+                "Category '%s' processed:\n",
+                "- All results: %d (from %d)\n",
+                "- Significant (p_adj < 0.05): %d\n",
+                "- Top matching term: '%s' (p_adj: %g)\n",
+                "- Top10 content changes: %s"
+              ),
+              cat,
+              nrow(filtered_all_results[[cat]]),
+              nrow(original_all),
+              sum(!is.na(filtered_all_results[[cat]]$p_adj) & 
+                    filtered_all_results[[cat]]$p_adj < 0.05),
+              filtered_top10_results[[cat]]$name[1],
+              filtered_top10_results[[cat]]$p_adj[1],
+              if(is.na(changed_terms)) "N/A" else sprintf("%d terms", changed_terms)),
+              "INFO from filter_gsea_results")
   }
   
-  log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS")
+  log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS from filter_gsea_results")
   
-  # Return filtered results maintaining original structure
   filtered_gsea_results <- list(
     top_results = filtered_top_results,
     all_results = filtered_all_results,
@@ -1667,10 +1721,6 @@ filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_mes
   
   return(filtered_gsea_results)
 }
-
-
-
-
 
 
 
@@ -3562,7 +3612,7 @@ selected_gsea_results <- reactive({
 # Download handler for GSEA plot
 # GSEA Plot Renderer
 output$gsea_plot <- renderPlot({
-  req(gsea_results(), 
+  req(selected_gsea_results(), 
       input$gsea_ontology, 
       input$plot_category, 
       plotOntologyValue()
