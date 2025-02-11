@@ -1582,44 +1582,82 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
 
 
 
+#' Filter redundant GO terms from GSEA results
+#' 
+#' @description
+#' Removes redundant GO terms from GSEA results while keeping the most significant match
+#' (lowest adjusted p-value) and all non-matching terms.
+#' 
+#' @param enrichment_results_list List containing GSEA results with components:
+#'   - top_results, all_results, top10_results: Lists of tibbles (up/down/bidirectional)
+#'   - missing_genes: Character vector
+#' @param filter_pattern Pattern to match in GO term names
+#' @param log_messages_rv Reactive value for log storage
+#' @param log_event Logging function (log_messages_rv, message, level)
+#'
+#' @return Filtered GSEA results list with same structure as input
+#' @export
 filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
+  # Log start of filtering process
   log_event(log_messages_rv, sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), "INFO")
   
+  # Helper function to filter redundant terms and keep top hit
   filter_and_pick <- function(df, pattern) {
     if (nrow(df) == 0) {
       log_event(log_messages_rv, "Encountered empty data frame; returning as is.", "INFO")
       return(df)
     }
+    
+    # Split into matching and non-matching results
     matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
     matching_results <- df[matching_idx, , drop = FALSE]
+    non_matching_results <- df[!matching_idx, , drop = FALSE]
     
     if (nrow(matching_results) == 0) {
       log_event(log_messages_rv, "No matching entries found; returning original data frame.", "INFO")
       return(df)
     }
+    
+    # Sort by adjusted p-value and keep top hit
     matching_results <- matching_results[order(matching_results$p_adj), ]
-    log_event(log_messages_rv, sprintf("Found %d matching entries; selecting top hit.", nrow(matching_results)), "INFO")
-    return(matching_results[1, , drop = FALSE])
+    log_event(log_messages_rv, 
+              sprintf("Found %d matching entries; keeping most significant (p_adj: %g)", 
+                      nrow(matching_results), matching_results$p_adj[1]), 
+              "INFO")
+    
+    # Combine top hit with non-matching results and sort
+    filtered_results <- rbind(matching_results[1, , drop = FALSE], non_matching_results)
+    filtered_results <- filtered_results[order(filtered_results$p_adj), ]
+    
+    return(filtered_results)
   }
   
+  # Process each category and result type
   categories <- c("up", "down", "bidirectional")
   filtered_top_results <- list()
   filtered_all_results <- list()
   filtered_top10_results <- list()
   
   for (cat in categories) {
+    # Filter top results
     log_event(log_messages_rv, sprintf("Filtering category '%s' in top_results.", cat), "INFO")
-    filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], filter_pattern)
+    filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], 
+                                                   filter_pattern)
     
+    # Filter all results
     log_event(log_messages_rv, sprintf("Filtering category '%s' in all_results.", cat), "INFO")
-    filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], filter_pattern)
+    filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], 
+                                                   filter_pattern)
     
+    # Filter top10 results
     log_event(log_messages_rv, sprintf("Filtering category '%s' in top10_results.", cat), "INFO")
-    filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], filter_pattern)
+    filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], 
+                                                     filter_pattern)
   }
   
   log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS")
   
+  # Return filtered results maintaining original structure
   filtered_gsea_results <- list(
     top_results = filtered_top_results,
     all_results = filtered_all_results,
