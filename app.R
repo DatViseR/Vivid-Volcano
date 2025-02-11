@@ -1465,65 +1465,7 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
         )
     )
   }
-  
- 
-filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
-    log_event(log_messages_rv, sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), "INFO")
-    
-    filter_and_pick <- function(df, pattern) {
-      if (nrow(df) == 0) {
-        log_event(log_messages_rv, "Encountered empty data frame; returning as is.", "INFO")
-        return(df)
-      }
-      matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
-      matching_results <- df[matching_idx, , drop = FALSE]
-      
-      if (nrow(matching_results) == 0) {
-        log_event(log_messages_rv, "No matching entries found; returning original data frame.", "INFO")
-        return(df)
-      }
-      matching_results <- matching_results[order(matching_results$p_adj), ]
-      log_event(log_messages_rv, sprintf("Found %d matching entries; selecting top hit.", nrow(matching_results)), "INFO")
-      return(matching_results[1, , drop = FALSE])
-    }
-    
-    categories <- c("up", "down", "bidirectional")
-    filtered_top_results <- list()
-    filtered_all_results <- list()
-    filtered_top10_results <- list()
-    
-    for (cat in categories) {
-      log_event(log_messages_rv, sprintf("Filtering category '%s' in top_results.", cat), "INFO")
-      filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], filter_pattern)
-      
-      log_event(log_messages_rv, sprintf("Filtering category '%s' in all_results.", cat), "INFO")
-      filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], filter_pattern)
-      
-      log_event(log_messages_rv, sprintf("Filtering category '%s' in top10_results.", cat), "INFO")
-      filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], filter_pattern)
-    }
-    
-    log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS")
-    
-    filtered_gsea_results <- list(
-      top_results = filtered_top_results,
-      all_results = filtered_all_results,
-      top10_results = filtered_top10_results,
-      missing_genes = enrichment_results_list$missing_genes
-    )
-    
-    return(filtered_gsea_results)
-  }
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   # Process results for each regulation type
   process_results <- function(df, regulation_type) {
     if (is.null(df) || nrow(df) == 0) return(NULL)
@@ -1636,6 +1578,58 @@ filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_mes
   
   return(gt_table)
 }
+
+
+
+
+filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
+  log_event(log_messages_rv, sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), "INFO")
+  
+  filter_and_pick <- function(df, pattern) {
+    if (nrow(df) == 0) {
+      log_event(log_messages_rv, "Encountered empty data frame; returning as is.", "INFO")
+      return(df)
+    }
+    matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
+    matching_results <- df[matching_idx, , drop = FALSE]
+    
+    if (nrow(matching_results) == 0) {
+      log_event(log_messages_rv, "No matching entries found; returning original data frame.", "INFO")
+      return(df)
+    }
+    matching_results <- matching_results[order(matching_results$p_adj), ]
+    log_event(log_messages_rv, sprintf("Found %d matching entries; selecting top hit.", nrow(matching_results)), "INFO")
+    return(matching_results[1, , drop = FALSE])
+  }
+  
+  categories <- c("up", "down", "bidirectional")
+  filtered_top_results <- list()
+  filtered_all_results <- list()
+  filtered_top10_results <- list()
+  
+  for (cat in categories) {
+    log_event(log_messages_rv, sprintf("Filtering category '%s' in top_results.", cat), "INFO")
+    filtered_top_results[[cat]] <- filter_and_pick(enrichment_results_list$top_results[[cat]], filter_pattern)
+    
+    log_event(log_messages_rv, sprintf("Filtering category '%s' in all_results.", cat), "INFO")
+    filtered_all_results[[cat]] <- filter_and_pick(enrichment_results_list$all_results[[cat]], filter_pattern)
+    
+    log_event(log_messages_rv, sprintf("Filtering category '%s' in top10_results.", cat), "INFO")
+    filtered_top10_results[[cat]] <- filter_and_pick(enrichment_results_list$top10_results[[cat]], filter_pattern)
+  }
+  
+  log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS")
+  
+  filtered_gsea_results <- list(
+    top_results = filtered_top_results,
+    all_results = filtered_all_results,
+    top10_results = filtered_top10_results,
+    missing_genes = enrichment_results_list$missing_genes
+  )
+  
+  return(filtered_gsea_results)
+}
+
 
 
 
