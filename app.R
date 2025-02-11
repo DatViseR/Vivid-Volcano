@@ -3457,7 +3457,35 @@ output$gsea_results_table <- render_gt({
 
   
 ## GSEA result downloaders ----
-  
+
+output$download_gsea_plot <- downloadHandler(
+  filename = function() {
+    paste0("GSEA_plot_", input$plot_category, "_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(gsea_results(), 
+        input$gsea_ontology, 
+        input$plot_category, 
+        plotOntologyValue())
+    
+    plots <- build_gsea_plots(
+      enrichment_results_list = gsea_results(),
+      ontology = input$gsea_ontology,
+      show_not_significant = !input$hide_nonsig,
+      log_messages_rv = log_messages,
+      log_event = log_event,
+      plotOntologyValue = plotOntologyValue()
+    )
+    
+    # Get the specific plot based on category
+    p <- plots[[input$plot_category]]
+    
+    # Save the plot
+    ggsave(file, p, width = 10, height = 8, device = cairo_pdf)
+  }
+)
+
+
   output$reg_gene_list <- downloadHandler(
     filename = function() {
       current_datetime <- format(Sys.time(), "%Y%m%d_%H%M%S")
