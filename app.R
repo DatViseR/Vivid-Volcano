@@ -2790,9 +2790,8 @@ ui <- semanticPage(
     <div style='line-height: 1.4;'>
         <strong style='color: #2185D0;'>GO Term Selection Criteria for Gene Set Enrichment analysis (GSEA):</strong>
         <ul style='margin: 8px 0; padding-left: 20px;'>
-            <li>Terms must contain 5-500 genes</li>
+            <li>Terms must contain 5-500 genes detected in your experiment</li>
             <li>At least 5% of genes in each term must be detected in your data</li>
-            <li>Only includes genes present in your dataset</li>
             <li>Filtered by selected ontology category</li>
         </ul>
         <div style='font-size: 0.9em; color: #666;'>
@@ -3343,13 +3342,32 @@ observeEvent(input$clientWidth, {
                               div(
                                 # Text input on top
                                 div(style = "margin-bottom: 5px;",
-                                    textInput("gsea_filter_pattern", "", placeholder = "Filter GO terms by name")
+                                    textInput("gsea_filter_pattern", "Filter redundant GO terms", placeholder = "Input redundant text")
                                 ),
                                 # Action button below text input
                                 div(
-                                  actionButton("apply_filter", "Apply Filter", class = "ui button")
+                                  actionButton("apply_filter", "Apply Filter", class = "ui blue button")
                                 )
                               )
+                            ),div(class = "tooltip-container",
+                                  style = "display: inline-block;",  # Prevents layout breaking
+                                  tags$i(class = "info circle icon info-icon"),
+                                  div(class = "tooltip-text",
+                                      style = "position: absolute; z-index: 100;",  # Ensures tooltip does not disrupt layout
+                                      HTML("
+<div style='line-height: 1.4; max-width: 400px;'>
+    <strong style='color: #2185D0;'>Filtering Redundant Terms</strong>
+    <div style='margin: 8px 0; font-size: 0.9em;'>
+        This filtering may be aplied when there are many redundant terms in the top results.
+        It preserves the top hit that matches the provided text pattern, removing other entries matching this pattern,
+        and then rearranges the results accordingly by original adjusted p value.For example typing `ribosom` would 
+        affect terms containing `ribosomal`, `ribosome`, `ribosomal subunit`, `ribosomal biogenesis` etc. This is purely semantic filter that 
+        helps to achieve meaningful plots and table. It does not affect the full GSEA results that you can download separately.You can 
+        come back to the original results by switching toogle on the right.
+    </div>
+</div>
+")
+                                  )
                             ),
                             # Column for conditional toggle: Show original results (appears after apply_filter is clicked)
                             div(
