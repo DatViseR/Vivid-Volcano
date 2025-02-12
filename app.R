@@ -2736,8 +2736,10 @@ ui <- semanticPage(
                                                                                ),
                            
                            div(class = "ui grey ribbon label", "GSEA analysis controls"),
-                           toggle("GSEA_acvited", "I want to run GSEA", FALSE),
-                           uiOutput("gsea_controls_ui"),
+                           div(class = "ui form",
+                               toggle("GSEA_acvited", "I want to run GSEA", FALSE)
+                              
+                               ), uiOutput("gsea_controls_ui"),
                           
                            
                            # Plot Options Card
@@ -3067,40 +3069,45 @@ observeEvent(input$clientWidth, {
   
   output$gsea_controls_ui <- renderUI({
     if (input$GSEA_acvited) {
-      div(class = "ui segment",
-          div(class = "ui two column grid",
-              # First column - Gene Set Selection
-              div(class = "field",
-                  multiple_radio(
-                    "gsea_ontology",
-                    "Ontology",
-                    choices = list(
-                      "Cellular Component",
-                      "Molecular Function",
-                      "Biological Process"
-                    ),
-                    choices_value = c(
-                      "C",  # Changed from "CC"
-                      "F",  # Changed from "MF"
-                      "P"   # Changed from "BP"
-                    ),
-                    selected = "P"
+      div(class = "ui segment custom-segment",
+          div(class = "ui stackable grid",
+              div(class = "row",
+                  # First column: Gene Set Selection with Multiple Radio Buttons
+                  div(class = "eight wide column",
+                      div(class = "field",
+                          multiple_radio(
+                            "gsea_ontology",
+                            "Ontology",
+                            choices = list(
+                              "Cellular Component",
+                              "Molecular Function",
+                              "Biological Process"
+                            ),
+                            choices_value = c(
+                              "C",  # Changed from "CC"
+                              "F",  # Changed from "MF"
+                              "P"   # Changed from "BP"
+                            ),
+                            selected = "P"
+                          )
+                      )
+                  ),
+                    
+                  
+                  # Second column: Action Button (Centered)
+                  div(class = "eight wide column",
+                      div(style = "display: flex; align-items: center; justify-content: center;",
+                          actionButton(
+                            inputId = "run_gsea",
+                            label = HTML('<i class="play icon"></i> Run GSEA'),
+                            class = "ui primary button"
+                          )
+                      )
                   )
-              )
-          ),
-          div(class = "ui divider"),
-         
-          
-          
-          # Run GSEA button below the grid
-          div(style = "margin-top: 15px; text-align: center;",
-              actionButton(
-                "run_gsea",
-                label = HTML('<i class="play icon"></i> Run GSEA'),
-                class = "ui primary button"
               )
           )
       )
+ 
     }
   })
   

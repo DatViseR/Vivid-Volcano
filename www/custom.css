@@ -638,3 +638,20 @@ div.ui.raised.segment:hover {
     overflow: visible;
   }
 }
+
+/* CSS rules for reactive UI for GSEA */
+
+/* Custom segment styling with a linear-gradient background */
+.ui.segment.custom-segment {
+  background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+/* Ensure that grid rows align items vertically centered */
+.ui.stackable.grid > .row {
+  display: flex !important;
+  align-items: center;
+}
+
