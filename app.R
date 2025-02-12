@@ -2663,7 +2663,25 @@ ui <- semanticPage(
                           
                          
                           header(title = "Upload your data", description = "", icon = "upload"),
-                          div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
+                          div(class = "ribbon-container",
+                              div(class = "ui grey ribbon label", 
+                                  "Upload a CSV or TSV file")
+                              ),
+                          div(class = "tooltip-container",
+                              tags$i(class = "info circle icon info-icon"),
+                              div(class = "tooltip-text",
+                                  HTML("
+                    <strong>Accepted file formats:</strong><br>
+                    - CSV (comma or semicolon separated values)<br>
+                    - TSV (tab-separated values)<br><br>
+                    <strong>File requirements:</strong><br>
+                    - Maximum file size: 25MB<br>
+                    - Upload a full omics dataset containing at least gene names, log2 fold changes and raw p-values<br>
+                ")
+                              )
+                          ),
+                          
+                          
                           div(class = "ui file input", 
                               file_input("file1", 
                                          label = paste0("Maximum file size: 25MB"),
@@ -2690,7 +2708,7 @@ ui <- semanticPage(
                                   ),
                                   # Separator Radio Buttons
                                   div(class = "field",
-                                      multiple_radio(class = "radio", "sep", "Separator", 
+                                      multiple_radio(class = "radio compact", "sep", "Separator", 
                                                      choices = list("Comma" , 
                                                                     "Semicolon", 
                                                                     "Tab"), 

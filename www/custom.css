@@ -183,6 +183,8 @@ div.ui.raised.segment:hover {
 
 
 
+
+
 /* Add spacing between elements inside segments */
 .ui.raised.segment:not(:first-of-type) > * {
     margin-bottom: 1rem;
@@ -654,4 +656,77 @@ div.ui.raised.segment:hover {
   display: flex !important;
   align-items: center;
 }
+/********* TOOLTIP*//****************
 
+
+/* Tooltip container */
+.tooltip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;  /* Reduced from 10px to bring it closer to the ribbon */
+  height: 100%;
+  vertical-align: middle;
+  }
+
+
+/* Container for ribbon and icon */
+.ribbon-container {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  gap: 0;
+}
+
+/* Question mark icon */
+.info-icon {
+  color: #2185D0 !important;
+  font-size: 20px !important;
+  cursor: help;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  line-height: 1;
+  position: relative;
+  left: -18px;  /* Pull the icon slightly closer to the ribbon */
+  transform: translateY(-1px);  /* Slightly adjust the vertical position */
+}
+
+
+
+/* Tooltip text */
+.tooltip-text {
+  visibility: hidden;
+  position: absolute;
+  width: 250px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+/* Show tooltip on hover */
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
