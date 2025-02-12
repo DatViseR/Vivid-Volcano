@@ -3805,7 +3805,7 @@ output$gsea_results_table <- render_gt({
     log_event = log_event
   )
 })
-
+})
 
 # Observer for GSEA filter pattern----
 observeEvent(input$apply_filter, {
@@ -5035,7 +5035,8 @@ output$download_gsea_plot <- downloadHandler(
       isolate(log_messages(""))  # Clear logs
     })
     
+    
+  })
+}
   
-})
-  })}
 shinyApp(ui = ui, server = server)
