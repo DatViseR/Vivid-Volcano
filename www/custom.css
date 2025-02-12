@@ -644,17 +644,42 @@ div.ui.raised.segment:hover {
 /* CSS rules for reactive UI for GSEA */
 
 /* Custom segment styling with a linear-gradient background */
+/* Specific styling for GSEA segment */
 .ui.segment.custom-segment {
-  background: linear-gradient(90deg, #F5F5F5, #E0E1E2) !important;
+  background: linear-gradient(90deg, #F5F5F5, #E0E1E2);
   border: 2px solid #ccc;
   border-radius: 8px;
-  padding: 10px;
+  padding: 15px;
+  margin: 10px 0;
 }
 
-/* Ensure that grid rows align items vertically centered */
-.ui.stackable.grid > .row {
-  display: flex !important;
+/* Specific styling for GSEA grid */
+.custom-segment .ui.stackable.grid {
+  margin: 0;
+}
+
+/* Style the radio buttons container */
+.custom-segment .eight.wide.column .field {
+  margin-bottom: 0;
+}
+
+/* Center the action button container */
+.custom-segment .eight.wide.column:last-child > div {
+  display: flex;
   align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Ensure proper spacing in mobile view */
+@media screen and (max-width: 767px) {
+  .custom-segment .ui.stackable.grid > .row > .column {
+    padding: 10px !important;
+  }
+  
+  .custom-segment .eight.wide.column:last-child {
+    margin-top: 10px;
+  }
 }
 /********* TOOLTIP*//****************
 
@@ -671,7 +696,7 @@ div.ui.raised.segment:hover {
 
 
 /* Container for ribbon and icon */
-.ribbon-container {
+/*.ribbon-container {
   display: inline-flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;

@@ -2663,22 +2663,22 @@ ui <- semanticPage(
                           
                          
                           header(title = "Upload your data", description = "", icon = "upload"),
-                          div(class = "ribbon-container",
+                      #    div(class = "ribbon-container",
                               div(class = "ui grey ribbon label", 
-                                  "Upload a CSV or TSV file")
-                              ),
-                          div(class = "tooltip-container",
-                              tags$i(class = "info circle icon info-icon"),
-                              div(class = "tooltip-text",
-                                  HTML("
-                    <strong>Accepted file formats:</strong><br>
-                    - CSV (comma or semicolon separated values)<br>
-                    - TSV (tab-separated values)<br>
-                   <strong>Upload an omics dataset in which single gene/protein is an observation</strong><br>(must contain gene names!)<br>
-                   <strong>Performs many data curations</strong><br>(always displays an info in case data is modified!)<br>
-                ")
-                              )
-                          ),
+                                  "Upload a CSV or TSV file"),
+                       #       ),
+                #           div(class = "tooltip-container",
+                #               tags$i(class = "info circle icon info-icon"),
+                #               div(class = "tooltip-text",
+                #                   HTML("
+                #     <strong>Accepted file formats:</strong><br>
+                #     - CSV (comma or semicolon separated values)<br>
+                #     - TSV (tab-separated values)<br>
+                #    <strong>Upload an omics dataset in which single gene/protein is an observation</strong><br>(must contain gene names!)<br>
+                #    <strong>Performs many data curations</strong><br>(always displays an info in case data is modified!)<br>
+                # ")
+                #               )
+                #           ),
                           
                           
                           div(class = "ui file input", 
@@ -2739,32 +2739,32 @@ ui <- semanticPage(
                            # ribbon
                            header(title = "Analysis Options", description = "Customize GSEA and volcano plot options",icon = "cogs"),
                            div(class = "ui grey ribbon label", "Customize p value adjustment"),
-                          div(class = "tooltip-container",
-                              style = "display: inline-block;", # Add this to prevent layout breaking
-                              tags$i(class = "info circle icon info-icon"),
-                              div(class = "tooltip-text",
-                                  style = "position: absolute; z-index: 100;", # Add this to prevent layout disruption
-                                  HTML("
-    <div style='line-height: 1.4; max-width: 400px;'> <!-- Add max-width to control tooltip size -->
-        <strong style='color: #2185D0;'>Why Adjust P-values?</strong>
-        <div style='margin: 8px 0; font-size: 0.9em;'>
-            Multiple testing increases false positive risk - when testing many hypotheses, some will appear significant by chance alone.
-        </div>
-        
-        <strong style='color: #2185D0;'>Available Methods:</strong>
-        <ul style='margin: 8px 0; padding-left: 20px;'>
-            <li><strong>Benjamini-Hochberg (BH)</strong>: Controls false discovery rate (FDR), balances power and false positives</li>
-            <li><strong>Benjamini-Yekutieli (BY)</strong>: More conservative than BH, makes no assumptions about dependencies</li>
-            <li><strong>Hochberg</strong>: Less conservative than Bonferroni, controls family-wise error rate</li>
-            <li><strong>Bonferroni</strong>: Most conservative, strongly controls family-wise error rate</li>
-            <li><strong>None</strong>: Unadjusted p-values, high false positive risk</li>
-        </ul>
-        <div style='font-size: 0.9em; color: #666; margin-top: 8px;'>
-            <i>Recommendation:</i> BH is suitable for most analyses. BY provides more conservative control but at the cost of statistical power.Use BY if you have, for example, RNA‐sequencing data from heterogeneous tumor samples where unpredictable, complex gene co-expression patterns create unknown dependencies among tests, necessitating robust FDR control despite reduced power. </div>
-    </div>
-")
-                              )
-                          ),
+#                           div(class = "tooltip-container",
+#                               style = "display: inline-block;", # Add this to prevent layout breaking
+#                               tags$i(class = "info circle icon info-icon"),
+#                               div(class = "tooltip-text",
+#                                   style = "position: absolute; z-index: 100;", # Add this to prevent layout disruption
+#                                   HTML("
+#     <div style='line-height: 1.4; max-width: 400px;'> <!-- Add max-width to control tooltip size -->
+#         <strong style='color: #2185D0;'>Why Adjust P-values?</strong>
+#         <div style='margin: 8px 0; font-size: 0.9em;'>
+#             Multiple testing increases false positive risk - when testing many hypotheses, some will appear significant by chance alone.
+#         </div>
+#         
+#         <strong style='color: #2185D0;'>Available Methods:</strong>
+#         <ul style='margin: 8px 0; padding-left: 20px;'>
+#             <li><strong>Benjamini-Hochberg (BH)</strong>: Controls false discovery rate (FDR), balances power and false positives</li>
+#             <li><strong>Benjamini-Yekutieli (BY)</strong>: More conservative than BH, makes no assumptions about dependencies</li>
+#             <li><strong>Hochberg</strong>: Less conservative than Bonferroni, controls family-wise error rate</li>
+#             <li><strong>Bonferroni</strong>: Most conservative, strongly controls family-wise error rate</li>
+#             <li><strong>None</strong>: Unadjusted p-values, high false positive risk</li>
+#         </ul>
+#         <div style='font-size: 0.9em; color: #666; margin-top: 8px;'>
+#             <i>Recommendation:</i> BH is suitable for most analyses. BY provides more conservative control but at the cost of statistical power.Use BY if you have, for example, RNA‐sequencing data from heterogeneous tumor samples where unpredictable, complex gene co-expression patterns create unknown dependencies among tests, necessitating robust FDR control despite reduced power. </div>
+#     </div>
+# ")
+#                               )
+#                           ),
                            
                            dropdown_input("adj",
                                           choices = c("None",
@@ -2779,26 +2779,26 @@ ui <- semanticPage(
                                                                                ),
                            
                            div(class = "ui grey ribbon label", "GSEA analysis controls"),
-                          div(class = "tooltip-container",
-                              tags$i(class = "info circle icon info-icon"),
-                              div(class = "tooltip-text",
-                                  HTML("
-    <div style='line-height: 1.4;'>
-        <strong style='color: #2185D0;'>GO Term Selection Criteria:</strong>
-        <ul style='margin: 8px 0; padding-left: 20px;'>
-            <li>Terms must contain 5-500 genes</li>
-            <li>At least 5% of genes in each term must be detected in your data</li>
-            <li>Only includes genes present in your dataset</li>
-            <li>Filtered by selected ontology category</li>
-        </ul>
-        <div style='font-size: 0.9em; color: #666;'>
-            This ensures meaningful and statistically relevant GO terms for your analysis.
-        </div>
-    </div>
-")
-                                  
-                              )
-                          ),
+#                           div(class = "tooltip-container",
+#                               tags$i(class = "info circle icon info-icon"),
+#                               div(class = "tooltip-text",
+#                                   HTML("
+#     <div style='line-height: 1.4;'>
+#         <strong style='color: #2185D0;'>GO Term Selection Criteria:</strong>
+#         <ul style='margin: 8px 0; padding-left: 20px;'>
+#             <li>Terms must contain 5-500 genes</li>
+#             <li>At least 5% of genes in each term must be detected in your data</li>
+#             <li>Only includes genes present in your dataset</li>
+#             <li>Filtered by selected ontology category</li>
+#         </ul>
+#         <div style='font-size: 0.9em; color: #666;'>
+#             This ensures meaningful and statistically relevant GO terms for your analysis.
+#         </div>
+#     </div>
+# ")
+#                                   
+#                               )
+#                           ),
                            div(class = "ui form",
                                toggle("GSEA_acvited", "I want to run GSEA", FALSE)
                               
@@ -2956,46 +2956,46 @@ observeEvent(input$clientWidth, {
       log_event(log_messages, "Reactive UI for column selection rendered", "INFO from output$column_select_ui")
       div(class = "ui raised segment",
           div(class = "ui grey ribbon label", "Select Data"),
-          div(class = "tooltip-container",
-              tags$i(class = "info circle icon info-icon"),
-              div(class = "tooltip-text",
-                  HTML("
-    <div style='line-height: 1.5;'>
-        <h4 style='color: #2185D0; margin-bottom: 2px;'>Upload crucial columns for all observations:</h4>
-        <ul style='list-style-type: none; padding-left: 0;'>
-            <li style='margin-bottom: 12px;'>
-                <i class='circle icon' style='color: #2185D0;'></i>
-                <strong>Raw p-values</strong>
-                <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
-                    Automatically detects and handles log-transformed values
-                </div>
-            </li>
-            
-            <li style='margin-bottom: 12px;'>
-                <i class='circle icon' style='color: #2185D0;'></i>
-                <strong>Log2 fold expression difference</strong>
-            </li>
-            
-            <li style='margin-bottom: 12px;'>
-                <i class='circle icon' style='color: #2185D0;'></i>
-                <strong>Gene names</strong>
-                <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
-                    Supports both human and mice nomenclature
-                </div>
-            </li>
-        </ul>
-
-        <div style='margin-top: 20px; padding: 10px; border-left: 3px solid #2185D0; border-radius: 3px;'>
-            <strong>Additional Features:</strong>
-            <div style='color: #2185D0; margin-top: 5px;'>
-                Handles missing data and provides notifications for dataset modifications
-            </div>
-        </div>
-    </div>
-")
-                  
-              )
-          ),
+#           div(class = "tooltip-container",
+#               tags$i(class = "info circle icon info-icon"),
+#               div(class = "tooltip-text",
+#                   HTML("
+#     <div style='line-height: 1.5;'>
+#         <h4 style='color: #2185D0; margin-bottom: 2px;'>Upload crucial columns for all observations:</h4>
+#         <ul style='list-style-type: none; padding-left: 0;'>
+#             <li style='margin-bottom: 12px;'>
+#                 <i class='circle icon' style='color: #2185D0;'></i>
+#                 <strong>Raw p-values</strong>
+#                 <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
+#                     Automatically detects and handles log-transformed values
+#                 </div>
+#             </li>
+#             
+#             <li style='margin-bottom: 12px;'>
+#                 <i class='circle icon' style='color: #2185D0;'></i>
+#                 <strong>Log2 fold expression difference</strong>
+#             </li>
+#             
+#             <li style='margin-bottom: 12px;'>
+#                 <i class='circle icon' style='color: #2185D0;'></i>
+#                 <strong>Gene names</strong>
+#                 <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
+#                     Supports both human and mice nomenclature
+#                 </div>
+#             </li>
+#         </ul>
+# 
+#         <div style='margin-top: 20px; padding: 10px; border-left: 3px solid #2185D0; border-radius: 3px;'>
+#             <strong>Additional Features:</strong>
+#             <div style='color: #2185D0; margin-top: 5px;'>
+#                 Handles missing data and provides notifications for dataset modifications
+#             </div>
+#         </div>
+#     </div>
+# ")
+#                   
+#               )
+#           ),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
           selectInput("annotation_col", "Select gene symbols column", choices = names(df)),
