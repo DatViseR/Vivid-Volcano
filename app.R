@@ -1510,8 +1510,8 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
     ) %>%
     cols_label(
       GO_Term = "GO Term",
-      Genes_Total = "Total Genes in Term",
-      Genes_Found = "Enriched Genes",
+      Genes_Total = "Detected Genes in Term",
+      Genes_Found = "Regulated Genes in Term",
       Fold_Enrichment = "Fold Enrichment",
       P_Value = "P-value",
       Adjusted_P_Value = "Adjusted P-value"
@@ -1527,10 +1527,23 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
       for broad terms with many dependent child terms or under-adjustment (liberal results) 
       for terms whose significance is driven by overlapping child terms
       see https://github.com/DatViseR/Vivid-Volcano/Notes on GSEA statistics.md 
-      for details examples and explenation"
+      for details examples and explanation"
             ,
       locations = cells_column_labels("Adjusted_P_Value")
     ) %>%
+    tab_footnote(
+      footnote = "The raw p-value is calculated using the hypergeometric test
+      ,which assesses the probability of observing at least the given number of
+      regulated genes in a GO term by chance, given the total number of detected
+      genes, the total count of genes in the term, and the number of
+      regulated genes in the dataset."
+            ,
+      locations = cells_column_labels("P_Value")
+      
+    )%>%
+    
+    
+    
     tab_options(
       table.width = pct(100),
       table.font.size = px(12),
@@ -1823,19 +1836,33 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     cols_label(
       GO_Category = "GO name",
       id = "GO id",
-      Population_Enrichment_Ratio = "Genomic enrichment",
+      Population_Enrichment_Ratio = "Detected genes enrichment",
       Subpopulation_Enrichment_Ratio = "Regulated genes enrichment",
       P_Value = "Hypergeometric test p-value",
       Adjusted_P_Value = "Bonferroni adj-p value",
-      Success_Population_Size = "Genes in GO category",
+      Success_Population_Size = "Detected genes in GO category",
       Sample_Size = "Number of regulated genes",
       Sample_Success_Size = "Regulated genes in GO category"
     ) %>%
-    # Add footnote for Adjusted_P_Value column
+    # Adding footnotes
+  
     tab_footnote(
       footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
       locations = cells_column_labels("Adjusted_P_Value")
     ) %>%
+    tab_footnote(
+      footnote = "Detected gene enrichment is defined as the ratio of detected genes annotated to the GO term
+      to the total number of detected background genes,
+      indicating the prevalence of the GO term within the analyzed gene set.",
+      locations = cells_column_labels("Population_Enrichment_Ratio")
+    ) %>%
+    tab_footnote(
+      footnote = "Regulated genes enrichment is calculated as the ratio of 
+      regulated genes in the GO term to the total number of regulated genes
+      in the analysis, reflecting the relative enrichment within the regulated subset.",
+      locations = cells_column_labels("Subpopulation_Enrichment_Ratio")
+    ) %>%
+    
     # Hide the Sample_Size column
     cols_hide(columns = "Sample_Size") %>%
     tab_options(
@@ -4537,7 +4564,7 @@ output$download_gsea_plot <- downloadHandler(
           req(input$up_color, input$down_color)
           c(input$down_color, input$up_color)
         } else {
-          c("#000000", "#000000")  # default black if highlighting is disabled
+          c("#A0A0A0", "#A0A0A0")  # default black if highlighting is disabled
         }
         
         
@@ -4579,7 +4606,7 @@ output$download_gsea_plot <- downloadHandler(
     }
     
     # limits for y slighly bigger to have space for annotation
-    limits_y <- c(0, max(-log10(as.numeric(df[[input$pvalue_col]])) + 1))
+    limits_y <- c(0, max(-log10(as.numeric(df[[input$pvalue_col]])) + 1.5))
     
     abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
     abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
@@ -4620,9 +4647,11 @@ output$download_gsea_plot <- downloadHandler(
       log_event(log_messages, "Color highlighting enabled", "INFO input$draw_volcano")
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
       downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
+      total_count <- df %>% nrow()
       volcano_plot <- volcano_plot +
         annotate("text", x = -Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = -0.1 ,vjust = 2, size = 5.5 ) +
-        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)
+        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)+
+        annotate("text", x = -Inf, y = Inf, label = paste0("Detected n= ", total_count), color = "#A0A0A0", hjust = -0.1, vjust = 3, size = 5.5)
       # Detailed debug analysis of input$color_highlight
       cat("\n==== Color Input Debug Analysis ====\n")
       cat("Current Time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
