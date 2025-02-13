@@ -3232,7 +3232,8 @@ observeEvent(input$clientWidth, {
                             inputId = "run_gsea",
                             label = HTML('<i class="play icon"></i> Run GSEA'),
                             class = "ui primary button"
-                          )
+                          ),
+                          uiOutput("gsea_loader")
                       )
                   )
               )
@@ -3446,12 +3447,26 @@ observeEvent(input$clientWidth, {
     tabset(tabs = tab_list())
   })
   
-
+  ### GSEA loader ----
+  output$gsea_loader <- renderUI({
+    if (input$run_gsea > 0 && is.null(gsea_results())) {
+      div(
+        class = "ui active inverted dimmer",
+        div(class = "ui text loader", "Running GSEA analysis...")
+      )
+    }
+  })
+  
+  
+  
 ## Run GSEA observer ---- 
   observeEvent(input$run_gsea, {
     req(input$GSEA_acvited, input$gsea_ontology, 
         uploaded_df(), input$annotation_col, input$fold_col, input$alpha)
-   
+    
+    # Show loader state
+    shinyjs::disable("run_gsea")
+    
     plotOntologyValue(input$gsea_ontology)
     
     # Log the GSEA analysis start
@@ -3720,7 +3735,10 @@ log_structure(log_messages, enrichment_results_list, "The structure of the GSEA 
 log_structure(log_messages, enrichment_results_list$top_results, "The structure of the top (significant) GSEA results is:", "INFO from GSEA observer") 
 log_structure(log_messages, enrichment_results_list$top10_results, "The structure of the top_10 (including nonsignificant) GSEA results is:", "INFO from GSEA observer") 
  
-    
+ 
+  # Hide loader and re-enable button
+  shinyjs::enable("run_gsea")
+   
 # Validate we got results
 if (is.null(enrichment_results_list) || 
     is.null(enrichment_results_list$top_results) || 
@@ -3852,6 +3870,10 @@ output$gsea_results_table <- render_gt({
     log_event = log_event
   )
 })
+
+# Hide loader and re-enable button
+shinyjs::enable("run_gsea")
+
 })
 
 # Observer for GSEA filter pattern----

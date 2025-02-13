@@ -755,3 +755,14 @@ div.ui.raised.segment:hover {
   visibility: visible;
   opacity: 1;
 }
+
+/* CSS for the loaders*/ 
+
+.ui.segment.basic {
+  min-height: 50px;  /* Ensure enough space for the loader */
+}
+
+.ui.dimmer {
+  position: absolute !important;
+}
+
