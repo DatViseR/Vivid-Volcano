@@ -758,25 +758,5 @@ div.ui.raised.segment:hover {
 
 /* CSS for the loaders*/ 
 
-/* Ensure proper loader positioning within grid */
-.eight.wide.column .ui.container {
-    position: relative !important;
-    min-height: 50px !important;
-}
 
-/* Make loader visible within container */
-.ui.segment .ui.active.dimmer {
-    display: flex !important;
-    opacity: 1 !important;
-}
-
-.ui.segment .ui.loader.visible {
-    display: block !important;
-    color: #FFFFFF !important;
-}
-
-/* Ensure dimmer covers the container */
-.ui.segment .ui.inverted.dimmer {
-    background-color: rgba(0, 0, 0, 0.85) !important;
-}
 

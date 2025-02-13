@@ -2625,6 +2625,15 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
 
 ui <- semanticPage(
   useShinyjs(),
+  div(
+    id = "gsea-loader-overlay",
+    style = "display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999;",
+    div(
+      class = "ui active big text loader",
+      style = "color: white !important;",
+      "Running GSEA analysis..."
+    )
+  ),
   # Includes custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
@@ -3413,7 +3422,7 @@ observeEvent(input$clientWidth, {
                         ),
                         div(class = "segment-content",
                             div(class = "mobile-shrink-plot",
-                                uiOutput("gsea_text_loader"),
+                             
                                 plotOutput("gsea_plot")
                             )
                         )
@@ -3461,24 +3470,7 @@ observeEvent(input$clientWidth, {
     }
   })
   
-  output$gsea_text_loader <- renderUI({
-    if (input$run_gsea > 0 && is.null(gsea_results()) && input$upload_check) {
-      segment(
-        class = "ui",
-        div(
-          class = "ui active inverted dimmer",
-          div(
-            class = "ui large indeterminate text loader",
-            style = "color: white !important; font-size: 1.2em;",
-            "Running GSEA analysis..."
-          )
-        ),
-        p()  # Empty paragraph for height
-      )
-    }
-  })
-  
-  
+
   
   
   
@@ -3517,6 +3509,7 @@ observeEvent(input$clientWidth, {
     }
     
     # If all validations pass, proceed with GSEA
+    shinyjs::show("gsea-loader-overlay") 
     shinyjs::disable("run_gsea")
     
     plotOntologyValue(input$gsea_ontology)
@@ -3547,6 +3540,7 @@ observeEvent(input$clientWidth, {
         type = "error"
       )
       shinyjs::enable("run_gsea")
+      shinyjs::hide("gsea-loader-overlay")
       return()
     }
     
@@ -3601,6 +3595,7 @@ observeEvent(input$clientWidth, {
         type = "warning"
       )
       shinyjs::enable("run_gsea")
+      shinyjs::hide("gsea-loader-overlay")
       return()
     }
     
@@ -3700,6 +3695,7 @@ observeEvent(input$clientWidth, {
                         ontology_name),
                 "ERROR from GSEA observer")
       shinyjs::enable("run_gsea")
+      shinyjs::hide("gsea-loader-overlay")
       return()
     }
 ## GSEA ----     
@@ -3793,6 +3789,7 @@ log_structure(log_messages, enrichment_results_list$top10_results, "The structur
  
   # Hide loader and re-enable button
   shinyjs::enable("run_gsea")
+  shinyjs::hide("gsea-loader-overlay")
    
 # Validate we got results
 if (is.null(enrichment_results_list) || 
@@ -3804,6 +3801,7 @@ if (is.null(enrichment_results_list) ||
     type = "warning"
   )
   shinyjs::enable("run_gsea")
+  shinyjs::hide("gsea-loader-overlay")
   return()
 }
     
@@ -3881,6 +3879,7 @@ output$gsea_plot <- renderPlot({
       "DEBUG from gsea_plot"
     )
     shinyjs::enable("run_gsea")
+    shinyjs::hide("gsea-loader-overlay")
     return(
       ggplot() +
         annotate("text", x = 0.5, y = 0.5,
@@ -3929,6 +3928,7 @@ output$gsea_results_table <- render_gt({
 
 # Hide loader and re-enable button
 shinyjs::enable("run_gsea")
+shinyjs::hide("gsea-loader-overlay")
 
 })
 
