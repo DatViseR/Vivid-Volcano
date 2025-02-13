@@ -3413,6 +3413,7 @@ observeEvent(input$clientWidth, {
                         ),
                         div(class = "segment-content",
                             div(class = "mobile-shrink-plot",
+                                uiOutput("gsea_text_loader"),
                                 plotOutput("gsea_plot")
                             )
                         )
@@ -3452,19 +3453,34 @@ observeEvent(input$clientWidth, {
   ### GSEA loader ----
   # In your server
   output$gsea_loader <- renderUI({
-    
-    if (input$run_gsea > 0 && is.null(gsea_results())&& input$upload_check ) {
+    if (input$run_gsea > 0 && is.null(gsea_results()) && input$upload_check) {
       div(
         class = "ui active dimmer",
-        style = "position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background-color: rgba(0,0,0,0.6);",
-        div(
-          class = "ui large text loader",
-          style = "color: white !important;",
-          "Running GSEA analysis..."
-        )
+        style = "position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;"
       )
     }
   })
+  
+  output$gsea_text_loader <- renderUI({
+    if (input$run_gsea > 0 && is.null(gsea_results()) && input$upload_check) {
+      segment(
+        class = "ui",
+        div(
+          class = "ui active inverted dimmer",
+          div(
+            class = "ui large indeterminate text loader",
+            style = "color: white !important; font-size: 1.2em;",
+            "Running GSEA analysis..."
+          )
+        ),
+        p()  # Empty paragraph for height
+      )
+    }
+  })
+  
+  
+  
+  
   
   
 ## Run GSEA observer ---- 
