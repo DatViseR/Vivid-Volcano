@@ -758,11 +758,21 @@ div.ui.raised.segment:hover {
 
 /* CSS for the loaders*/ 
 
-.ui.segment.basic {
-  min-height: 50px;  /* Ensure enough space for the loader */
+/* Add this to your custom.css */
+.ui.dimmer {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
-.ui.dimmer {
-  position: absolute !important;
+.ui.dimmer .loader {
+  color: white !important;
+  font-size: 1.2em !important;
+  margin: 0 !important;
+}
+
+.ui.large.text.loader {
+  min-width: 200px;
+  text-align: center;
 }
 

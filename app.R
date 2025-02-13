@@ -3227,12 +3227,14 @@ observeEvent(input$clientWidth, {
                   
                   # Second column: Action Button (Centered)
                   div(class = "eight wide column",
-                      div(style = "display: flex; align-items: center; justify-content: center;",
+                      div(class = "ui container", style = "position: relative; min-height: 50px;",
+                          # Button
                           actionButton(
                             inputId = "run_gsea",
                             label = HTML('<i class="play icon"></i> Run GSEA'),
                             class = "ui primary button"
                           ),
+                          # Loader container with proper positioning
                           uiOutput("gsea_loader")
                       )
                   )
@@ -3448,23 +3450,57 @@ observeEvent(input$clientWidth, {
   })
   
   ### GSEA loader ----
+  # In your server
   output$gsea_loader <- renderUI({
-    if (input$run_gsea > 0 && is.null(gsea_results())) {
+    
+    if (input$run_gsea > 0 && is.null(gsea_results())&& input$upload_check ) {
       div(
-        class = "ui active inverted dimmer",
-        div(class = "ui text loader", "Running GSEA analysis...")
+        class = "ui active dimmer",
+        style = "position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background-color: rgba(0,0,0,0.6);",
+        div(
+          class = "ui large text loader",
+          style = "color: white !important;",
+          "Running GSEA analysis..."
+        )
       )
     }
   })
   
   
-  
 ## Run GSEA observer ---- 
   observeEvent(input$run_gsea, {
-    req(input$GSEA_acvited, input$gsea_ontology, 
-        uploaded_df(), input$annotation_col, input$fold_col, input$alpha)
+    # First validate if columns are checked
+    if (is.null(input$upload_check)) {
+      shinyalert(
+        title = "Column Check Required",
+        text = "Please check your column selections first",
+        type = "warning"
+      )
+      return()
+    }
     
-    # Show loader state
+    # Then validate all other requirements
+    validate <- try({
+      req(
+        input$GSEA_acvited,
+        input$gsea_ontology,
+        uploaded_df(),
+        input$annotation_col,
+        input$fold_col,
+        input$alpha
+      )
+    })
+    
+    if (inherits(validate, "try-error")) {
+      shinyalert(
+        title = "Missing Requirements",
+        text = "Please ensure all required fields are filled",
+        type = "warning"
+      )
+      return()
+    }
+    
+    # If all validations pass, proceed with GSEA
     shinyjs::disable("run_gsea")
     
     plotOntologyValue(input$gsea_ontology)
@@ -3494,6 +3530,7 @@ observeEvent(input$clientWidth, {
         text = "No valid genes found in the selected annotation column",
         type = "error"
       )
+      shinyjs::enable("run_gsea")
       return()
     }
     
@@ -3547,6 +3584,7 @@ observeEvent(input$clientWidth, {
                        input$alpha),
         type = "warning"
       )
+      shinyjs::enable("run_gsea")
       return()
     }
     
@@ -3645,6 +3683,7 @@ observeEvent(input$clientWidth, {
                 sprintf("ANALYSIS STOPPED: No GO terms found for %s ontology", 
                         ontology_name),
                 "ERROR from GSEA observer")
+      shinyjs::enable("run_gsea")
       return()
     }
 ## GSEA ----     
@@ -3748,6 +3787,7 @@ if (is.null(enrichment_results_list) ||
     text = "No significant GO term enrichment found with current parameters",
     type = "warning"
   )
+  shinyjs::enable("run_gsea")
   return()
 }
     
@@ -3824,7 +3864,7 @@ output$gsea_plot <- renderPlot({
       "No valid plot available for selected category", 
       "DEBUG from gsea_plot"
     )
-    
+    shinyjs::enable("run_gsea")
     return(
       ggplot() +
         annotate("text", x = 0.5, y = 0.5,
