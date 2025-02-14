@@ -757,6 +757,20 @@ div.ui.raised.segment:hover {
 }
 
 /* CSS for the loaders*/ 
-
+#gsea-loader-overlay, #volcano-loader-overlay {
+  display: none; 
+        position: fixed; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+        width: 300px; 
+        height: 300px; 
+        background: rgba(0,0,0,0.7); 
+        z-index: 9999;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+  }
 
 

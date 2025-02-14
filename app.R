@@ -1541,6 +1541,15 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
       locations = cells_column_labels("P_Value")
       
     )%>%
+    tab_footnote(
+      footnote = "represents how many times more frequent the GO term 
+      appears among the regulated gene set compared to what would be expected by chance"
+      ,
+      locations = cells_column_labels("Fold_Enrichment")
+      
+    )%>%
+    
+    
     
     
     
@@ -2625,15 +2634,27 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
 
 ui <- semanticPage(
   useShinyjs(),
+  #full screen loader for GSEA
   div(
     id = "gsea-loader-overlay",
-    style = "display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999;",
+    style = "display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: rgba(0,0,0,0.7); z-index: 9999;",
     div(
       class = "ui active big text loader",
       style = "color: white !important;",
       "Running GSEA analysis..."
     )
   ),
+  #full screen loader for draw volcano
+  div(
+    id = "volcano-loader-overlay",
+    style = "display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: rgba(0,0,0,0.7); z-index: 9999;",
+    div(
+      class = "ui active big text loader",
+      style = "color: white !important;",
+      "Creaing volcano plots and GO analysis tables..."
+    )
+  ),
+  
   # Includes custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
@@ -2846,7 +2867,7 @@ ui <- semanticPage(
                            
                            # Plot Options Card
                            div(class = "ui grey ribbon label", "Customize volcano plot annotations")  ,
-                           toggle("color_highlight", "Highlight Significant Hits", FALSE),
+                           toggle("color_highlight", "Color significantly regulated genes", FALSE),
                            uiOutput("color_highlight_ui"),
                            toggle("show_go_category", "Visualize GO Categories", FALSE),
                            uiOutput("go_category_ui"),
@@ -2861,10 +2882,12 @@ ui <- semanticPage(
                            div(class = "ui grey ribbon label", "Customize X -axis label"),
                            textInput("x_axis_label", "", 
                                      "Log2 Fold Change (Condition X vs. Condition Y)"),
-                           actionButton("draw_volcano", "Draw Volcano Plot", 
+                           
+                          actionButton("draw_volcano", "Draw Volcano Plot", 
                                         class = "ui primary button", 
                                         icon = icon("chart line icon")),
-                           uiOutput("download_log_ui")
+                                        
+                     uiOutput("download_log_ui")
                       ),
         ),
         
@@ -3243,8 +3266,7 @@ observeEvent(input$clientWidth, {
                             label = HTML('<i class="play icon"></i> Run GSEA'),
                             class = "ui primary button"
                           ),
-                          # Loader container with proper positioning
-                          uiOutput("gsea_loader")
+                          
                       )
                   )
               )
@@ -3459,20 +3481,7 @@ observeEvent(input$clientWidth, {
     tabset(tabs = tab_list())
   })
   
-  ### GSEA loader ----
-  # In your server
-  output$gsea_loader <- renderUI({
-    if (input$run_gsea > 0 && is.null(gsea_results()) && input$upload_check) {
-      div(
-        class = "ui active dimmer",
-        style = "position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;"
-      )
-    }
-  })
-  
-
-  
-  
+ 
   
   
 ## Run GSEA observer ---- 
@@ -3510,7 +3519,7 @@ observeEvent(input$clientWidth, {
     
     # If all validations pass, proceed with GSEA
     shinyjs::show("gsea-loader-overlay") 
-    shinyjs::disable("run_gsea")
+    
     
     plotOntologyValue(input$gsea_ontology)
     
@@ -3539,7 +3548,7 @@ observeEvent(input$clientWidth, {
         text = "No valid genes found in the selected annotation column",
         type = "error"
       )
-      shinyjs::enable("run_gsea")
+      
       shinyjs::hide("gsea-loader-overlay")
       return()
     }
@@ -3594,7 +3603,7 @@ observeEvent(input$clientWidth, {
                        input$alpha),
         type = "warning"
       )
-      shinyjs::enable("run_gsea")
+     
       shinyjs::hide("gsea-loader-overlay")
       return()
     }
@@ -3694,7 +3703,7 @@ observeEvent(input$clientWidth, {
                 sprintf("ANALYSIS STOPPED: No GO terms found for %s ontology", 
                         ontology_name),
                 "ERROR from GSEA observer")
-      shinyjs::enable("run_gsea")
+      
       shinyjs::hide("gsea-loader-overlay")
       return()
     }
@@ -3788,7 +3797,7 @@ log_structure(log_messages, enrichment_results_list$top10_results, "The structur
  
  
   # Hide loader and re-enable button
-  shinyjs::enable("run_gsea")
+  
   shinyjs::hide("gsea-loader-overlay")
    
 # Validate we got results
@@ -3800,7 +3809,7 @@ if (is.null(enrichment_results_list) ||
     text = "No significant GO term enrichment found with current parameters",
     type = "warning"
   )
-  shinyjs::enable("run_gsea")
+  
   shinyjs::hide("gsea-loader-overlay")
   return()
 }
@@ -3878,7 +3887,7 @@ output$gsea_plot <- renderPlot({
       "No valid plot available for selected category", 
       "DEBUG from gsea_plot"
     )
-    shinyjs::enable("run_gsea")
+    
     shinyjs::hide("gsea-loader-overlay")
     return(
       ggplot() +
@@ -3927,7 +3936,7 @@ output$gsea_results_table <- render_gt({
 })
 
 # Hide loader and re-enable button
-shinyjs::enable("run_gsea")
+
 shinyjs::hide("gsea-loader-overlay")
 
 })
@@ -4535,6 +4544,8 @@ output$download_gsea_plot <- downloadHandler(
     input$custom_gene_labels
   })
   
+  
+
 # Draw volcano observer ----  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
@@ -4603,7 +4614,7 @@ output$download_gsea_plot <- downloadHandler(
       # Render GO gene list table
       output$go_gene_list_gt <- render_gt({
         # First check if color highlighting is enabled
-        req(input$color_highlight)
+   #     req(input$color_highlight)
         log_event(log_messages, "Rendering GO gene list table", "INFO from output$go_gene_list_gt")
         
         # Get the colors from the proper inputs when color highlighting is enabled
@@ -4680,6 +4691,8 @@ output$download_gsea_plot <- downloadHandler(
     # Draw the volcano plot
     if (!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
+     
+      shinyjs::hide("volcano-loader-overlay")
       return(NULL)
     }
     
@@ -4993,6 +5006,8 @@ output$download_gsea_plot <- downloadHandler(
             text = "Unable to render interactive plot. Please check your inputs.",
             showarrow = FALSE
           )
+       
+        shinyjs::hide("volcano-loader-overlay")
       })
       # Renders the download button
       output$download_log_button <- renderUI({
@@ -5124,6 +5139,12 @@ output$download_gsea_plot <- downloadHandler(
       }
     )
     
+
+    shinyjs::hide("volcano-loader-overlay")
+    
+  }) 
+    
+    
     # Add the download log UI
     output$download_log_ui <- renderUI({
       if (!is.null(uploaded_df())) {
@@ -5132,6 +5153,8 @@ output$download_gsea_plot <- downloadHandler(
           downloadButton("download_log", "Download Process Log")
         )
       }
+    
+      
       
     })
     
@@ -5161,9 +5184,7 @@ output$download_gsea_plot <- downloadHandler(
       log_event(log_messages, "Session ended", "INFO")
       isolate(log_messages(""))  # Clear logs
     })
-    
-    
-  })
+   
 }
   
 shinyApp(ui = ui, server = server)
