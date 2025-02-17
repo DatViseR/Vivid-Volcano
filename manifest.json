@@ -3899,19 +3899,31 @@
       "checksum": "6e266d4b2c71b1a8a6a8e3f3df6a054e"
     },
     ".RData": {
-      "checksum": "f8301f6dd9a63af1a2fe7a949df4e10e"
+      "checksum": "50c3aea107622e9cca3d7f54e6f1f681"
     },
     ".Rprofile": {
-      "checksum": "572290b94d55fb8d7c09567f72e03f09"
+      "checksum": "de117a7f358dff29ef4ddee8e729efee"
     },
     "app.R": {
-      "checksum": "17fda0e454966026610ef88e22e69652"
+      "checksum": "44a076d658e27f1d805470a1408fcf5c"
+    },
+    "Bartek_sollution.qmd": {
+      "checksum": "53ac939fb4c636d41747b7bad71d9a5b"
     },
     "Generates mock data for file size input testing.R": {
       "checksum": "dd3e7ebca282d8b8b1fe77da953c342f"
     },
     "GO.parquet2": {
       "checksum": "13cb6bbb539c2bdfb5c66b59f2b8e574"
+    },
+    "GSEA_full_results_20250130_140839.csv": {
+      "checksum": "75dd47657e88721006b9be765d14303b"
+    },
+    "GSEA_top_results_20250130_140837.csv": {
+      "checksum": "df9d7e5674be6c18ec0e9d444674df49"
+    },
+    "GSEA_top10_results_20250131_102215.csv": {
+      "checksum": "f4d5fb716873ae5511fbb948d24bf58c"
     },
     "images/clipboard-1118121615.png": {
       "checksum": "155d2273c1415d8f5f62435ade46f2c4"
@@ -3934,6 +3946,9 @@
     "mock_data_15mb.csv": {
       "checksum": "972c603e344c348705f9a27a1ea4390a"
     },
+    "Notes on GSEA statistics.md": {
+      "checksum": "39b52db76e769decf81b8eca1c6719b5"
+    },
     "Parquet_GO_source_data_preparation_srcipt.R": {
       "checksum": "c5b49937d0fc12b875a53814378ab623"
     },
@@ -3952,11 +3967,14 @@
     "renv.lock": {
       "checksum": "9ea74f39b64a9bd1bfedaeaabe76806c"
     },
+    "TODO": {
+      "checksum": "303e8537e5bf2dfe20fa9316db48baac"
+    },
     "Vivid_volcano_logo.png": {
       "checksum": "f74f655b4d720ce7cf6c5ac98c1f8149"
     },
     "www/custom.css": {
-      "checksum": "8496f324d42a6f3f81750dcc406eaa78"
+      "checksum": "7034018916e142e0640e4e9e8974b929"
     },
     "www/demo_data.csv": {
       "checksum": "d5a4e29ece7cee50ab38e41b9c922aee"
