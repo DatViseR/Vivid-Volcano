@@ -167,6 +167,21 @@ div.ui.raised.segment:first-child {
 
 }
 
+/* Or for a specific width: */
+.ui.raised.segment .ui.file.input .ui.input {
+ width:79% !important;
+
+}
+
+@media (max-width: 810px) {
+  /* Adjust the width of the file input */
+  .ui.raised.segment .ui.file.input .ui.input {
+    width: 100% !important;
+  }
+}
+
+
+
 /* Fix flex layout for header toggle */
 div[style*="display: flex; flex-direction: column"] {
     
@@ -181,16 +196,41 @@ div.ui.raised.segment:hover {
    
 }
 
+/* Adjust download demo spacing */
 
+.download-demo {
+    margin-top: 0.3rem !important;     
+    margin-bottom: 1rem !important;    
+    padding: 0.5em 0 !important;  
+    transform: translateY(-1rem) !important;
+}
 
+.download-demo .ui.button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Target radio buttons within the form */
+.ui.form .field .ui.radio.checkbox {
+    margin-top: 0.05rem !important;    /* Space above each radio button */
+    margin-bottom: 0.05rem !important; /* Space below each radio button */
+    padding-top: 0 !important;        /* Remove default padding */
+    padding-bottom: 0 !important;     /* Remove default padding */
+}
+
+/* If needed, also target the label spacing */
+.ui.form .field > label {
+    margin-bottom: 0.3rem !important;  /* Space between field label and first radio button */
+}
 
 
 /* Add spacing between elements inside segments */
 .ui.raised.segment:not(:first-of-type) > * {
-    margin-bottom: 1rem;
+    margin-bottom: 0.8rem;
 }
 
 .ui.raised.segment:first-of-type > * {
+   padding 0rem 0rem;
   }
 
 

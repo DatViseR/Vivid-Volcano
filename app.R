@@ -2063,7 +2063,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes (detected in bold, detected and regulated in color)",
+      All_Genes = "All Genes (detected in bold, detected and regulated in color [if color option enabled])",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
     ) %>%
@@ -2749,26 +2749,46 @@ ui <- semanticPage(
                           ),
                           
                           ####  download link for demo data ----
-                          tags$a(
-                            href = "demo_data.csv",  # This will be served from www/demo_data.csv
-                            download = NA,
-                            class = "ui small labeled icon button",
-                            tags$i(class = "download icon"),
-                            "Download tab separated demo data for upload"
+                          # Download link for demo data ----
+                          div(class = "download-demo",
+                              style = "display: flex; justify-content: center; align-items: center;",  # Removed padding here as it's handled in CSS
+                              tags$a(
+                                href = "demo_data.csv",
+                                download = NA,
+                                class = "ui labeled icon button compact",
+                                style = "box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;",
+                                tags$i(class = "download icon", 
+                                       style = "margin-right: 0.5em !important;"),
+                                span(
+                                  "Download demo data",
+                                  style = "margin-right: 0.5em;"
+                                ),
+                                span(
+                                  "(separator:tab,decimal:comma)",
+                                  style = "font-size: 0.9em; opacity: 0.8;"
+                                )
+                              )
                           ),
                           #### layout for checkbox and radio buttons ----
+                          #### layout for checkbox and radio buttons ----
                           div(class = "ui form",
+                              style = "margin: 0.2rem 0;",  # Reduced vertical margin
                               div(class = "three fields",
+                                  style = "margin: 0.2rem !important; gap: 0.5rem !important;",  # Reduced margin and gap between fields
                                   # Header Checkbox
                                   div(class = "field",
-                                      div(style = "display: flex; flex-direction: column; gap: 5px;",
-                                          div(style = "font-weight: bold;", "Header"),  # Styled label
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      div(style = "display: flex; flex-direction: column; gap: 10px;",  # Reduced gap
+                                          div(style = "font-weight: bold; margin-bottom: 1px;", "Header"),  # Reduced margin
                                           shiny.semantic::toggle("header", "", is_marked = TRUE)
                                       )
                                   ),
                                   # Separator Radio Buttons
                                   div(class = "field",
-                                      multiple_radio(class = "radio compact", "sep", "Separator", 
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      multiple_radio(class = "radio compact", 
+                                                     "sep", 
+                                                     "Separator", 
                                                      choices = list("Comma" , 
                                                                     "Semicolon", 
                                                                     "Tab"), 
@@ -2777,10 +2797,12 @@ ui <- semanticPage(
                                   ),
                                   # Decimal Point Radio Buttons
                                   div(class = "field",
-                                      multiple_radio("dec", "Decimal Point", 
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      multiple_radio("dec", 
+                                                     "Decimal Point", 
                                                      choices = list("Dot" , 
-                                                                    "Comma")
-                                                     , choices_value = c(".", ","),
+                                                                    "Comma"), 
+                                                     choices_value = c(".", ","),
                                                      selected = ".")
                                   )
                               )
@@ -2877,15 +2899,20 @@ ui <- semanticPage(
                            toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
                            toggle("select_custom_labels", "Label your choosen genes", FALSE),
                            uiOutput("custom_gene_labels_ui"),
-                           div(class = "ui grey ribbon label", "Customize plot title"),
-                           textInput("plot_title", "", "Vivid Volcano"),
-                           div(class = "ui grey ribbon label", "Customize X -axis label"),
-                           textInput("x_axis_label", "", 
-                                     "Log2 Fold Change (Condition X vs. Condition Y)"),
-                           
+                          div(class = "ui grey ribbon label", 
+                              style = "margin-bottom: 0rem !important;",  # Reduced margin for first ribbon
+                              "Customize plot title"),
+                          textInput("plot_title", "", "Vivid Volcano"),
+                          
+                          div(class = "ui grey ribbon label", 
+                              style = "margin-bottom: 0rem !important;",  # Reduced margin for second ribbon
+                              "Customize X -axis label"),
+                          textInput("x_axis_label", "", 
+                                    "Log2 Fold Change (Condition X vs. Condition Y)"),
+                          
                           actionButton("draw_volcano", "Draw Volcano Plot", 
-                                        class = "ui primary button", 
-                                        icon = icon("chart line icon")),
+                                       class = "ui primary button", 
+                                       icon = icon("chart line icon")),
                                         
                      uiOutput("download_log_ui")
                       ),
@@ -4550,6 +4577,8 @@ output$download_gsea_plot <- downloadHandler(
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
+    shinyjs::show("volcano-loader-overlay")
+    
     df <- uploaded_df() 
 
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
@@ -4572,6 +4601,7 @@ output$download_gsea_plot <- downloadHandler(
         confirmButtonText = "OK",
         timer = 0
       )
+      shinyjs::hide("volcano-loader-overlay")
       return(NULL)
     }
     
