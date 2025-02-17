@@ -5,9 +5,11 @@ options(shiny.maxRequestSize = 25*1024^2)  # Set to 25MB
 ####################### LIBRARY SETUP ############################
 
 library(shiny)
+library(shinyjs)
 library(readr)
 library(dplyr)
 library(ggplot2)
+library(ggtext)
 library(colourpicker)
 library(ggrepel)
 library(arrow)
@@ -29,10 +31,32 @@ library(tidyr)
 # This newfile contains around 8000 non-obsolete unique GO categories with at least 6 annotated genes in the category
 GO <- arrow::read_parquet("GO.parquet2")
 
+# This is the structure of the one main "source of truth" file for GO
+
+# Classes ‘spec_tbl_df’, ‘tbl_df’, ‘tbl’ and 'data.frame':	693408 obs. of  4 variables:
+#   $ id      : chr  "GO:0003723" "GO:0005515" "GO:0046872" "GO:0005829" ...
+# $ name    : chr  "RNA binding" "protein binding" "metal ion binding" "cytosol" ...
+# $ gene    : chr  "NUDT4B" "NUDT4B" "NUDT4B" "NUDT4B" ...
+# $ ontology: chr  "F" "F" "F" "C" ...
+# - attr(*, "spec")=List of 3
+# ..$ cols   :List of 4
+# .. ..$ id      : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ name    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ gene    : list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# .. ..$ ontology: list()
+# .. .. ..- attr(*, "class")= chr [1:2] "collector_character" "collector"
+# ..$ default: list()
+# .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
+# ..$ delim  : chr "\t"
+# ..- attr(*, "class")= chr "col_spec"
 
 
 
-##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS---- ###########################
+
+##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS----###################
 
 # The logger factory function that creates a logger function for a specific session  
 
@@ -87,6 +111,273 @@ create_structure_logger <- function(session) {
 }
 
 
+#' Diagnose and Remove NA Values from Input Columns
+#'
+#' @description
+#' Analyzes specified columns in a data frame for NA values, removes rows with NAs,
+#' removes columns that are fully NA, and provides comprehensive statistics and user feedback about the cleaning process.
+#'
+#' @param df A data frame containing the input data
+#' @param pvalue_col Character string specifying the name of the p-value column
+#' @param fold_col Character string specifying the name of the fold change column
+#' @param annotation_col Character string specifying the name of the annotation column
+#' @param log_messages_rv Optional logging object for event logging
+#' @param log_event Optional logging function for event logging
+#'
+#' @return A list containing two elements:
+#' \itemize{
+#'   \item cleaned_data: Data frame with NA values removed
+#'   \item statistics: List containing:
+#'   \itemize{
+#'     \item original_rows: Number of rows in original data
+#'     \item new_rows: Number of rows after cleaning
+#'     \item dropped_rows: Number of rows removed
+#'     \item na_counts: Named vector of NA counts per column
+#'     \item empty_columns_removed: Number of fully NA columns removed
+#'   }
+#' }
+#'
+#' @details
+#' The function performs the following steps:
+#' 1. Validates input data and column names
+#' 2. Counts NA values in specified columns
+#' 3. Removes rows with NA values
+#' 4. Removes columns that are fully NA
+#' 5. Generates statistics about the cleaning process
+#' 6. Displays a visual alert with cleaning summary
+#'
+#' @examples
+#' \dontrun{
+#' results <- diagnose_input_columns_and_remove_NA(
+#'   df = my_data,
+#'   pvalue_col = "pvalue",
+#'   fold_col = "log2FC",
+#'   annotation_col = "gene_id"
+#' )
+#' 
+#' # Access cleaned data
+#' cleaned_data <- results$cleaned_data
+#' 
+#' # Access statistics
+#' stats <- results$statistics
+#' }
+#'
+#' @importFrom dplyr drop_na %>%
+#' @importFrom shinyalert shinyalert
+#' @importFrom htmltools HTML
+#'
+#' @export
+#'
+#' @author DatViseR
+#'
+#' @note 
+#' This function is part of the Vivid-Volcano package, designed for 
+#' custom analyses of preprocessed omics data.
+#'
+#' @seealso 
+#' \code{\link[dplyr]{drop_na}}, \code{\link[shinyalert]{shinyalert}}
+#'
+
+diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annotation_col, log_messages_rv = NULL, log_event = NULL) {
+  
+  # Add debug logging at function start
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("Function called at %s with params: pvalue_col=%s, fold_col=%s, annotation_col=%s",
+                      format(Sys.time(), "%H:%M:%S.%OS3"),
+                      pvalue_col, fold_col, annotation_col),
+              "DEBUG from diagnose_input_columns_and_remove_NA")
+  }
+  
+  
+  # Input validation
+  if (is.null(df) || !is.data.frame(df)) {
+    stop("Input must be a valid data frame")
+  }
+  
+  if (!all(c(pvalue_col, fold_col, annotation_col) %in% colnames(df))) {
+    missing_cols <- setdiff(c(pvalue_col, fold_col, annotation_col), colnames(df))
+    stop(sprintf("Missing required columns: %s", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Store initial state
+  original_rows <- nrow(df)
+  original_cols <- ncol(df)
+  
+  # Log initial state
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv, 
+              sprintf("Initial number of rows: %d, columns: %d", original_rows, original_cols), 
+              "INFO")
+  }
+  
+  # Count NA values in specified columns using tryCatch for safer evaluation
+  na_counts <- tryCatch({
+    sapply(df[c(pvalue_col, fold_col, annotation_col)], 
+           function(x) sum(is.na(x)))
+  }, error = function(e) {
+    stop(sprintf("Error counting NA values: %s", e$message))
+  })
+  
+  # Log NA counts
+  if (!is.null(log_messages_rv)) {
+    log_event(log_messages_rv, 
+              sprintf("NA counts in columns before filtering:\n%s", 
+                      paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), 
+              "INFO")
+  }
+  
+  # Remove rows with NA values in specified columns using tryCatch
+  df_cleaned <- tryCatch({
+    df %>% 
+      drop_na(all_of(c(pvalue_col, fold_col, annotation_col)))
+  }, error = function(e) {
+    stop(sprintf("Error removing NA values: %s", e$message))
+  })
+  
+  # Remove columns that are fully NA
+  empty_columns <- colnames(df_cleaned)[colSums(is.na(df_cleaned)) == nrow(df_cleaned)]
+  df_cleaned <- df_cleaned[, !colnames(df_cleaned) %in% empty_columns, drop = FALSE]
+  empty_columns_removed <- length(empty_columns)
+  
+  # Log empty columns removal
+  if (!is.null(log_messages_rv)) {
+    if (empty_columns_removed > 0) {
+      log_event(log_messages_rv, 
+                sprintf("Removed %d empty columns: %s", 
+                        empty_columns_removed, paste(empty_columns, collapse = ", ")), 
+                "INFO")
+    } else {
+      log_event(log_messages_rv, 
+                "No empty columns were removed", 
+                "INFO")
+    }
+  }
+  
+  # Calculate statistics
+  new_rows <- nrow(df_cleaned)
+  dropped_rows <- original_rows - new_rows
+  new_cols <- ncol(df_cleaned)
+  
+  # Log results
+  if (!is.null(log_messages_rv)) {
+    if (dropped_rows > 0) {
+      log_event(log_messages_rv,
+                sprintf("Removed %d rows with missing values (%d -> %d rows)",
+                        dropped_rows, original_rows, new_rows),
+                "INFO")
+    } else {
+      log_event(log_messages_rv,
+                "No rows were removed - no missing values found",
+                "INFO")
+    }
+  }
+  
+  # Create alert message with safe HTML creation
+  alert_message <- tryCatch({
+    HTML(sprintf(
+      "<div style='text-align: left;'>
+            <strong>Data Processing Summary:</strong><br><br>
+            Initial number of rows: %d<br>
+            Initial number of columns: %d<br><br>
+            <strong>Missing values found:</strong><br>
+            %s<br>
+            <strong>Rows removed:</strong> %d<br>
+            <strong>Remaining rows:</strong> %d<br>
+            <strong>Empty columns removed:</strong> %d<br>
+            <strong>Remaining columns:</strong> %d
+            </div>",
+      original_rows,
+      original_cols,
+      paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
+      dropped_rows,
+      new_rows,
+      empty_columns_removed,
+      new_cols
+    ))
+  }, error = function(e) {
+    stop(sprintf("Error creating alert message: %s", e$message))
+  })
+  
+  # Show alert with error handling
+  tryCatch({
+    shinyalert(
+      title = "Data Processing Information",
+      text = alert_message,
+      type = "warning",
+      html = TRUE,
+      size = "m",
+      closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE,
+      showConfirmButton = TRUE,
+      confirmButtonText = "Continue",
+      timer = 0
+    )
+  }, error = function(e) {
+    warning(sprintf("Error showing alert: %s", e$message))
+  })
+  
+  # Return results as a list
+  return(list(
+    cleaned_data = df_cleaned,
+    statistics = list(
+      original_rows = original_rows,
+      new_rows = new_rows,
+      dropped_rows = dropped_rows,
+      na_counts = na_counts,
+      empty_columns_removed = empty_columns_removed,
+      original_cols = original_cols,
+      new_cols = new_cols
+    )
+  ))
+}
+
+
+
+
+
+#' Clean Gene Names
+#' @param genes Vector of gene names to clean
+#' @param log_messages_rv Reactive value for storing log messages (optional)
+#' @param log_event Function for logging events (optional)
+#' @return Vector of cleaned, unique gene names
+clean_gene_names <- function(genes, 
+                             log_messages_rv = NULL,  # Optional: for logging messages
+                             log_event = NULL) {      # Optional: logging function
+  
+  # Only log if both logging parameters are provided
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("Starting gene names cleaning:\n- Input length: %d",
+                      length(genes)),
+              "INFO from clean_gene_names()")
+  }
+  
+  # Clean gene names using pipe
+  cleaned_genes <- genes %>%
+    na.omit() %>%
+    sub(pattern = "[;|,\\s].*", replacement = "") %>%
+    trimws() %>%
+    .[. != ""] %>%
+    toupper() %>%
+    gsub(pattern = "[^A-Z0-9]", replacement = "") %>%
+    unique()
+  
+  # Only log if both logging parameters are provided
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("Gene names cleaning completed:\n- Input genes: %d\n- Cleaned unique genes: %d\n- Removed genes: %d",
+                      length(genes),
+                      length(cleaned_genes),
+                      length(genes) - length(cleaned_genes)),
+              "SUCCESS from clean_gene_names()")
+  }
+  
+  return(cleaned_genes)
+}
+
+
+
 # GO tag enrichment analysis is based on the hypergeometric test which is a statistical test used to determine if the
 # number of successes in a sample drawn from a population is significantly different from the number of successes in the
 # population as a whole. The function below performs the hypergeometric test and logs the results. 
@@ -116,19 +407,33 @@ perform_hypergeometric_test <- function(log_messages_rv, population_size, succes
   return(result)
 }
 
+# silent version with logging supressed - aimed to run inside the lapply loop for testing each GO tag 
+# which are in tousands so logging needs to be supressed to avoid cluttering the log. 
+
+# First create a silent version of the hypergeometric test
+
+# Only this function definition should be in global scope
+perform_hypergeometric_test_silent <- function(population_size, success_population_size, 
+                                               sample_size, sample_success_size) {
+  # Just calculate and return the result, no logging
+  phyper(sample_success_size - 1, 
+         success_population_size, 
+         population_size - success_population_size, 
+         sample_size, 
+         lower.tail = FALSE)
+}
+
+
+
+
 calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv, log_event) {
   # Initial gene processing logging
   log_event(log_messages_rv, 
             sprintf("Starting gene preprocessing with %d raw entries", length(unlist(genes))),
             "INFO from calculate_go_enrichment()")
   
-  # Clean gene names
-  genes <- unlist(strsplit(genes, "[;|,\\s]+"))  
-  genes <- trimws(genes)                         
-  genes <- genes[genes != ""]                    
-  genes <- toupper(genes)                        
-  genes <- gsub("[^A-Z0-9]", "", genes)          
-  genes <- unique(genes)                         
+   # Use clean_gene_names function instead of direct pipe
+    genes <- clean_gene_names(genes, log_messages_rv, log_event)                   
   
   # Log gene cleaning results
   log_event(log_messages_rv, 
@@ -222,6 +527,434 @@ calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_
   
   return(enrichment_results)
 }
+
+
+#' Identify top enriched GO categories for multiple sets of regulated genes
+#'
+#' @description
+#' Performs Gene Ontology (GO) enrichment analysis using hypergeometric testing for multiple
+#' sets of regulated genes (up-regulated, down-regulated, and bidirectionally regulated).
+#' The function implements multiple testing correction and various filtering criteria to
+#' identify statistically significant GO terms.
+#'
+#' @details
+#' The function performs the following steps:
+#' 1. Validates input parameters and GO annotations
+#' 2. Calculates background statistics for GO terms
+#' 3. Processes each gene set (up/down/bidirectional) separately
+#' 4. Performs hypergeometric testing for enrichment
+#' 5. Adjusts p-values for multiple testing
+#' 6. Filters results based on significance criteria
+#' 7. Returns both top significant terms and complete analysis results
+#'
+#' @param detected_genes A character vector of all genes detected in the experiment (background set).
+#' @param regulated_sets A named list of character vectors containing regulated genes.
+#'        Names should be "up", "down", and/or "bidirectional".
+#'        Example: list(up = c("gene1", "gene2"), down = c("gene3", "gene4"))
+#' @param go_filtered A data frame containing filtered GO annotations with columns:
+#'        \itemize{
+#'          \item name - GO term name/ID
+#'          \item gene - Gene identifier
+#'          \item ontology - GO category (P: Process, F: Function, C: Component)
+#'        }
+#' @param ontology Character string specifying the GO category to analyze ("P", "F", or "C").
+#' @param p_adj_method Method for p-value adjustment. Default: "BH" (Benjamini-Hochberg).
+#'        See ?p.adjust for available methods.
+#' @param alpha Significance level threshold after p-value adjustment. Default: 0.05
+#' @param max_categories Maximum number of top enriched categories to return. Default: 10
+#' @param min_genes_in_term Minimum number of genes required in a GO term. Default: 5
+#' @param max_genes_in_term Maximum number of genes allowed in a GO term. Default: 500
+#' @param min_fold_enrichment Minimum fold enrichment required. Default: 1.5
+#' @param log_messages_rv Optional reactiveValues object for Shiny app logging.
+#' @param log_event Optional function for logging events in Shiny app.
+#'
+#' @return A list containing four elements:
+#' \describe{
+#'   \item{top_results}{A list of data frames (one per gene set) containing significantly
+#'         enriched GO terms that pass all filters, sorted by adjusted p-value}
+#'   \item{all_results}{A list of data frames (one per gene set) containing all tested
+#'         GO terms and their statistics}
+#'   \item{top10_results}{A list of data frames (one per gene set) containing the top 10
+#'         GO terms sorted by significance, regardless of filtering criteria}
+#'   \item{missing_genes}{Character vector of input genes without GO annotations}
+#' }
+#'
+#' Each results data frame contains the following columns:
+#' \describe{
+#'   \item{name}{GO term name/ID}
+#'   \item{gene_set}{Name of the gene set (up/down/bidirectional)}
+#'   \item{total_count}{Total number of genes associated with the GO term}
+#'   \item{genes_in_term}{Semicolon-separated list of all genes in the term}
+#'   \item{regulated_count}{Number of regulated genes in the term}
+#'   \item{regulated_genes}{Semicolon-separated list of regulated genes in the term}
+#'   \item{expected_count}{Expected number of genes by chance}
+#'   \item{fold_enrichment}{Observed/Expected ratio}
+#'   \item{p_value}{Raw p-value from hypergeometric test}
+#'   \item{p_adj}{Adjusted p-value}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Prepare input data
+#' detected <- c("gene1", "gene2", "gene3", "gene4", "gene5")
+#' regulated <- list(
+#'   up = c("gene1", "gene2"),
+#'   down = c("gene3", "gene4")
+#' )
+#' go_data <- data.frame(
+#'   name = c("GO:0001", "GO:0002"),
+#'   gene = c("gene1", "gene2"),
+#'   ontology = c("P", "P")
+#' )
+#'
+#' # Run enrichment analysis
+#' results <- identify_top_go_enrichment(
+#'   detected_genes = detected,
+#'   regulated_sets = regulated,
+#'   go_filtered = go_data,
+#'   ontology = "P"
+#' )
+#' }
+#'
+#' @seealso
+#' \code{\link[stats]{p.adjust}} for p-value adjustment methods
+#'
+#' @importFrom dplyr group_by summarise filter inner_join mutate arrange %>%
+#' @importFrom stats p.adjust phyper
+#'
+#' @export
+identify_top_go_enrichment <- function(detected_genes,
+                                       regulated_sets,
+                                       go_filtered,
+                                       ontology,
+                                       p_adj_method = "BH",
+                                       alpha = 0.05,
+                                       max_categories = 10,
+                                       min_genes_in_term = 5,
+                                       max_genes_in_term = 500,
+                                       min_fold_enrichment = 1.5,
+                                       log_messages_rv = NULL,
+                                       log_event = NULL) {
+  
+  # Initialize empty result structure with correct column types
+  empty_result <- data.frame(
+    name = character(),
+    gene_set = character(),
+    total_count = integer(),
+    genes_in_term = character(),
+    regulated_count = integer(),
+    regulated_genes = character(),
+    expected_count = numeric(),
+    fold_enrichment = numeric(),
+    p_value = numeric(),
+    p_adj = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Initialize results storage with empty structures
+  all_results <- list(
+    up = empty_result,
+    down = empty_result,
+    bidirectional = empty_result
+  )
+  top_results <- list(
+    up = empty_result,
+    down = empty_result,
+    bidirectional = empty_result
+  )
+  
+  # Input validation with safe returns
+  if (is.null(detected_genes) || length(detected_genes) == 0) {
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      log_event(log_messages_rv, "No detected genes provided", "ERROR")
+    }
+    return(list(
+      top_results = top_results,
+      all_results = all_results,
+      missing_genes = character(0)
+    ))
+  }
+  
+  if (is.null(regulated_sets) || length(regulated_sets) == 0) {
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      log_event(log_messages_rv, "No regulated gene sets provided", "ERROR")
+    }
+    return(list(
+      top_results = top_results,
+      all_results = all_results,
+      missing_genes = character(0)
+    ))
+  }
+  
+  if (is.null(go_filtered) || nrow(go_filtered) == 0) {
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      log_event(log_messages_rv, "No GO annotations provided", "ERROR")
+    }
+    return(list(
+      top_results = top_results,
+      all_results = all_results,
+      missing_genes = character(0)
+    ))
+  }
+  
+  # Start logging
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("Starting GO enrichment analysis:\n- Detected genes: %d\n- Ontology: %s\n- Alpha: %g\n- Max categories: %d\n- Adjustment method: %s\n- Gene size filters: %d-%d\n- Min fold enrichment: %.2f",
+                      length(detected_genes), ontology, alpha, max_categories, 
+                      p_adj_method, min_genes_in_term, max_genes_in_term, min_fold_enrichment),
+              "START from identify_top_go_enrichment()")
+  }
+  
+  # Pre-calculate background statistics with size filtering and error handling
+  go_term_stats <- tryCatch({
+    stats <- go_filtered %>%
+      group_by(name) %>%
+      summarise(
+        total_count = n_distinct(gene),
+        genes_in_term = paste(sort(unique(gene)), collapse = ";"),
+        .groups = 'drop'
+      ) %>%
+      filter(total_count >= min_genes_in_term,
+             total_count <= max_genes_in_term)
+    
+    if (nrow(stats) == 0) {
+      return(NULL)
+    }
+    stats
+  }, error = function(e) {
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      log_event(log_messages_rv,
+                sprintf("Error in background statistics calculation: %s", e$message),
+                "ERROR")
+    }
+    return(NULL)
+  })
+  
+  if (is.null(go_term_stats)) {
+    return(list(
+      top_results = top_results,
+      all_results = all_results,
+      missing_genes = character(0)
+    ))
+  }
+  
+  # Process each gene set
+  for (set_name in names(regulated_sets)) {
+    regulated_genes <- regulated_sets[[set_name]]
+    
+    if (length(regulated_genes) == 0) {
+      if (!is.null(log_messages_rv) && !is.null(log_event)) {
+        log_event(log_messages_rv,
+                  sprintf("Skipping analysis for empty %s gene set", set_name),
+                  "INFO")
+      }
+      all_results[[set_name]] <- empty_result
+      top_results[[set_name]] <- empty_result
+      next
+    }
+    
+    # Calculate regulated gene statistics with error handling
+    regulated_stats <- tryCatch({
+      stats <- go_filtered %>%
+        filter(gene %in% regulated_genes) %>%
+        group_by(name) %>%
+        summarise(
+          regulated_count = n_distinct(gene),
+          regulated_genes = paste(sort(unique(gene)), collapse = ";"),
+          .groups = 'drop'
+        )
+      
+      if (nrow(stats) == 0) {
+        return(NULL)
+      }
+      stats
+    }, error = function(e) {
+      if (!is.null(log_messages_rv) && !is.null(log_event)) {
+        log_event(log_messages_rv,
+                  sprintf("Error in regulated gene statistics for %s: %s", set_name, e$message),
+                  "ERROR")
+      }
+      return(NULL)
+    })
+    
+    if (is.null(regulated_stats)) {
+      all_results[[set_name]] <- empty_result
+      top_results[[set_name]] <- empty_result
+      next
+    }
+    
+    # Combine statistics and calculate enrichment with error handling
+    set_results <- tryCatch({
+      results <- go_term_stats %>%
+        inner_join(regulated_stats, by = "name") %>%
+        mutate(
+          gene_set = set_name,
+          expected_count = as.numeric(total_count) * length(regulated_genes) / length(detected_genes)
+        ) %>%
+        mutate(
+          fold_enrichment = as.numeric(regulated_count) / expected_count,
+          p_value = pmax(mapply(function(rc, tc, rg, dg) {
+            if (is.na(rc) || is.na(tc) || is.na(rg) || is.na(dg) || 
+                rc > tc || tc == 0 || rg > dg) {
+              return(1)
+            }
+            phyper(q = rc - 1, m = tc, n = dg - tc, k = rg, lower.tail = FALSE)
+          }, regulated_count, total_count, length(regulated_genes), length(detected_genes)),
+          .Machine$double.xmin)
+        )
+      
+      if (nrow(results) == 0) {
+        return(NULL)
+      }
+      results
+    }, error = function(e) {
+      if (!is.null(log_messages_rv) && !is.null(log_event)) {
+        log_event(log_messages_rv,
+                  sprintf("Error in enrichment calculation for %s: %s", set_name, e$message),
+                  "ERROR")
+      }
+      return(NULL)
+    })
+    
+    if (is.null(set_results)) {
+      all_results[[set_name]] <- empty_result
+      top_results[[set_name]] <- empty_result
+      next
+    }
+    
+    # Adjust p-values with error handling
+    set_results$p_adj <- tryCatch({
+      p.adjust(set_results$p_value, method = p_adj_method)
+    }, error = function(e) {
+      if (!is.null(log_messages_rv) && !is.null(log_event)) {
+        log_event(log_messages_rv,
+                  sprintf("Error in p-value adjustment for %s: %s", set_name, e$message),
+                  "ERROR")
+      }
+      rep(1, nrow(set_results))
+    })
+    
+    # Store full results
+    all_results[[set_name]] <- set_results
+    
+    # Filter and store significant results with error handling
+    significant_results <- tryCatch({
+      filtered_results <- set_results %>%
+        filter(!is.na(p_adj) & as.numeric(p_adj) < alpha,
+               !is.na(fold_enrichment) & as.numeric(fold_enrichment) >= min_fold_enrichment) %>%
+        arrange(p_adj) %>%
+        head(max_categories)
+      
+      if (nrow(filtered_results) == 0) {
+        empty_result
+      } else {
+        filtered_results
+      }
+    }, error = function(e) {
+      if (!is.null(log_messages_rv) && !is.null(log_event)) {
+        log_event(log_messages_rv,
+                  sprintf("Error in filtering significant results for %s: %s", set_name, e$message),
+                  "ERROR")
+      }
+      empty_result
+    })
+    
+    top_results[[set_name]] <- significant_results
+    
+    # Log results with error handling
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      tryCatch({
+        log_event(log_messages_rv,
+                  sprintf("%s gene set analysis:\n- Terms tested: %d\n- Raw p < 0.05: %d\n- Adjusted p < %g: %d\n- Terms passing fold enrichment ≥ %.1f: %d\n- Final top terms: %d",
+                          set_name,
+                          nrow(set_results),
+                          sum(!is.na(set_results$p_value) & set_results$p_value < 0.05),
+                          alpha,
+                          sum(!is.na(set_results$p_adj) & set_results$p_adj < alpha),
+                          min_fold_enrichment,
+                          sum(!is.na(set_results$fold_enrichment) & set_results$fold_enrichment >= min_fold_enrichment),
+                          nrow(significant_results)),
+                  "INFO")
+      }, error = function(e) {
+        log_event(log_messages_rv,
+                  sprintf("Error in logging results for %s: %s", set_name, e$message),
+                  "ERROR")
+      })
+    }
+  }
+  
+  # Calculate missing genes with error handling
+  missing_genes <- tryCatch({
+    unique(unlist(lapply(regulated_sets, function(genes) {
+      setdiff(genes, unique(go_filtered$gene))
+    })))
+  }, error = function(e) {
+    if (!is.null(log_messages_rv) && !is.null(log_event)) {
+      log_event(log_messages_rv,
+                sprintf("Error in calculating missing genes: %s", e$message),
+                "ERROR")
+    }
+    character(0)
+  })
+  
+  # Final logging
+  if (!is.null(log_messages_rv) && !is.null(log_event)) {
+    log_event(log_messages_rv,
+              sprintf("GO enrichment analysis completed.\nMissing genes: %d",
+                      length(missing_genes)),
+              "SUCCESS")
+  }
+  top10_results <- list(
+    up = tryCatch({
+      all_results$up %>%
+        # First sort significant results (p_adj < 1)
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1  # Add 1 to ensure p_adj < 1 results come first
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)  # Remove the temporary sorting column
+    }, error = function(e) { empty_result }),
+    
+    down = tryCatch({
+      all_results$down %>%
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)
+    }, error = function(e) { empty_result }),
+    
+    bidirectional = tryCatch({
+      all_results$bidirectional %>%
+        mutate(
+          sorting_value = case_when(
+            p_adj < 1 ~ p_adj,
+            TRUE ~ p_value + 1
+          )
+        ) %>%
+        arrange(sorting_value) %>%
+        slice_head(n = 10) %>%
+        select(-sorting_value)
+    }, error = function(e) { empty_result })
+  )
+  
+  return(list(
+    top_results = top_results,
+    all_results = all_results,
+    top10_results = top10_results,  # Add this to the return list
+    missing_genes = missing_genes
+  ))
+}
+
 
 
 # Creates a GO enrichment table for upregulated, downregulated, and all regulated genes based on the input data frame
@@ -503,6 +1236,516 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
   return(publication_plot)
 }
 
+
+
+
+# Process the data with fixed label format using colon separator - previously it was / but some ratios
+# were not rendered properly 
+
+# Issue explanation: The original problem occurred because ggplot2's element_markdown()
+# was interpreting single-digit fractions (like 1/5, 1/7, 1/9) as special fraction notations
+# when both numerator and denominator were single digits. This caused these specific
+# number combinations to be rendered incorrectly or become invisible. The solution was
+# to use a colon instead of a forward slash to prevent the fraction interpretation
+# while maintaining a clear ratio representation.
+
+
+build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
+                             show_not_significant = FALSE, log_messages_rv, log_event,
+                             plotOntologyValue) {  
+  
+  # 1. Initial logging
+  log_event(log_messages_rv,
+            sprintf("Starting build_gsea_plots with ontology = %s, show_not_significant = %s", 
+                    ontology, show_not_significant),
+            "DEBUG from build_gsea_plots")
+  
+  # 2. Data preparation: Check if each category exists in the input data
+  # Fix: Check both top10_results and top_results for data availability
+  has_bidirectional <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$bidirectional) && 
+      nrow(enrichment_results_list$top10_results$bidirectional) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$bidirectional) && 
+      nrow(enrichment_results_list$top_results$bidirectional) > 0
+  }
+  
+  has_up <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$up) && 
+      nrow(enrichment_results_list$top10_results$up) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$up) && 
+      nrow(enrichment_results_list$top_results$up) > 0
+  }
+  
+  has_down <- if (show_not_significant) {
+    !is.null(enrichment_results_list$top10_results$down) && 
+      nrow(enrichment_results_list$top10_results$down) > 0
+  } else {
+    !is.null(enrichment_results_list$top_results$down) && 
+      nrow(enrichment_results_list$top_results$down) > 0
+  }
+  
+  # Store availability information
+  enrichment_results_list$has_bidirectional <- has_bidirectional
+  enrichment_results_list$has_up <- has_up
+  enrichment_results_list$has_down <- has_down
+  
+  # Select appropriate results based on show_not_significant parameter
+  results_to_use <- list(
+    bidirectional = if (has_bidirectional) {
+      if (show_not_significant) enrichment_results_list$top10_results$bidirectional 
+      else enrichment_results_list$top_results$bidirectional
+    } else NULL,
+    up = if (has_up) {
+      if (show_not_significant) enrichment_results_list$top10_results$up 
+      else enrichment_results_list$top_results$up
+    } else NULL,
+    down = if (has_down) {
+      if (show_not_significant) enrichment_results_list$top10_results$down 
+      else enrichment_results_list$top_results$down
+    } else NULL
+  )
+  
+
+  # 3. Early validation of data sources
+  log_event(log_messages_rv,
+            sprintf("Checking data availability - Bidirectional: %s, Up: %s, Down: %s",
+                    !is.null(results_to_use$bidirectional),
+                    !is.null(results_to_use$up),
+                    !is.null(results_to_use$down)),
+            "DEBUG from build_gsea_plots")
+  
+  # 4. Prepare plot titles using the plotOntologyValue instead of ontology
+  current_ontology <- plotOntologyValue  # Get the stored ontology value
+  
+  plot_titles <- list(
+    bidirectional = sprintf("%s\nBidirectionally-regulated Genes\n%s",
+                            switch(current_ontology,
+                                   "P" = "Biological Processes",
+                                   "F" = "Molecular Functions",
+                                   "C" = "Cellular Compartments",
+                                   current_ontology),  # fallback to original value if not P,F,C
+                            if(show_not_significant) 
+                              "Top 10 terms\n(significant in color)" 
+                            else 
+                              "Top 10 significant terms"),
+    up = sprintf("%s\nUp-regulated Genes\n%s",
+                 switch(current_ontology,
+                        "P" = "Biological Processes",
+                        "F" = "Molecular Functions",
+                        "C" = "Cellular Compartments",
+                        current_ontology),
+                 if(show_not_significant) 
+                   "Top 10 terms\n(significant in color)" 
+                 else 
+                   "Top 10 significant terms"),
+    down = sprintf("%s\nDown-regulated Genes\n%s",
+                   switch(current_ontology,
+                          "P" = "Biological Processes",
+                          "F" = "Molecular Functions",
+                          "C" = "Cellular Compartments",
+                          current_ontology),
+                   if(show_not_significant) 
+                     "Top 10 terms\n(significant in color)" 
+                   else 
+                     "Top 10 significant terms")
+  )
+  
+  # 5. Define helper function for plot creation
+  create_single_plot <- function(results_data, plot_title, log_messages_rv) {
+    # Input validation
+    if (is.null(results_data) || nrow(results_data) == 0) {
+      log_event(log_messages_rv,
+                sprintf("No data available for %s plot", plot_title),
+                "WARNING from build_gsea_plots")
+      return(NULL)
+    }
+    
+    # Data processing
+    # Note: Using colon instead of slash to avoid markdown fraction interpretation
+    plot_data <- results_data %>%
+      mutate(
+        term_label = sprintf("<b>%s</b><br>%d:%d [regulated:detected]", 
+                             name, regulated_count, total_count),
+        neg_log10_padj = -log10(p_adj),
+        is_significant = p_adj < 0.05
+      ) %>%
+      arrange(desc(fold_enrichment)) %>%
+      mutate(
+        term_label = factor(term_label, levels = rev(term_label))
+      )
+    
+    # Log processed data info
+    log_event(log_messages_rv,
+              sprintf("Created plot data with %d rows, %d significant", 
+                      nrow(plot_data),
+                      sum(plot_data$is_significant)),
+              "DEBUG from build_gsea_plots")
+    
+    # Plot creation
+    plot <- ggplot(plot_data, aes(x = fold_enrichment, y = term_label)) +
+      geom_bar(aes(fill = if_else(is_significant, neg_log10_padj, NA_real_)), 
+               stat = "identity",
+               width = 0.3) +
+      scale_fill_gradient2(
+        name = "-log10(adj.P)",
+        low = "#E6F3FF",      # Light blue
+        mid = "#2185D0",      # Semantic UI Blue
+        high = "#084B8A",     # Navy blue
+        limits = c(1.30, max(plot_data$neg_log10_padj, na.rm = TRUE)),  # From -log10(0.05) to max value
+        midpoint = (1.30 + max(plot_data$neg_log10_padj, na.rm = TRUE))/2,  # Set midpoint halfway
+        na.value = "grey90"
+      )+
+      labs(
+        title = plot_title,
+        x = "Fold Enrichment",
+        y = NULL
+      ) +
+      scale_y_discrete(expand = c(0, 0)) +
+      theme_minimal() +
+      theme(
+        axis.text = element_markdown(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(), 
+        axis.text.y = element_text(size = 11),
+        axis.text.x = element_text(size = 11),
+        axis.title.x = element_text(size = 11),
+        plot.title = element_text(size = 12, face = "bold"),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 11),
+        plot.margin = margin(t = 5, r = 5, b = 5, l = 5),
+        axis.text.y.left = element_text(lineheight = 0.9),
+        legend.position = c(0.95, 0.05),  # x=0.95 and y=0.05 positions (bottom right)
+        legend.justification = c(1, 0),    # Anchor point at bottom right
+        legend.box.just = "right",
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.background = element_rect(fill = "white", color = NA)
+      )
+    
+    return(plot)
+  }
+  
+  # 6. Create all three plots
+  plots <- list(
+    bidirectional = create_single_plot(results_to_use$bidirectional, plot_titles$bidirectional, log_messages_rv),
+    up = create_single_plot(results_to_use$up, plot_titles$up, log_messages_rv),
+    down = create_single_plot(results_to_use$down, plot_titles$down, log_messages_rv)
+  )
+  
+  # 7. Final logging and return
+  log_event(log_messages_rv, "All plots created successfully", "DEBUG from build_gsea_plots")
+  return(plots)
+}
+
+
+
+build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_messages_rv, log_event) {
+  # Log function start
+  log_event(log_messages_rv,
+            sprintf("Starting GSEA GT table build with parameters:\n Colors: %s, %s",
+                    color_highlight[1], color_highlight[2]),
+            "INFO from build_gsea_gt_table()")
+  
+  down_color <- color_highlight[1]
+  up_color <- color_highlight[2]
+  
+  # Early return if no results or all empty
+  if (is.null(enrichment_results_list) || 
+      is.null(enrichment_results_list$top_results) || 
+      all(sapply(enrichment_results_list$top_results, function(x) nrow(x) == 0))) {
+    
+    return(
+      tibble(Message = "No significant functional group of genes is overrepresented in this set") %>%
+        gt() %>%
+        tab_options(
+          table.width = pct(100),
+          table.font.size = px(12),
+          column_labels.visible = FALSE
+        )
+    )
+  }
+
+  # Process results for each regulation type
+  process_results <- function(df, regulation_type) {
+    if (is.null(df) || nrow(df) == 0) return(NULL)
+    
+    df %>%
+      mutate(
+        Regulation = regulation_type,
+        Genes_Ratio = sprintf("%d/%d", regulated_count, total_count),
+        Fold_Enrichment = round(fold_enrichment, 2),
+        P_Value = ifelse(p_value < 0.001, "<0.001", sprintf("%.3f", p_value)),
+        Adjusted_P_Value = ifelse(p_adj < 0.001, "<0.001", sprintf("%.3f", p_adj))
+      ) %>%
+      select(
+        Regulation,
+        GO_Term = name,
+        Genes_Total = total_count,
+        Genes_Found = regulated_count,
+        Fold_Enrichment,
+        P_Value,
+        Adjusted_P_Value
+      )
+  }
+  
+  # Process each regulation type
+  regulated_df <- process_results(enrichment_results_list$top_results$bidirectional, "Bidirectional")
+  upregulated_df <- process_results(enrichment_results_list$top_results$up, "Up-regulated")
+  downregulated_df <- process_results(enrichment_results_list$top_results$down, "Down-regulated")
+  
+  # Combine results
+  combined_df <- bind_rows(
+    regulated_df,
+    upregulated_df,
+    downregulated_df
+  )
+  
+  # Create GT table
+  gt_table <- combined_df %>%
+    gt(groupname_col = "Regulation") %>%
+    tab_header(
+      title = "Gene Set Enrichment Analysis Results",
+      subtitle = "Significantly enriched Gene Ontology terms"
+    ) %>%
+    cols_label(
+      GO_Term = "GO Term",
+      Genes_Total = "Detected Genes in Term",
+      Genes_Found = "Regulated Genes in Term",
+      Fold_Enrichment = "Fold Enrichment",
+      P_Value = "P-value",
+      Adjusted_P_Value = "Adjusted P-value"
+    ) %>%
+    fmt_number(
+      columns = Fold_Enrichment,
+      decimals = 2
+    ) %>%
+    tab_footnote(
+      footnote = "Adjusted p-values were calculated using the Benjamini-Hochberg (BH) 
+      method to control the False Discovery Rate (FDR). Note that BH treats all
+      GO terms as independent, which may lead to over-adjustment (conservative results)
+      for broad terms with many dependent child terms or under-adjustment (liberal results) 
+      for terms whose significance is driven by overlapping child terms
+      see https://github.com/DatViseR/Vivid-Volcano/Notes on GSEA statistics.md 
+      for details examples and explanation"
+            ,
+      locations = cells_column_labels("Adjusted_P_Value")
+    ) %>%
+    tab_footnote(
+      footnote = "The raw p-value is calculated using the hypergeometric test
+      ,which assesses the probability of observing at least the given number of
+      regulated genes in a GO term by chance, given the total number of detected
+      genes, the total count of genes in the term, and the number of
+      regulated genes in the dataset."
+            ,
+      locations = cells_column_labels("P_Value")
+      
+    )%>%
+    tab_footnote(
+      footnote = "represents how many times more frequent the GO term 
+      appears among the regulated gene set compared to what would be expected by chance"
+      ,
+      locations = cells_column_labels("Fold_Enrichment")
+      
+    )%>%
+    
+    
+    
+    
+    
+    tab_options(
+      table.width = pct(100),
+      table.font.size = px(12),
+      column_labels.font.weight = "bold",
+      row_group.font.weight = "bold"
+    )
+  
+  # Style row groups
+  if (!is.null(regulated_df) && nrow(regulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = "#D3D3D3")
+        ),
+        locations = cells_row_groups(groups = "Bidirectional")
+      )
+  }
+  
+  if (!is.null(upregulated_df) && nrow(upregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = up_color)
+        ),
+        locations = cells_row_groups(groups = "Up-regulated")
+      )
+  }
+  
+  if (!is.null(downregulated_df) && nrow(downregulated_df) > 0) {
+    gt_table <- gt_table %>%
+      tab_style(
+        style = list(
+          cell_text(weight = "bold"),
+          cell_fill(color = down_color)
+        ),
+        locations = cells_row_groups(groups = "Down-regulated")
+      )
+  }
+  
+  log_event(log_messages_rv,
+            "GSEA GT table build completed successfully",
+            "INFO from build_gsea_gt_table()")
+  
+  return(gt_table)
+}
+
+
+
+
+#' Filter redundant GO terms from GSEA results
+#' 
+#' @param enrichment_results_list List containing GSEA results
+#' @param filter_pattern Pattern to match in GO term names
+#' @param log_messages_rv Reactive value for log storage
+#' @param log_event Logging function
+#'
+#' @return Filtered GSEA results list
+#' @export
+filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
+  log_event(log_messages_rv, 
+            sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), 
+            "INFO from filter_gsea_results")
+  
+  filter_all_results <- function(df, pattern) {
+    if (nrow(df) == 0) {
+      log_event(log_messages_rv, 
+                "Encountered empty data frame; returning as is.", 
+                "INFO from filter_gsea_results")
+      return(df)
+    }
+    
+    # Split into matching and non-matching results
+    matching_idx <- grepl(pattern, df$name, ignore.case = TRUE)
+    
+    if (!any(matching_idx)) {
+      log_event(log_messages_rv, 
+                "No matching entries found; returning original data frame.", 
+                "INFO from filter_gsea_results")
+      return(df)
+    }
+    
+    # Get matching results and sort by adjusted p-value
+    matching_results <- df[matching_idx, , drop = FALSE]
+    matching_results <- matching_results[order(matching_results$p_adj), ]
+    
+    log_event(log_messages_rv, 
+              sprintf("Found %d matching entries; keeping most significant (p_adj: %g)", 
+                      nrow(matching_results), matching_results$p_adj[1]), 
+              "INFO from filter_gsea_results")
+    
+    # Keep only the top matching result with all its original data
+    top_match <- matching_results[1, , drop = FALSE]
+    
+    # Get non-matching results preserving all original data
+    non_matching_results <- df[!matching_idx, , drop = FALSE]
+    
+    # Combine and sort while preserving all columns
+    filtered_results <- rbind(top_match, non_matching_results)
+    filtered_results <- filtered_results[order(filtered_results$p_adj), ]
+    
+    return(filtered_results)
+  }
+  
+  rebuild_top_results <- function(all_results_df, alpha = 0.05, min_fold_enrichment = 1.5, max_categories = 10) {
+    if (nrow(all_results_df) == 0) return(all_results_df[0, ])
+    
+    # Filter significant results while preserving all columns
+    significant_results <- all_results_df[
+      !is.na(all_results_df$p_adj) & 
+        all_results_df$p_adj < alpha &
+        !is.na(all_results_df$fold_enrichment) & 
+        all_results_df$fold_enrichment >= min_fold_enrichment, 
+    ]
+    
+    if (nrow(significant_results) == 0) return(all_results_df[0, ])
+    
+    # Sort and take top results while preserving all data
+    significant_results[order(significant_results$p_adj)[1:min(max_categories, nrow(significant_results))], ]
+  }
+  
+  rebuild_top10_results <- function(all_results_df) {
+    if (nrow(all_results_df) == 0) return(all_results_df[0, ])
+    
+    # Create temporary sorting value
+    sorting_values <- ifelse(all_results_df$p_adj < 1, 
+                             all_results_df$p_adj, 
+                             all_results_df$p_value + 1)
+    
+    # Sort and take top 10 while preserving all original data
+    all_results_df[order(sorting_values)[1:min(10, nrow(all_results_df))], ]
+  }
+  
+  categories <- c("up", "down", "bidirectional")
+  filtered_top_results <- list()
+  filtered_all_results <- list()
+  filtered_top10_results <- list()
+  
+  for (cat in categories) {
+    # Get original data safely
+    original_all <- enrichment_results_list$all_results[[cat]]
+    
+    # Filter all_results first
+    filtered_all_results[[cat]] <- filter_all_results(original_all, filter_pattern)
+    
+    # Rebuild other results from filtered all_results
+    filtered_top_results[[cat]] <- rebuild_top_results(filtered_all_results[[cat]])
+    filtered_top10_results[[cat]] <- rebuild_top10_results(filtered_all_results[[cat]])
+    
+    # Get the original top10 for comparison
+    original_top10 <- enrichment_results_list$top10_results[[cat]]
+    
+    # Enhanced logging with safe comparison
+    changed_terms <- if (!is.null(original_top10) && nrow(original_top10) > 0) {
+      sum(!filtered_top10_results[[cat]]$name %in% original_top10$name)
+    } else {
+      NA
+    }
+    
+    log_event(log_messages_rv, 
+              sprintf(paste0(
+                "Category '%s' processed:\n",
+                "- All results: %d (from %d)\n",
+                "- Significant (p_adj < 0.05): %d\n",
+                "- Top matching term: '%s' (p_adj: %g)\n",
+                "- Top10 content changes: %s"
+              ),
+              cat,
+              nrow(filtered_all_results[[cat]]),
+              nrow(original_all),
+              sum(!is.na(filtered_all_results[[cat]]$p_adj) & 
+                    filtered_all_results[[cat]]$p_adj < 0.05),
+              filtered_top10_results[[cat]]$name[1],
+              filtered_top10_results[[cat]]$p_adj[1],
+              if(is.na(changed_terms)) "N/A" else sprintf("%d terms", changed_terms)),
+              "INFO from filter_gsea_results")
+  }
+  
+  log_event(log_messages_rv, "GSEA filtering completed.", "SUCCESS from filter_gsea_results")
+  
+  filtered_gsea_results <- list(
+    top_results = filtered_top_results,
+    all_results = filtered_all_results,
+    top10_results = filtered_top10_results,
+    missing_genes = enrichment_results_list$missing_genes
+  )
+  
+  return(filtered_gsea_results)
+}
+
+
+
 # Creates a GT table with color-coded row groups for regulated genes based on the input enrichment results list 
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv, log_event) {
@@ -602,19 +1845,33 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     cols_label(
       GO_Category = "GO name",
       id = "GO id",
-      Population_Enrichment_Ratio = "Genomic enrichment",
+      Population_Enrichment_Ratio = "Detected genes enrichment",
       Subpopulation_Enrichment_Ratio = "Regulated genes enrichment",
       P_Value = "Hypergeometric test p-value",
       Adjusted_P_Value = "Bonferroni adj-p value",
-      Success_Population_Size = "Genes in GO category",
+      Success_Population_Size = "Detected genes in GO category",
       Sample_Size = "Number of regulated genes",
       Sample_Success_Size = "Regulated genes in GO category"
     ) %>%
-    # Add footnote for Adjusted_P_Value column
+    # Adding footnotes
+  
     tab_footnote(
       footnote = "Bonferroni correction based on the estimated number of level 4 hierarchy GO tags n=1160",
       locations = cells_column_labels("Adjusted_P_Value")
     ) %>%
+    tab_footnote(
+      footnote = "Detected gene enrichment is defined as the ratio of detected genes annotated to the GO term
+      to the total number of detected background genes,
+      indicating the prevalence of the GO term within the analyzed gene set.",
+      locations = cells_column_labels("Population_Enrichment_Ratio")
+    ) %>%
+    tab_footnote(
+      footnote = "Regulated genes enrichment is calculated as the ratio of 
+      regulated genes in the GO term to the total number of regulated genes
+      in the analysis, reflecting the relative enrichment within the regulated subset.",
+      locations = cells_column_labels("Subpopulation_Enrichment_Ratio")
+    ) %>%
+    
     # Hide the Sample_Size column
     cols_hide(columns = "Sample_Size") %>%
     tab_options(
@@ -701,31 +1958,22 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
   
   # Get gene lists - corrected classification
   detected_genes <- df[[annotation_col]] %>%  # All genes in the experiment
-    toupper() %>%
-    gsub("[^A-Z0-9]", "", .) %>%
-    unique() %>%
-    .[. != ""]
+  clean_gene_names(., log_messages_rv, log_event)
   
   regulated_genes <- df %>%  # All significantly regulated genes
     filter(adjusted_pvalues < alpha) %>%
     pull(!!sym(annotation_col)) %>%
-    toupper() %>%
-    gsub("[^A-Z0-9]", "", .) %>%
-    unique()
+    clean_gene_names(., log_messages_rv, log_event)
   
   downregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) < 0) %>% 
     pull(!!sym(annotation_col)) %>%
-    toupper() %>%
-    gsub("[^A-Z0-9]", "", .) %>%
-    unique()
+    clean_gene_names(., log_messages_rv, log_event)
   
   upregulated_genes <- df %>% 
     filter(adjusted_pvalues < alpha & !!sym(fold_col) > 0) %>% 
     pull(!!sym(annotation_col)) %>%
-    toupper() %>%
-    gsub("[^A-Z0-9]", "", .) %>%
-    unique()
+    clean_gene_names(., log_messages_rv, log_event)
   
   # Log gene counts
   log_event(log_messages_rv,
@@ -749,9 +1997,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     
     go_genes <- category_data %>%
       pull(gene) %>%
-      toupper() %>%
-      gsub("[^A-Z0-9]", "", .) %>%
-      unique()
+      clean_gene_names(., log_messages_rv, log_event)
     
     go_id <- unique(category_data$id)[1]  # Get the GO ID
     
@@ -817,7 +2063,7 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
     ) %>%
     cols_label(
       GO_Category = "GO Category",
-      All_Genes = "All Genes (detected in bold, detected and regulated in color)",
+      All_Genes = "All Genes (detected in bold, detected and regulated in color [if color option enabled])",
       Downregulated = "Downregulated Genes",
       Upregulated = "Upregulated Genes"
     ) %>%
@@ -1387,12 +2633,35 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
 
 
 ui <- semanticPage(
-
+  useShinyjs(),
+  #full screen loader for GSEA
+  div(
+    id = "gsea-loader-overlay",
+    style = "display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: rgba(0,0,0,0.7); z-index: 9999;",
+    div(
+      class = "ui active big text loader",
+      style = "color: white !important;",
+      "Running GSEA analysis..."
+    )
+  ),
+  #full screen loader for draw volcano
+  div(
+    id = "volcano-loader-overlay",
+    style = "display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; background: rgba(0,0,0,0.7); z-index: 9999;",
+    div(
+      class = "ui active big text loader",
+      style = "color: white !important;",
+      "Creaing volcano plots and GO analysis tables..."
+    )
+  ),
+  
   # Includes custom CSS
   tags$head(
     tags$link(rel = "stylesheet", 
               type = "text/css", 
               href = paste0("custom.css?v=", Sys.time())),
+    tags$link(rel = "stylesheet", 
+              href = "https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.3/dist/semantic.min.css"),
 
   tags$script(HTML(
     "
@@ -1408,7 +2677,7 @@ ui <- semanticPage(
     
     
   ),
-  
+## navbar ----  
   segment(class = "navbar",
         img(src = "Vivid_volcano_logo.png", alt = "Logo", class = "logo"),
       div(class = "left-section",
@@ -1437,6 +2706,7 @@ ui <- semanticPage(
           
       )
   ),
+
   
   div(class = "ui fluid container",
       # Main layout using sidebar
@@ -1444,37 +2714,81 @@ ui <- semanticPage(
         # Sidebar panel with controls
         sidebar_panel(
                       width = 3,
-                      # Data Upload Card
+                      
+                      ## Data Upload Segment ----
                       div(class = "ui raised segment",
+                          
+                         
                           header(title = "Upload your data", description = "", icon = "upload"),
-                          div(class = "ui grey ribbon label", "Upload a CSV or TSV file"),
+                          div(class = "ribbon-container",
+                              div(class = "ui grey ribbon label", 
+                                  "Upload a CSV or TSV file"),
+                             ),
+                          div(class = "tooltip-container",
+                              tags$i(class = "info circle icon info-icon"),
+                              div(class = "tooltip-text",
+                                  HTML("
+    <div style='line-height: 1.4; max-width: 400px;'>
+        <strong style='color: #2185D0;'>Accepted file formats:</strong><br>
+        - CSV (comma or semicolon separated values)<br>
+        - TSV (tab-separated values)<br>
+        <strong style='color: #2185D0;'>Upload an omics dataset in which a single gene/protein is an observation</strong><br>
+        (must contain gene names!)<br>
+        <strong style='color: #2185D0;'>Performs many data curations</strong><br>
+        (always displays an info in case data is modified!)<br>
+    </div>
+")
+                              )
+                          ),
+                          
+                          
                           div(class = "ui file input", 
                               file_input("file1", 
                                          label = paste0("Maximum file size: 25MB"),
                                          accept = c(".csv", ".tsv"))
                           ),
                           
-                          # Add download link for demo data
-                          tags$a(
-                            href = "demo_data.csv",  # This will be served from www/demo_data.csv
-                            download = NA,
-                            class = "ui small labeled icon button",
-                            tags$i(class = "download icon"),
-                            "Download tab separated demo data for upload"
+                          ####  download link for demo data ----
+                          # Download link for demo data ----
+                          div(class = "download-demo",
+                              style = "display: flex; justify-content: center; align-items: center;",  # Removed padding here as it's handled in CSS
+                              tags$a(
+                                href = "demo_data.csv",
+                                download = NA,
+                                class = "ui labeled icon button compact",
+                                style = "box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease;",
+                                tags$i(class = "download icon", 
+                                       style = "margin-right: 0.5em !important;"),
+                                span(
+                                  "Download demo data",
+                                  style = "margin-right: 0.5em;"
+                                ),
+                                span(
+                                  "(separator:tab,decimal:comma)",
+                                  style = "font-size: 0.9em; opacity: 0.8;"
+                                )
+                              )
                           ),
-                          # Form layout for checkbox and radio buttons
+                          #### layout for checkbox and radio buttons ----
+                          #### layout for checkbox and radio buttons ----
                           div(class = "ui form",
+                              style = "margin: 0.2rem 0;",  # Reduced vertical margin
                               div(class = "three fields",
+                                  style = "margin: 0.2rem !important; gap: 0.5rem !important;",  # Reduced margin and gap between fields
                                   # Header Checkbox
                                   div(class = "field",
-                                      div(style = "display: flex; flex-direction: column; gap: 5px;",
-                                          div(style = "font-weight: bold;", "Header"),  # Styled label
-                                          toggle("header", "", is_marked = TRUE)
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      div(style = "display: flex; flex-direction: column; gap: 10px;",  # Reduced gap
+                                          div(style = "font-weight: bold; margin-bottom: 1px;", "Header"),  # Reduced margin
+                                          shiny.semantic::toggle("header", "", is_marked = TRUE)
                                       )
                                   ),
                                   # Separator Radio Buttons
                                   div(class = "field",
-                                      multiple_radio(class = "radio", "sep", "Separator", 
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      multiple_radio(class = "radio compact", 
+                                                     "sep", 
+                                                     "Separator", 
                                                      choices = list("Comma" , 
                                                                     "Semicolon", 
                                                                     "Tab"), 
@@ -1483,10 +2797,12 @@ ui <- semanticPage(
                                   ),
                                   # Decimal Point Radio Buttons
                                   div(class = "field",
-                                      multiple_radio("dec", "Decimal Point", 
+                                      style = "margin: 0 !important;",  # Remove default field margin
+                                      multiple_radio("dec", 
+                                                     "Decimal Point", 
                                                      choices = list("Dot" , 
-                                                                    "Comma")
-                                                     , choices_value = c(".", ","),
+                                                                    "Comma"), 
+                                                     choices_value = c(".", ","),
                                                      selected = ".")
                                   )
                               )
@@ -1496,16 +2812,42 @@ ui <- semanticPage(
                                        class = "ui primary button")
                       ),
                       
-                      
+                      ## Column Selection Segment ----
                       uiOutput("column_select_ui"),
                       
                       
                       
-                      # Analysis Options Card
-                      div( class = "ui raised segment",
+                      ## Analysis Options ----
+                      div(class = "ui raised segment",
                            # ribbon
-                           header(title = "Analysis Options", description = "Customize volcano plot",icon = "cogs"),
+                           header(title = "Analysis Options", description = "Customize GSEA and volcano plot options",icon = "cogs"),
                            div(class = "ui grey ribbon label", "Customize p value adjustment"),
+                          div(class = "tooltip-container",
+                              style = "display: inline-block;", # Add this to prevent layout breaking
+                              tags$i(class = "info circle icon info-icon"),
+                              div(class = "tooltip-text",
+                                  style = "position: absolute; z-index: 100;", # Add this to prevent layout disruption
+                                  HTML("
+    <div style='line-height: 1.4; max-width: 400px;'> <!-- Add max-width to control tooltip size -->
+        <strong style='color: #2185D0;'>Why Adjust P-values?</strong>
+        <div style='margin: 8px 0; font-size: 0.9em;'>
+            Multiple testing increases false positive risk - when testing many hypotheses, some will appear significant by chance alone.
+        </div>
+
+        <strong style='color: #2185D0;'>Available Methods:</strong>
+        <ul style='margin: 8px 0; padding-left: 20px;'>
+            <li><strong>Benjamini-Hochberg (BH)</strong>: Controls false discovery rate (FDR), balances power and false positives</li>
+            <li><strong>Benjamini-Yekutieli (BY)</strong>: More conservative than BH, makes no assumptions about dependencies</li>
+            <li><strong>Hochberg</strong>: Less conservative than Bonferroni, controls family-wise error rate</li>
+            <li><strong>Bonferroni</strong>: Most conservative, strongly controls family-wise error rate</li>
+            <li><strong>None</strong>: Unadjusted p-values, high false positive risk</li>
+        </ul>
+        <div style='font-size: 0.9em; color: #666; margin-top: 8px;'>
+            <i>Recommendation:</i> BH is suitable for most analyses. BY provides more conservative control but at the cost of statistical power.Use BY if you have, for example, RNA‐sequencing data from heterogeneous tumor samples where unpredictable, complex gene co-expression patterns create unknown dependencies among tests, necessitating robust FDR control despite reduced power. </div>
+    </div>
+")
+                              )
+                          ),
                            
                            dropdown_input("adj",
                                           choices = c("None",
@@ -1516,11 +2858,38 @@ ui <- semanticPage(
                                           
                                           choices_value = c("none", "bonferroni", "hochberg", "BH", "BY"),
                                           value = "BH"),
-                           numericInput("alpha", "Significance Threshold", value = 0.05, min = 0.0001, max = 1, step = 0.001),
+                           numericInput("alpha", "Significance Threshold", value = 0.050, min = 0.0001, max = 1, step = 0.0001,
+                                                                               ),
+                           
+                           div(class = "ui grey ribbon label", "GSEA analysis controls"),
+                          div(class = "tooltip-container",
+                              tags$i(class = "info circle icon info-icon"),
+                              div(class = "tooltip-text",
+                                  HTML("
+    <div style='line-height: 1.4;'>
+        <strong style='color: #2185D0;'>GO Term Selection Criteria for Gene Set Enrichment analysis (GSEA):</strong>
+        <ul style='margin: 8px 0; padding-left: 20px;'>
+            <li>Terms must contain 5-500 genes detected in your experiment</li>
+            <li>At least 5% of genes in each term must be detected in your data</li>
+            <li>Filtered by selected ontology category</li>
+        </ul>
+        <div style='font-size: 0.9em; color: #666;'>
+            This ensures meaningful and statistically relevant GO terms for your analysis.
+        </div>
+    </div>
+")
+
+                              )
+                          ),
+                           div(class = "ui form",
+                               toggle("GSEA_acvited", "I want to run GSEA", FALSE)
+                              
+                               ), uiOutput("gsea_controls_ui"),
+                          
                            
                            # Plot Options Card
-                           div(class = "ui grey ribbon label", "Customize annotations"),
-                           toggle("color_highlight", "Highlight Significant Hits", FALSE),
+                           div(class = "ui grey ribbon label", "Customize volcano plot annotations")  ,
+                           toggle("color_highlight", "Color significantly regulated genes", FALSE),
                            uiOutput("color_highlight_ui"),
                            toggle("show_go_category", "Visualize GO Categories", FALSE),
                            uiOutput("go_category_ui"),
@@ -1530,98 +2899,39 @@ ui <- semanticPage(
                            toggle("trim_gene_names", "Trim Multiplied Gene Names to First Occurrence", TRUE),
                            toggle("select_custom_labels", "Label your choosen genes", FALSE),
                            uiOutput("custom_gene_labels_ui"),
-                           div(class = "ui grey ribbon label", "Customize plot title"),
-                           textInput("plot_title", "", "Vivid Volcano"),
-                           div(class = "ui grey ribbon label", "Customize X -axis label"),
-                           textInput("x_axis_label", "", 
-                                     "Log2 Fold Change (Condition X vs. Condition Y)"),
-                           actionButton("draw_volcano", "Draw Volcano Plot", 
-                                        class = "ui primary button", 
-                                        icon = icon("chart line icon")),
-                           uiOutput("download_log_ui")
+                          div(class = "ui grey ribbon label", 
+                              style = "margin-bottom: 0rem !important;",  # Reduced margin for first ribbon
+                              "Customize plot title"),
+                          textInput("plot_title", "", "Vivid Volcano"),
+                          
+                          div(class = "ui grey ribbon label", 
+                              style = "margin-bottom: 0rem !important;",  # Reduced margin for second ribbon
+                              "Customize X -axis label"),
+                          textInput("x_axis_label", "", 
+                                    "Log2 Fold Change (Condition X vs. Condition Y)"),
+                          
+                          actionButton("draw_volcano", "Draw Volcano Plot", 
+                                       class = "ui primary button", 
+                                       icon = icon("chart line icon")),
+                                        
+                     uiOutput("download_log_ui")
                       ),
         ),
         
         main_panel(
           width = 12,
-          # Dataset preview
+          ## Dataset preview ----
           segment(
             class = "raised",
-            div(class = "ui grey ribbon label", "Dataset Preview"),
+            div(class = "ui grey ribbon label", "State of data source preview"),
             semantic_DTOutput("dataset_summary", height = "auto")
           ),
+          ## Results ----
           segment(
             class = "placeholder",
             header(title = "Results", description = "", icon = "fa-solid fa-square-poll-vertical"),
-            
-            tabset(
-              tabs = list(
-                list(
-                  menu = "Static Volcano Plot and GO enrichment table",
-                  content = div(
-                    div(class = "ui two column grid",
-                        # First column (50%) - Plot and Downloads
-                        div(class = "column",
-                            segment(
-                              class = "basic",
-                              plotOutput("volcano_plot", width = "100%", height = "600px")
-                            ),
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "Download Plots"),
-                              div(
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
-                                downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
-                                downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
-                              ),
-                              div(
-                                style = "margin-top: 10px;",
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
-                                downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
-                              )
-                            )
-                        ),
-                        # Second column (50%) - GO Table
-                        div(class = "column",
-                            segment(
-                              class = "basic",
-                              h4(class = "ui header", "Download GO Enrichment Table"),
-                              div(
-                                class = "ui tiny fluid buttons",
-                                downloadButton("download_go_enrichment", "Download GO enrichment table", class = "ui button")
-                              ),
-                              gt_output("go_enrichment_gt")
-                            )
-                        )
-                    )
-                  )
-                ),
-                list(
-                  menu = "Interactive Volcano Plot",
-                  content = div(
-                    plotlyOutput("volcano_plotly", width = "800px", height = "740px")
-                  )
-                ),
-                list(
-                  menu = "GO Category Details",
-                  content = div(
-                    segment(
-                      class = "basic",
-                      h4(class = "ui header", "Download GO Gene List Table"),
-                      div(
-                        class = "ui tiny fluid buttons",
-                        downloadButton("download_go_gene_list", "Download GO gene lists", class = "ui button")
-                      ),
-                      gt_output("go_gene_list_gt")
-                    )
-                  )
-                )        
-              )
-            )
-          ),
-      
+            uiOutput("dynamic_tabset")
+          )
         )
       )
   )
@@ -1629,16 +2939,38 @@ ui <- semanticPage(
 
 
 
-##########################-----SERVER----####################################
-
+# SERVER----
 
 server <- function(input, output, session) {
-  uploaded_df <- reactiveVal()
-  volcano_plot_rv <- reactiveVal()
-  log_messages <- reactiveVal("")
-  is_mobile <- reactiveVal(FALSE)
   
-# Creates session variables at server start
+
+  
+## Reactive values ----  
+  
+  # Data source and plots
+  uploaded_df <- reactiveVal()
+
+  regulated_sets <- reactiveVal(NULL)
+  
+  volcano_plot_rv <- reactiveVal()
+  # logging system
+  log_messages <- reactiveVal("")
+  #display
+  is_mobile <- reactiveVal(FALSE)
+ 
+  #analysis
+  gsea_results <- reactiveVal(NULL)
+  
+  gsea_filtered_results <- reactiveVal(NULL)
+  
+  # chosen ontology used for creation of non-reactive title after GSEA was run
+  plotOntologyValue <- reactiveVal("P")
+  # State management
+  column_select_module_state <- reactiveVal("initial")
+  # to prevent multiple triggers of cancel button
+  reset_input <- debounce(reactive(input$reset_columns), 500)
+  
+#Creates session variables at server start
   session_id <- substr(digest::digest(session$token), 1, 6)
   session_start_time <- Sys.time()
   
@@ -1646,11 +2978,10 @@ server <- function(input, output, session) {
   log_event <- create_logger(session)
   log_structure <- create_structure_logger(session)
   
-  
-  
-  
+
+## Screen width observer ----  
   # Immediate logging of initial display state
-  observeEvent(input$clientWidth, {
+observeEvent(input$clientWidth, {
     req(input$clientWidth)  # Ensure the value is available
     current_is_mobile <- input$clientWidth <= 800
     is_mobile(current_is_mobile)
@@ -1676,7 +3007,7 @@ server <- function(input, output, session) {
     }
   })
   
- 
+# Upload observer ---- 
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
@@ -1706,27 +3037,195 @@ server <- function(input, output, session) {
     }
     
    log_structure(log_messages, df, "The structure of the uploaded dataset after 1st diagnostic preprocesing:", "INFO from upload observer")
-    
-
+   column_select_module_state("reseted")
+   
+## Reactive column select UI ----
     output$column_select_ui <- renderUI({
       if (is.null(df)) return(NULL)
       # Log event to indicate that the UI has been rendered
       log_event(log_messages, "Reactive UI for column selection rendered", "INFO from output$column_select_ui")
       div(class = "ui raised segment",
           div(class = "ui grey ribbon label", "Select Data"),
+          div(class = "tooltip-container",
+              tags$i(class = "info circle icon info-icon"),
+              div(class = "tooltip-text",
+                  HTML("
+    <div style='line-height: 1.4; max-width: 400px;'>
+        <h4 style='color: #2185D0; margin-bottom: 2px;'><strong>Upload crucial columns for all observations:</strong></h4>
+        <ul style='margin: 8px 0; padding-left: 20px;'>
+            <li style='margin-bottom: 12px;'>
+                <i class='circle icon' style='color: #2185D0;'></i>
+                <strong>Raw p-values</strong>
+                <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
+                    Automatically detects and handles log-transformed values
+                </div>
+            </li>
+            <li style='margin-bottom: 12px;'>
+                <i class='circle icon' style='color: #2185D0;'></i>
+                <strong>Log2 fold expression difference</strong>
+            </li>
+            <li style='margin-bottom: 12px;'>
+                <i class='circle icon' style='color: #2185D0;'></i>
+                <strong>Gene names</strong>
+                <div style='margin-left: 20px; color: #2185D0; font-size: 0.9em;'>
+                    Supports both human and mice nomenclature
+                </div>
+            </li>
+        </ul>
+        <div style='margin-top: 20px; padding: 10px; border-left: 3px solid #2185D0; border-radius: 3px;'>
+            <strong>Additional Features:</strong>
+            <div style='color: #2185D0; margin-top: 5px; font-size: 0.9em;'>
+                Handles missing data and provides notifications for dataset modifications
+            </div>
+        </div>
+    </div>
+")
+
+              )
+          ),
           selectInput("pvalue_col", "Select p-value column", choices = names(df)),
           selectInput("fold_col", "Select regulation column - log2(fold)", choices = names(df)),
-          selectInput("annotation_col", "Select human gene symbols column", choices = names(df))
+          selectInput("annotation_col", "Select gene symbols column", choices = names(df)),
+          # Add buttons in a button group
+          div(class = "ui two buttons",
+              div(
+                id = "upload_check",
+                class = "ui animated fade button primary",
+                type = "button",
+                onclick = "Shiny.setInputValue('upload_check', Math.random(), {priority: 'event'})",  # Use random value to ensure new trigger
+                div(class = "visible content", "Upload and Check Columns"),
+                div(class = "hidden content", icon("check"))
+              ),
+              div(
+                id = "reset_columns",
+                class = "ui animated fade button negative",
+                type = "button",
+                onclick = "Shiny.setInputValue('reset_columns', true, {priority: 'event'})",
+                div(class = "visible content", "Reset Selection"),
+                div(class = "hidden content", icon("undo"))
+              )
+          )
       )
+      
     })
-    
- 
-    
+
+
+   #test
+   
+## Column upload observer ----   
+       
+   # 2. COLUMN CHECK OBSERVER
+   observeEvent(input$upload_check, {
+     req(input$upload_check)
+     req(input$pvalue_col, input$fold_col, input$annotation_col)
+     
+     # Only proceed if state allows validation
+     if (column_select_module_state() %in% c("initial", "reseted")) {
+       log_event(log_messages, 
+                 sprintf("Starting column check at %s - State: %s", 
+                         format(Sys.time(), "%H:%M:%S.%OS3"),
+                         column_select_module_state()), 
+                 "DEBUG")
+       
+       results <- isolate({
+         diagnose_input_columns_and_remove_NA(
+           df = uploaded_df(),
+           pvalue_col = input$pvalue_col,
+           fold_col = input$fold_col,
+           annotation_col = input$annotation_col,
+           log_messages_rv = log_messages,
+           log_event = log_event
+         )
+       })
+       
+       # Update data and state
+       uploaded_df(results$cleaned_data)
+       column_select_module_state("validated")
+       
+       # Update UI
+       runjs('
+                document.getElementById("upload_check").classList.remove("primary");
+                document.getElementById("upload_check").classList.add("positive");
+                document.querySelector("#upload_check .visible.content").textContent = "Columns Checked ✓";
+            ')
+       
+       # Log results
+       log_event(log_messages, 
+                 sprintf("Columns selected and checked. Removed %d rows with NAs", 
+                         results$statistics$dropped_rows), 
+                 "SUCCESS from upload_check")
+       
+     } else {
+       log_event(log_messages, 
+                 sprintf("Column check not needed - Columns already validated (current state: %s)", 
+                         column_select_module_state()), 
+                 "DEBUG")
+     }
+   }, ignoreInit = TRUE)
+   
+   # 3. IMPROVED RESET COLUMNS OBSERVER
+   observeEvent(reset_input(), {
+     req(reset_input())
+     
+     isolate({
+       current_state <- column_select_module_state()
+       
+       # Log start of reset
+       log_event(log_messages, 
+                 sprintf("Column selection reset initiated from state: %s", 
+                         current_state), 
+                 "INFO from reset_columns")
+       
+       # Update state
+       column_select_module_state("reseted")
+       
+       # Reset UI elements
+       updateSelectInput(session, "pvalue_col", selected = character(0))
+       updateSelectInput(session, "fold_col", selected = character(0))
+       updateSelectInput(session, "annotation_col", selected = character(0))
+       
+       runjs('
+                document.getElementById("upload_check").classList.remove("positive");
+                document.getElementById("upload_check").classList.add("primary");
+                document.querySelector("#upload_check .visible.content").textContent = "Upload and Check Columns";
+            ')
+       
+       # Log completion
+       log_event(log_messages, 
+                 sprintf("Column selections reset completed (from %s to reseted)", 
+                         current_state), 
+                 "SUCCESS from reset_columns")
+     })
+   }, ignoreInit = TRUE)
+   
+   # 4. STATE MONITOR
+   observeEvent(column_select_module_state(), {
+     log_event(log_messages,
+               sprintf("State transition: %s at %s", 
+                       column_select_module_state(),
+                       format(Sys.time(), "%H:%M:%S.%OS3")),
+               "DEBUG state_monitor")
+   }, ignoreInit = TRUE)
+   
+   # 5. NEW DATA UPLOAD HANDLER
+   observeEvent(input$upload, {
+     column_select_module_state("initial")
+     reset_timer(NULL)
+     log_event(log_messages, 
+               "State reset to initial due to new data upload", 
+               "INFO")
+   }, ignoreInit = TRUE)
+
+   
+
+   
+## Render DT data preview ----    
+   
     output$dataset_summary <- renderDT({
       log_event(log_messages, "Rendering dataset summary table", "INFO from output$dataset_summary")
       
       table <- semantic_DT(
-        data.frame(df, check.names = FALSE), # Convert to data.frame if not already
+        data.frame(uploaded_df(), check.names = FALSE), # Convert to data.frame if not already
         options = list(
           responsive = TRUE,
           pageLength = 3,
@@ -1757,6 +3256,1205 @@ server <- function(input, output, session) {
       
   })
   
+# REACTIVE UI FOR OPTIONAL GSEA ANALYSIS ----
+  
+  output$gsea_controls_ui <- renderUI({
+    if (input$GSEA_acvited) {
+      div(class = "ui segment custom-segment",
+          div(class = "ui stackable grid",
+              div(class = "row",
+                  # First column: Gene Set Selection with Multiple Radio Buttons
+                  div(class = "eight wide column",
+                      div(class = "field",
+                          multiple_radio(
+                            "gsea_ontology",
+                            label = HTML("<strong>Ontology</strong>"),
+                            choices = list(
+                              "Cellular Component",
+                              "Molecular Function",
+                              "Biological Process"
+                            ),
+                            choices_value = c(
+                              "C",  # Changed from "CC"
+                              "F",  # Changed from "MF"
+                              "P"   # Changed from "BP"
+                            ),
+                            selected = "P"
+                          )
+                      )
+                  ),
+                    
+                  
+                  # Second column: Action Button (Centered)
+                  div(class = "eight wide column",
+                      div(class = "ui container", style = "position: relative; min-height: 50px;",
+                          # Button
+                          actionButton(
+                            inputId = "run_gsea",
+                            label = HTML('<i class="play icon"></i> Run GSEA'),
+                            class = "ui primary button"
+                          ),
+                          
+                      )
+                  )
+              )
+          )
+      )
+ 
+    }
+  })
+  
+## Reactive 4 tabset appearing if GSEA is activated and 3 tabset if not ----
+  
+  # Add these to your server function
+  tab_list <- reactive({
+    # Define base tabs that are always present
+    base_tabs <- list(
+      list(
+        menu = "Static Volcano Plot and GO enrichment table",
+        id = "static_volcano",
+        content = div(
+          div(class = "ui two column grid",
+              # First column (50%) - Plot and Downloads
+              div(class = "column",
+                  segment(
+                    class = "basic",
+                    plotOutput("volcano_plot", width = "100%", height = "600px")
+                  ),
+                  segment(
+                    class = "basic",
+                    h4(class = "ui header", "Download Plots"),
+                    div(
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_plot1", "85x85mm (1 col)", class = "ui button"),
+                      downloadButton("download_plot2", "114x114mm (1.5 col)", class = "ui button"),
+                      downloadButton("download_plot3", "114x65mm (landscape)", class = "ui button")
+                    ),
+                    div(
+                      style = "margin-top: 10px;",
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_plot4", "174x174mm (square)", class = "ui button"),
+                      downloadButton("download_plot5", "174x98mm (landscape)", class = "ui button")
+                    )
+                  )
+              ),
+              # Second column (50%) - GO Table
+              div(class = "column",
+                  segment(
+                    class = "basic",
+                    h4(class = "ui header", "Download GO Enrichment Table"),
+                    div(
+                      class = "ui tiny fluid buttons",
+                      downloadButton("download_go_enrichment", "Download GO enrichment table", class = "ui button")
+                    ),
+                    gt_output("go_enrichment_gt")
+                  )
+              )
+          )
+        )
+      ),
+      list(
+        menu = "Interactive Volcano Plot",
+        id = "interactive_volcano",
+        content = div(
+          plotlyOutput("volcano_plotly", width = "800px", height = "740px")
+        )
+      ),
+      list(
+        menu = "GO Category Details",
+        id = "go_category",
+        content = div(
+          segment(
+            class = "basic",
+            h4(class = "ui header", "Download GO Gene List Table"),
+            div(
+              class = "ui tiny fluid buttons",
+              downloadButton("download_go_gene_list", "Download GO gene lists", class = "ui button")
+            ),
+            gt_output("go_gene_list_gt")
+          )
+        )
+      )
+    )
+    
+    ## Add GSEA tab conditionally ----
+    if (isTRUE(input$GSEA_acvited)) {
+      gsea_tab <- list(
+        menu = "GSEA Results",
+        id = "gsea_results_tab",
+        content = div(
+          segment(
+            class = "basic",
+            h4(class = "ui header", "GSEA Analysis Results"),
+            div(
+              class = "ui tiny fluid buttons",
+              downloadButton("reg_gene_list", "Download regulated genes lists", class = "ui button"),
+              downloadButton("download_full_gsea", "Full GSEA Results" , class = "ui button"),
+              downloadButton("download_top_gsea", "Top 10 significant GSEA results", class = "ui button"),
+              downloadButton("download_top10_gsea", "Top 10 GSEA Results(inc. nonsig)", class = "ui button")
+            ),
+            
+            
+            div(class = "ui grid stackable mobile reversed",
+                # First column (9/16)
+                div(class = "nine wide computer wide tablet sixteen wide mobile column",
+                    div(class = "ui segment basic",
+                        div(class = "segment-header",
+                            h4(class = "ui header", "GSEA Enrichment Plot"),
+                            downloadButton("download_gsea_plot", "Download GSEA Plot", class = "ui tiny button")
+                        ),
+                        # Responsive controls aligned together in a single row using a semantic stackable grid.
+                        div(
+                          class = "ui stackable grid",
+                          div(
+                            class = "row",
+                            # Column for radio buttons (Which category to show)
+                            div(
+                              class = "four wide computer four wide tablet sixteen wide mobile column",
+                              multiple_radio(
+                                input_id = "plot_category",
+                                label = "Which category to show:",
+                                choices = c(
+                                  "bidirectional" = "bidirectional",
+                                  "upregulated" = "up",
+                                  "downregulated" = "down"
+                                ),
+                                selected = "up"
+                              )
+                            ),
+                            # Column for toggle: Hide non-significant results
+                            div(
+                              class = "three wide computer three wide tablet sixteen wide mobile column",
+                              div(style = "margin-top: 22px;",
+                                  toggle("hide_nonsig", "Hide non-significant results", FALSE)
+                              )
+                            ),
+                            # Column for text input and action button in vertical layout
+                            div(
+                              class = "five wide computer five wide tablet sixteen wide mobile column",
+                              div(
+                                # Text input on top
+                                div(style = "margin-bottom: 5px;",
+                                    textInput("gsea_filter_pattern", "Filter redundant GO terms", placeholder = "Input redundant text")
+                                ),
+                                # Action button below text input
+                                div(
+                                  actionButton("apply_filter", "Apply Filter", class = "ui blue button")
+                                )
+                              )
+                            ),div(class = "tooltip-container",
+                                  style = "display: inline-block;",  # Prevents layout breaking
+                                  tags$i(class = "info circle icon info-icon"),
+                                  div(class = "tooltip-text",
+                                      style = "position: absolute; z-index: 100;",  # Ensures tooltip does not disrupt layout
+                                      HTML("
+<div style='line-height: 1.4; max-width: 400px;'>
+    <strong style='color: #2185D0;'>Filtering Redundant Terms</strong>
+    <div style='margin: 8px 0; font-size: 0.9em;'>
+        This filtering may be aplied when there are many redundant terms in the top results.
+        It preserves the top hit that matches the provided text pattern, removing other entries matching this pattern,
+        and then rearranges the results accordingly by original adjusted p value.For example typing `ribosom` would 
+        affect terms containing `ribosomal`, `ribosome`, `ribosomal subunit`, `ribosomal biogenesis` etc. This is purely semantic filter that 
+        helps to achieve meaningful plots and table. It does not affect the full GSEA results that you can download separately.You can 
+        come back to the original results by switching toogle on the right.
+    </div>
+</div>
+")
+                                  )
+                            ),
+                            # Column for conditional toggle: Show original results (appears after apply_filter is clicked)
+                            div(
+                              class = "three wide computer three wide tablet sixteen wide mobile column",
+                              conditionalPanel(
+                                condition = "input.apply_filter > 0",
+                                div(style = "margin-top: 22px;",
+                                    toggle("show_original", "Switch back to nonfiltered results", FALSE)
+                                )
+                              )
+                            )
+                          )
+                        ),
+                        div(class = "segment-content",
+                            div(class = "mobile-shrink-plot",
+                             
+                                plotOutput("gsea_plot")
+                            )
+                        )
+                    )
+                ),
+                # Second column (7/16)
+                div(class = "seven wide computer wide tablet sixteen wide mobile column",
+                    div(class = "ui segment basic",
+                        div(class = "segment-header",
+                            # Header and download button stacked vertically
+                            h4(class = "ui header", "GSEA Results Table"),
+                            downloadButton("download_gsea_results", "Download GSEA Table", 
+                                           class = "ui tiny button")
+                        ),
+                        div(class = "segment-content",
+                            gt_output("gsea_results_table")
+                        )
+                    )
+                )
+            )
+          )
+        )
+      )
+      # Return combined tabs with GSEA tab first
+      c(list(gsea_tab), base_tabs)
+    } else {
+      # Return only base tabs
+      base_tabs
+    }
+  })
+  
+  ### Render the dynamic tabset ----
+  
+  output$dynamic_tabset <- renderUI({
+    tabset(
+      tabs = tab_list(),
+      id = "dynamic_tabset",
+      active = "Static Volcano Plot and GO enrichment table"  # Use the menu text
+    )
+  })
+  
+  
+  
+## Run GSEA observer ---- 
+  observeEvent(input$run_gsea, {
+    # First validate if columns are checked
+    if (is.null(input$upload_check)) {
+      shinyalert(
+        title = "Column Check Required",
+        text = "Please check your column selections first",
+        type = "warning"
+      )
+      return()
+    }
+    
+    # Then validate all other requirements
+    validate <- try({
+      req(
+        input$GSEA_acvited,
+        input$gsea_ontology,
+        uploaded_df(),
+        input$annotation_col,
+        input$fold_col,
+        input$alpha
+      )
+    })
+    
+    if (inherits(validate, "try-error")) {
+      shinyalert(
+        title = "Missing Requirements",
+        text = "Please ensure all required fields are filled",
+        type = "warning"
+      )
+      return()
+    }
+    
+    # If all validations pass, proceed with GSEA
+    shinyjs::show("gsea-loader-overlay") 
+    
+    update_tabset(session, 
+                  "dynamic_tabset", "gsea_results_tab") 
+                 
+    
+    plotOntologyValue(input$gsea_ontology)
+    
+    # Log the GSEA analysis start
+    log_event(log_messages, 
+              sprintf("Starting GSEA analysis for all gene sets with ontology: %s", 
+                      input$gsea_ontology),
+              "INFO from GSEA observer")
+    
+    # Get the current data frame
+    df <- uploaded_df()
+    
+    # Get all detected genes (all non-NA genes in the annotation column)
+    detected_genes <- df[[input$annotation_col]] %>%
+      clean_gene_names(., log_messages, log_event)
+    
+    # Log the number of detected genes
+    log_event(log_messages,
+              sprintf("Found %d total detected genes", length(detected_genes)),
+              "INFO from GSEA observer")
+    
+    # Validate we have detected genes
+    if (length(detected_genes) == 0) {
+      shinyalert(
+        title = "No Genes Found",
+        text = "No valid genes found in the selected annotation column",
+        type = "error"
+      )
+      
+      shinyjs::hide("gsea-loader-overlay")
+      return()
+    }
+    
+    ### Check unlog and adjust p-values before GSEA ----
+    df <- check_and_unlog_pvalues(df, input$pvalue_col, log_messages, log_event)
+    uploaded_df(df)  # Update the reactive value with unlogged p-values
+    log_structure(log_messages, df, "The structure of the uploaded dataset after unlogging p-values is:", "INFO pvalues module")
+    
+    # Adjust p-values
+    pvalues <- df[[input$pvalue_col]]
+    adjusted_pvalues <- p.adjust(pvalues, method = input$adj)
+    log_event(log_messages, paste(input$adj, "method choosen for p-value adjustment", "INFO adjusting pvalues"))
+    df$adjusted_pvalues <- adjusted_pvalues
+    uploaded_df(df)  # Ensure reactive value is updated
+    log_event(log_messages, "Unlogging and adjusting p-values completed", "SUCCESS")
+    log_structure(log_messages, df, "The structure of the uploaded dataset after adjusting p-values is:", "INFO")
+    
+    ### Define gene sets based on regulation ----
+    regulated_sets <- list(
+      up = df %>%
+        filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>%
+        pull(!!sym(input$annotation_col)) %>%
+        clean_gene_names(., log_messages, log_event),
+      
+      down = df %>%
+        filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>%
+        pull(!!sym(input$annotation_col)) %>%
+        clean_gene_names(., log_messages, log_event),
+      
+      bidirectional = df %>%
+        filter(adjusted_pvalues < input$alpha) %>%
+        pull(!!sym(input$annotation_col)) %>%
+        clean_gene_names(., log_messages, log_event)
+    )
+    
+    regulated_sets(regulated_sets)  # stored in the reactive for future use 
+    
+    # Log gene set counts
+    log_event(log_messages,
+              sprintf("Gene set counts:\nUpregulated: %d\nDownregulated: %d\nTotal regulated: %d",
+                      length(regulated_sets$up),
+                      length(regulated_sets$down),
+                      length(regulated_sets$bidirectional)),
+              "INFO from GSEA observer")
+    
+    # Validate we have genes in any set
+    if (all(sapply(regulated_sets, length) == 0)) {
+      shinyalert(
+        title = "Empty Gene Sets",
+        text = sprintf("No regulated genes found with current threshold (alpha = %g)",
+                       input$alpha),
+        type = "warning"
+      )
+     
+      shinyjs::hide("gsea-loader-overlay")
+      return()
+    }
+    
+  
+    # Until this part the code was adjusted and simplified 
+    # we have gene list with regulated and cleaned genes
+    # now we need to filter GO data (number of detected genes having annotations
+    # for a particular ontology) and run the enrichment analysis
+    
+    
+    ## Filtering of the source GO data to make the computations more efficient ----
+    
+    # More efficient GO filtering - first filter by detected genes and ontology
+    # Calculate coverage and filter GO terms
+    go_filtered <- GO %>%
+      # First get total counts per GO term before filtering
+      group_by(name) %>%
+      mutate(
+        total_genes_in_term = n_distinct(gene)
+      ) %>%
+      ungroup() %>%
+      # Then filter by ontology and detected genes
+      filter(ontology == input$gsea_ontology) %>%
+      # Calculate detected genes and coverage per term
+      group_by(name) %>%
+      mutate(
+        detected_genes_in_term = n_distinct(intersect(gene, detected_genes)),
+        category_coverage = detected_genes_in_term / total_genes_in_term
+      ) %>%
+      ungroup() %>%
+      # Apply coverage and size filters
+      filter(
+        gene %in% detected_genes,
+        total_genes_in_term >= 5,
+        total_genes_in_term <= 500,
+        category_coverage  >= 0.05   
+        )
+      
+    
+    # Add diagnostic logging if needed
+    if (!is.null(log_messages) && !is.null(log_event)) {
+      log_event(log_messages,
+                sprintf("GO filtering results:\n- Original terms: %d\n- Terms after coverage filtering: %d\n- Coverage threshold: %.2f\n- Minimum detected genes: %d",
+                        length(unique(GO$name)),
+                        length(unique(go_filtered$name)),
+                        0.05,    # Fixed coverage threshold
+                        5),      # Fixed minimum genes
+                "INFO")
+    }
+    
+    # Get missing genes and prepare ontology name
+    missing_genes <- setdiff(detected_genes, go_filtered$gene)
+    ontology_name <- switch(input$gsea_ontology,
+                            "C" = "Cellular Component",
+                            "F" = "Molecular Function",
+                            "P" = "Biological Process")
+    
+    # Create comprehensive single log message
+    log_message <- sprintf(
+      "GO Analysis Summary:
+
+1. Data Overview:
+- Ontology: %s
+- Total Terms: %d
+- Unique Genes: %d
+
+2. Terms by Ontology Category:
+- Cellular Component (C): %d terms
+- Molecular Function (F): %d terms
+- Biological Process (P): %d terms
+
+3. Missing Annotations (%d genes):
+%s",
+      ontology_name,
+      n_distinct(go_filtered$name),
+      n_distinct(go_filtered$gene),
+      sum(go_filtered$ontology == "C"),
+      sum(go_filtered$ontology == "F"),
+      sum(go_filtered$ontology == "P"),
+      length(missing_genes),
+      if(length(missing_genes) > 0) paste(missing_genes, collapse = ", ") else "None"
+    )
+    
+    # Single log event for all GO data information
+    log_event(log_messages, log_message, "INFO from GSEA observer")
+    
+    # Validate we have GO data for the selected ontology
+    if (nrow(go_filtered) == 0) {
+      shinyalert(
+        title = "No GO Data",
+        text = sprintf("No GO terms found for %s ontology with the detected genes", 
+                       ontology_name),
+        type = "error"
+      )
+      log_event(log_messages,
+                sprintf("ANALYSIS STOPPED: No GO terms found for %s ontology", 
+                        ontology_name),
+                "ERROR from GSEA observer")
+      
+      shinyjs::hide("gsea-loader-overlay")
+      return()
+    }
+## GSEA ----     
+    
+    
+    
+    
+    # Run enrichment analysis using identify_top_go_enrichment
+    enrichment_results_list <- identify_top_go_enrichment(
+      detected_genes = detected_genes,
+      regulated_sets = regulated_sets,  # Use the regulated_sets list we already created
+      go_filtered = go_filtered,        # Use the filtered GO data
+      ontology = input$gsea_ontology,   # Use the selected ontology from input
+      p_adj_method = "BH",
+      alpha = input$alpha,
+      max_categories = 10,
+      min_genes_in_term = 5,
+      max_genes_in_term = round(length(detected_genes) * 0.10),  # dynamic calculation
+      min_fold_enrichment = 1.3,
+      log_messages_rv = log_messages,
+      log_event = log_event
+    )
+    
+    # Debug print the structure
+    if (!is.null(log_event)) {
+      log_event(log_messages,
+                sprintf("GSEA Results Structure:\n- Has all_results: %s\n- Has top_results: %s\n- Number of missing genes: %d",
+                        !is.null(enrichment_results_list$all_results),
+                        !is.null(enrichment_results_list$top_results),
+                        length(enrichment_results_list$missing_genes)),
+                "DEBUG")
+  
+    
+      # Create summary log for top_results
+      if (!is.null(enrichment_results_list$top_results) && !is.null(log_event)) {
+        # Header for the summary
+        log_event(log_messages,
+                  "Summary of significant GO terms from top results:",
+                  "INFO")
+        
+        # Process each regulation group
+        for (reg_group in names(enrichment_results_list$top_results)) {
+          results_df <- enrichment_results_list$top_results[[reg_group]]
+          
+          if (!is.null(results_df) && nrow(results_df) > 0) {
+            # Log header for regulation group
+            log_event(log_messages,
+                      sprintf("\n%s regulation:", toupper(reg_group)),
+                      "INFO")
+            
+            # Process each term using apply instead of for loop
+            apply(results_df, 1, function(row) {
+              term_summary <- sprintf(
+                "- %s: %.2f-fold enrichment (p-adj=%.2e), %d/%d genes",
+                row["name"],
+                as.numeric(row["fold_enrichment"]),
+                as.numeric(row["p_adj"]),
+                as.numeric(row["regulated_count"]),
+                as.numeric(row["total_count"])
+              )
+              log_event(log_messages, term_summary, "INFO")
+            })
+            
+          } else {
+            # Log when no significant terms found
+            log_event(log_messages,
+                      sprintf("\n%s regulation: No significant terms found", toupper(reg_group)),
+                      "INFO")
+          }
+        }
+      }
+                     
+        
+    }
+    
+
+    # Store results
+gsea_results(enrichment_results_list)
+# 
+
+
+
+    
+    # Log completion    
+        
+log_event(log_messages, "GSEA calculations completed successfully", "SUCCESS from GSEA observer")
+log_structure(log_messages, enrichment_results_list, "The structure of the GSEA results is:", "INFO from GSEA observer")
+log_structure(log_messages, enrichment_results_list$top_results, "The structure of the top (significant) GSEA results is:", "INFO from GSEA observer") 
+log_structure(log_messages, enrichment_results_list$top10_results, "The structure of the top_10 (including nonsignificant) GSEA results is:", "INFO from GSEA observer") 
+ 
+ 
+  # Hide loader and re-enable button
+  
+  shinyjs::hide("gsea-loader-overlay")
+   
+# Validate we got results
+if (is.null(enrichment_results_list) || 
+    is.null(enrichment_results_list$top_results) || 
+    all(sapply(enrichment_results_list$top_results, function(x) nrow(x) == 0))) {
+  shinyalert(
+    title = "No Enrichment Found",
+    text = "No significant GO term enrichment found with current parameters",
+    type = "warning"
+  )
+  
+  shinyjs::hide("gsea-loader-overlay")
+  return()
+}
+    
+## Build GSEA plots (observer and downloader for barplot) ----
+
+
+## Use enrichment results to create the GSEA plot
+## Build 3 barpolots with the same width and height
+## The first plot will show the upregulated genes,
+## the second the downregulated genes and the third the bidirectionaly regulaed
+## genes. The plot will show top 20 enriched terms for each regulation group.
+## The y-axis will show the GO terms.The x axis will show the fold enrichment.
+## The - log10 adjusted pvalue will be used to color the bars with scale continous
+## The non-significant terms will have no color fill. The plot should use ggplot2.
+## Under each go term the number of genes in the term among detected and the number of genes among regulated set
+## should be displayed. The plot should have a title and the x-axis should be labeled but not y.
+## The plot should have a legend with the color scale and the title should be "GSEA Enrichment Plot for [ontology]"
+
+
+# Reactive expression to determine which results to use for plotting.
+selected_gsea_results <- reactive({
+  # If the Apply Filter button was pressed, and "Switch back" toggle is NOT active,
+  # then use the filtered results. Otherwise, use the original results.
+  if (input$apply_filter > 0 && !isTRUE(input$show_original)) {
+    req(gsea_filtered_results())
+    gsea_filtered_results()
+  } else {
+    req(gsea_results())
+    gsea_results()
+  }
+})
+# GSEA Plot Output
+# GSEA Plot Output
+# Server
+# GSEA Plot Output
+
+# Download handler for GSEA plot
+# GSEA Plot Renderer
+output$gsea_plot <- renderPlot({
+  req(selected_gsea_results(), 
+      input$gsea_ontology, 
+      input$plot_category, 
+      plotOntologyValue()
+     )
+  
+  log_event(
+    log_messages,
+    sprintf("Starting GSEA plot generation for ontology: %s, category: %s, hide_nonsig: %s",
+            input$gsea_ontology, input$plot_category, input$hide_nonsig),
+    "DEBUG from gsea_plot"
+  )
+  
+  plots <- tryCatch({
+    build_gsea_plots(
+      enrichment_results_list = selected_gsea_results(),
+      ontology = input$gsea_ontology,
+      show_not_significant = !input$hide_nonsig,
+      log_messages_rv = log_messages,
+      log_event = log_event,
+      plotOntologyValue = plotOntologyValue()
+    )
+  }, error = function(e) {
+    log_event(
+      log_messages,
+      sprintf("Error in build_gsea_plots: %s", e$message),
+      "ERROR from gsea_plot"
+    )
+    return(NULL)
+  })
+  
+  if (is.null(plots) || is.null(plots[[input$plot_category]])) {
+    log_event(
+      log_messages, 
+      "No valid plot available for selected category", 
+      "DEBUG from gsea_plot"
+    )
+    
+    shinyjs::hide("gsea-loader-overlay")
+    return(
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5,
+                 label = "No significant enrichment found") +
+        theme_void()
+    )
+  }
+  
+  p <- plots[[input$plot_category]]
+  
+  if (is_mobile()) {
+    p <- p + theme_classic() +
+      theme(
+        axis.text.x = element_markdown(size = 8),
+        axis.text.y = element_markdown(size = 8),
+        axis.title = element_text(size = 9),
+        plot.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        plot.margin = margin(5, 5, 5, 5)
+      )
+  }
+  
+  p
+})
+
+# GSEA Results Table Renderer----
+output$gsea_results_table <- render_gt({
+  req(gsea_results())
+  
+  if (input$color_highlight) {
+    req(input$down_color, input$up_color)
+  }
+  
+  build_gsea_gt_table(
+    enrichment_results_list = gsea_results(),
+    color_highlight = if(input$color_highlight) {
+      c(input$down_color, input$up_color)
+    } else {
+      c("#D3D3D3", "#D3D3D3")
+    },
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+})
+
+# Hide loader and re-enable button
+
+shinyjs::hide("gsea-loader-overlay")
+
+})
+
+# Observer for GSEA filter pattern----
+observeEvent(input$apply_filter, {
+  req(input$apply_filter, input$gsea_filter_pattern)
+  
+  # Log the start of filtering process.
+  log_event(log_messages, 
+            sprintf("Applying filter pattern: %s", input$gsea_filter_pattern), 
+            "INFO from GSEA filter observer")
+  
+  # Apply the filter using our function.
+  filtered_results <- filter_gsea_results(
+    enrichment_results_list = gsea_results(),
+    filter_pattern = input$gsea_filter_pattern,
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+  
+  # Store the filtered results.
+  gsea_filtered_results(filtered_results)
+  
+  # Log the completion of filtering.
+  log_event(log_messages, 
+            "Filter pattern applied successfully", 
+            "SUCCESS from GSEA filter observer")
+}, ignoreInit = TRUE)
+
+
+
+## GSEA result downloaders ----
+
+output$download_gsea_plot <- downloadHandler(
+  filename = function() {
+    paste0("GSEA_plot_", input$plot_category, "_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+  },
+  content = function(file) {
+    req(gsea_results(), 
+        input$gsea_ontology, 
+        input$plot_category, 
+        plotOntologyValue())
+    
+    plots <- build_gsea_plots(
+      enrichment_results_list = gsea_results(),
+      ontology = input$gsea_ontology,
+      show_not_significant = !input$hide_nonsig,
+      log_messages_rv = log_messages,
+      log_event = log_event,
+      plotOntologyValue = plotOntologyValue()
+    )
+    
+    # Get the specific plot based on category
+    p <- plots[[input$plot_category]]
+    
+    # Save the plot
+    ggsave(file, p, width = 10, height = 8, device = cairo_pdf)
+  }
+)
+
+
+  output$reg_gene_list <- downloadHandler(
+    filename = function() {
+      current_datetime <- format(Sys.time(), "%Y%m%d_%H%M%S")
+      paste0(
+        "reg_genes_adj_pval_",
+        input$alpha,
+        "_method_",
+        input$adj,
+        "_",
+        current_datetime,
+        ".csv"
+      )
+    },
+    content = function(file) {
+      req(regulated_sets())
+      
+      tryCatch({
+        # Get the regulated sets
+        sets <- regulated_sets()
+        
+        # Log the start of download process
+        log_event(log_messages, 
+                  "Starting regulated genes list download using GSEA-processed sets", 
+                  "INFO")
+        
+        # Create a data frame with two columns
+        max_length <- max(length(sets$up), length(sets$down))
+        reg_genes_df <- data.frame(
+          Upregulated = c(sets$up, rep(NA, max_length - length(sets$up))),
+          Downregulated = c(sets$down, rep(NA, max_length - length(sets$down)))
+        )
+        
+        # Write to CSV
+        write.csv(reg_genes_df, file, row.names = FALSE)
+        
+        # Log successful download
+        log_event(log_messages, 
+                  sprintf("Download successful: %d up-regulated and %d down-regulated genes", 
+                          length(sets$up), 
+                          length(sets$down)), 
+                  "SUCCESS")
+        
+      }, error = function(e) {
+        log_event(log_messages, 
+                  sprintf("Error during download: %s", e$message), 
+                  "ERROR")
+        stop(paste("Error generating file:", e$message))
+      })
+    }
+  ) 
+  
+  
+  output$download_full_gsea <- downloadHandler(
+    filename = function() {
+      paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+    },
+    content = function(file) {
+      # Debug log the state
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Download full results triggered:\n- Results exist: %s\n- Results structure valid: %s",
+                          !is.null(gsea_results()),
+                          !is.null(gsea_results()$all_results)),
+                  "DEBUG")
+      }
+      
+      # Ensure results exist
+      req(gsea_results())
+      req(gsea_results()$all_results)
+      
+      tryCatch({
+        # Debug the data before binding
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("All results content:\n- Number of sets: %d\n- Set names: %s",
+                            length(gsea_results()$all_results),
+                            paste(names(gsea_results()$all_results), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Combine results
+        full_results_df <- bind_rows(
+          gsea_results()$all_results,
+          .id = "regulation_type"
+        )
+        
+        # Debug the combined data
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Combined results:\n- Rows: %d\n- Columns: %d\n- Column names: %s",
+                            nrow(full_results_df),
+                            ncol(full_results_df),
+                            paste(colnames(full_results_df), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write to CSV
+        write.csv(full_results_df, file, row.names = FALSE)
+        
+      }, error = function(e) {
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in full results download: %s", e$message),
+                    "ERROR")
+        }
+        # Write empty file with structure
+        empty_df <- data.frame(
+          regulation_group = character(),
+          name = character(),
+          gene_set = character(),
+          total_count = integer(),
+          genes_in_term = character(),
+          regulated_count = integer(),
+          regulated_genes = character(),
+          expected_count = numeric(),
+          fold_enrichment = numeric(),
+          p_value = numeric(),
+          p_adj = numeric(),
+          stringsAsFactors = FALSE
+        )
+        write.csv(empty_df, file, row.names = FALSE)
+      })
+    }
+  )
+  
+  output$download_top_gsea <- downloadHandler(
+    filename = function() {
+      # Create filename with timestamp
+      paste0("GSEA_top_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+    },
+    content = function(file) {
+      # Verify results exist
+      req(gsea_results())
+      req(gsea_results()$top_results)
+      
+      tryCatch({
+        # Log download attempt if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Download top results triggered at %s by %s",
+                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                            "DatViseR"),
+                    "INFO")
+        }
+        
+        # Combine top results from all regulation groups
+        top_results_df <- bind_rows(
+          gsea_results()$top_results,
+          .id = "regulation_group"
+        ) %>%
+          select(
+            regulation_group,    # Regulation direction (up/down/bidirectional)
+            name,               # GO term name
+            gene_set,           # Gene set identifier
+            total_count,        # Total genes in GO term
+            genes_in_term,      # All genes in the GO term
+            regulated_count,    # Number of regulated genes
+            regulated_genes,    # List of regulated genes
+            expected_count,     # Expected number by chance
+            fold_enrichment,    # Enrichment ratio
+            p_value,           # Raw p-value
+            p_adj              # Adjusted p-value
+          )
+        
+        # Log data summary if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                            nrow(top_results_df),
+                            paste(unique(top_results_df$regulation_group), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write data or empty structure based on whether we have results
+        if (nrow(top_results_df) > 0) {
+          write.csv(top_results_df, file, row.names = FALSE)
+          
+          # Log successful write if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      sprintf("Successfully wrote %d rows of top GSEA results to file",
+                              nrow(top_results_df)),
+                      "SUCCESS")
+          }
+        } else {
+          # Create empty data frame with correct structure
+          empty_df <- data.frame(
+            regulation_group = character(),
+            name = character(),
+            gene_set = character(),
+            total_count = integer(),
+            genes_in_term = character(),
+            regulated_count = integer(),
+            regulated_genes = character(),
+            expected_count = numeric(),
+            fold_enrichment = numeric(),
+            p_value = numeric(),
+            p_adj = numeric(),
+            stringsAsFactors = FALSE
+          )
+          
+          # Write empty structure
+          write.csv(empty_df, file, row.names = FALSE)
+          
+          # Log empty result if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      "No significant results found, wrote empty structure",
+                      "WARNING")
+          }
+        }
+        
+      }, error = function(e) {
+        # Log error if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in top results download: %s", e$message),
+                    "ERROR")
+        }
+        
+        # Create and write empty structure on error
+        empty_df <- data.frame(
+          regulation_group = character(),
+          name = character(),
+          gene_set = character(),
+          total_count = integer(),
+          genes_in_term = character(),
+          regulated_count = integer(),
+          regulated_genes = character(),
+          expected_count = numeric(),
+          fold_enrichment = numeric(),
+          p_value = numeric(),
+          p_adj = numeric(),
+          stringsAsFactors = FALSE
+        )
+        write.csv(empty_df, file, row.names = FALSE)
+      })
+    }
+  )
+
+  
+  output$download_top10_gsea <- downloadHandler(
+    filename = function() {
+      # Create filename with timestamp
+      paste0("GSEA_top10_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+    },
+    content = function(file) {
+      # Verify results exist
+      req(gsea_results())
+      req(gsea_results()$top10_results)
+      
+      tryCatch({
+        # Log download attempt if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Download top10 results triggered at %s by %s",
+                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                            "DatViseR"),
+                    "INFO")
+        }
+        
+        # Combine top results from all regulation groups
+        top10_results_df <- bind_rows(
+          gsea_results()$top10_results,
+          .id = "regulation_group"
+        ) %>%
+          select(
+            regulation_group,    # Regulation direction (up/down/bidirectional)
+            name,               # GO term name
+            gene_set,           # Gene set identifier
+            total_count,        # Total genes in GO term
+            genes_in_term,      # All genes in the GO term
+            regulated_count,    # Number of regulated genes
+            regulated_genes,    # List of regulated genes
+            expected_count,     # Expected number by chance
+            fold_enrichment,    # Enrichment ratio
+            p_value,           # Raw p-value
+            p_adj              # Adjusted p-value
+          )
+        
+        # Log data summary if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                            nrow(top10_results_df),
+                            paste(unique(top10_results_df$regulation_group), collapse = ", ")),
+                    "DEBUG")
+        }
+        
+        # Write data or empty structure based on whether we have results
+        if (nrow(top10_results_df) > 0) {
+          write.csv(top10_results_df, file, row.names = FALSE)
+          
+          # Log successful write if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      sprintf("Successfully wrote %d rows of top GSEA results to file",
+                              nrow(top10_results_df)),
+                      "SUCCESS")
+          }
+        } else {
+          # Create empty data frame with correct structure
+          empty_df <- data.frame(
+            regulation_group = character(),
+            name = character(),
+            gene_set = character(),
+            total_count = integer(),
+            genes_in_term = character(),
+            regulated_count = integer(),
+            regulated_genes = character(),
+            expected_count = numeric(),
+            fold_enrichment = numeric(),
+            p_value = numeric(),
+            p_adj = numeric(),
+            stringsAsFactors = FALSE
+          )
+          
+          # Write empty structure
+          write.csv(empty_df, file, row.names = FALSE)
+          
+          # Log empty result if logging is enabled
+          if (!is.null(log_event)) {
+            log_event(log_messages,
+                      "No significant results found, wrote empty structure",
+                      "WARNING")
+          }
+        }
+        
+      }, error = function(e) {
+        # Log error if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Error in top results download: %s", e$message),
+                    "ERROR")
+        }
+        
+        # Create and write empty structure on error
+        empty_df <- data.frame(
+          regulation_group = character(),
+          name = character(),
+          gene_set = character(),
+          total_count = integer(),
+          genes_in_term = character(),
+          regulated_count = integer(),
+          regulated_genes = character(),
+          expected_count = numeric(),
+          fold_enrichment = numeric(),
+          p_value = numeric(),
+          p_adj = numeric(),
+          stringsAsFactors = FALSE
+        )
+        write.csv(empty_df, file, row.names = FALSE)
+      })
+    }
+  )
+  
+  
+  
+  
+  
+  
+  
+  
+  output$download_gsea_results <- downloadHandler(
+    filename = function() {
+      paste0("GSEA_Results_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
+    },
+    content = function(file) {
+      req(gsea_results())
+      
+      # Log download attempt
+      log_event(log_messages,
+                "GSEA results table download initiated",
+                "INFO from download_gsea_results")
+      
+      tryCatch({
+        # Create table with current color settings
+        gt_table <- build_gsea_gt_table(
+          enrichment_results_list = gsea_results(),
+          color_highlight = if(input$color_highlight) {
+            c(input$down_color, input$up_color)
+          } else {
+            c("#D3D3D3", "#D3D3D3")
+          },
+          log_messages_rv = log_messages,
+          log_event = log_event
+        )
+        
+        # Save as HTML with inline CSS
+        log_event(log_messages,
+                  "GSEA results table created successfully and ready for saving as formatted html",
+                  "SUCCESS from download_gsea_results")
+        
+        gtsave(gt_table, file, inline_css = TRUE)
+        
+      }, error = function(e) {
+        log_event(log_messages,
+                  sprintf("Error in GSEA results table download: %s", e$message),
+                  "ERROR from download_gsea_results")
+        
+        # Create and save empty table with error message
+        empty_table <- gt(tibble(
+          Message = "Error generating GSEA results table. Please try again."
+        )) %>%
+          tab_options(
+            table.width = pct(40),
+            container.width = pct(40),
+            column_labels.visible = FALSE
+          )
+        gtsave(empty_table, file, inline_css = TRUE)
+      })
+    }
+  )  
+  
+    
+# Color highlight observer and reactive UI color pickers----
+    
   # Observe changes to the color_highlight input
   observeEvent(input$color_highlight, {
     if (input$color_highlight) {
@@ -1775,6 +4473,8 @@ server <- function(input, output, session) {
       )
     }
   })
+
+# GO category selection observer and reactive UI color pickers ----
   
   # Observe changes to the show_go_category input
   observeEvent(input$show_go_category, {
@@ -1811,8 +4511,8 @@ server <- function(input, output, session) {
   color_palette <- c("#440154FF", "darkblue","gold","darkorange","darkcyan","deeppink","black") 
   
   
+## Dynaic UI for additional color pickers ---- 
   
-  # Dynamic UI for additional color pickers
   output$color_picker_ui <- renderUI({
     if (!input$show_go_category) {
       log_event(log_messages, "Color pickers for GO categories are disabled", "INFO from output$color_picker_ui")
@@ -1843,6 +4543,7 @@ server <- function(input, output, session) {
   
   })
   
+## Custom gene labels observer and UI ----  
   
   # Observe changes to the select_custom_labels input
   observeEvent(input$select_custom_labels, {
@@ -1883,70 +4584,20 @@ server <- function(input, output, session) {
   })
   
   
+
+# Draw volcano observer ----  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
     
-    # Get the original data
-    df <- uploaded_df()
-    original_rows <- nrow(df)
+    shinyjs::show("volcano-loader-overlay")
     
-    # Log the initial state
-    log_event(log_messages, sprintf("Initial number of rows: %d", original_rows), "INFO")
-    
-    # Add error checking for NA values before dropping
-    na_counts <- sapply(df[c(input$pvalue_col, input$fold_col, input$annotation_col)], function(x) sum(is.na(x)))
-    log_event(log_messages, sprintf("NA counts in columns before filtering:\n%s", 
-                                    paste(names(na_counts), na_counts, sep = ": ", collapse = "\n")), "INFO")
-    
-    # Drop NA values and capture the new data frame
-    df <- df %>% drop_na(!!sym(input$pvalue_col), !!sym(input$fold_col), !!sym(input$annotation_col))
-    new_rows <- nrow(df)
-    
-    # Calculate and log the difference
-    dropped_rows <- original_rows - new_rows
-    if (dropped_rows > 0) {
-      log_event(log_messages, 
-                sprintf("Removed %d rows with missing values (%d -> %d rows)", 
-                        dropped_rows, original_rows, new_rows), "INFO")
-    } else {
-      log_event(log_messages, "No rows were removed - no missing values found", "INFO")
-    }
-    
-    # Update the reactive value
-    uploaded_df(df)
-    
-    # Create alert message
-    alert_message <- HTML(sprintf(
-      "<div style='text-align: left;'>
-        <strong>Data Processing Summary:</strong><br><br>
-        Initial number of rows: %d<br><br>
-        <strong>Missing values found:</strong><br>
-        %s<br>
-        <strong>Rows removed:</strong> %d<br>
-        <strong>Remaining rows:</strong> %d
-        </div>",
-      original_rows,
-      paste(names(na_counts), na_counts, sep = ": ", collapse = "<br>"),
-      dropped_rows,
-      new_rows
-    ))
-    
-    # Show alert with the information
-    shinyalert(
-      title = "Data Processing Information",
-      text = alert_message,
-      type = "warning",
-      html = TRUE,
-      size = "m",
-      closeOnEsc = TRUE,
-      closeOnClickOutside = TRUE,
-      showConfirmButton = TRUE,
-      confirmButtonText = "Continue",
-      timer = 0
-    )
-    
-    
-   
+
+    update_tabset(session, 
+                 "dynamic_tabset", 
+                "static_volcano")  
+                   
+    df <- uploaded_df() 
+
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
     log_structure(log_messages, df, "The structure of the uploaded_df before creating volcano plot is:\n","INFO")
     
@@ -1967,6 +4618,7 @@ server <- function(input, output, session) {
         confirmButtonText = "OK",
         timer = 0
       )
+      shinyjs::hide("volcano-loader-overlay")
       return(NULL)
     }
     
@@ -2009,7 +4661,7 @@ server <- function(input, output, session) {
       # Render GO gene list table
       output$go_gene_list_gt <- render_gt({
         # First check if color highlighting is enabled
-        req(input$color_highlight)
+   #     req(input$color_highlight)
         log_event(log_messages, "Rendering GO gene list table", "INFO from output$go_gene_list_gt")
         
         # Get the colors from the proper inputs when color highlighting is enabled
@@ -2048,7 +4700,7 @@ server <- function(input, output, session) {
           req(input$up_color, input$down_color)
           c(input$down_color, input$up_color)
         } else {
-          c("#000000", "#000000")  # default black if highlighting is disabled
+          c("#A0A0A0", "#A0A0A0")  # default black if highlighting is disabled
         }
         
         
@@ -2086,11 +4738,13 @@ server <- function(input, output, session) {
     # Draw the volcano plot
     if (!"adjusted_pvalues" %in% names(df)) {
       print("Error: adjusted_pvalues column is missing.")
+     
+      shinyjs::hide("volcano-loader-overlay")
       return(NULL)
     }
     
     # limits for y slighly bigger to have space for annotation
-    limits_y <- c(0, max(-log10(as.numeric(df[[input$pvalue_col]])) + 1))
+    limits_y <- c(0, max(-log10(as.numeric(df[[input$pvalue_col]])) + 1.5))
     
     abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
     abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
@@ -2131,9 +4785,11 @@ server <- function(input, output, session) {
       log_event(log_messages, "Color highlighting enabled", "INFO input$draw_volcano")
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
       downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
+      total_count <- df %>% nrow()
       volcano_plot <- volcano_plot +
         annotate("text", x = -Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = -0.1 ,vjust = 2, size = 5.5 ) +
-        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)
+        annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)+
+        annotate("text", x = -Inf, y = Inf, label = paste0("Detected n= ", total_count), color = "#A0A0A0", hjust = -0.1, vjust = 3, size = 5.5)
       # Detailed debug analysis of input$color_highlight
       cat("\n==== Color Input Debug Analysis ====\n")
       cat("Current Time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
@@ -2397,6 +5053,8 @@ server <- function(input, output, session) {
             text = "Unable to render interactive plot. Please check your inputs.",
             showarrow = FALSE
           )
+       
+        shinyjs::hide("volcano-loader-overlay")
       })
       # Renders the download button
       output$download_log_button <- renderUI({
@@ -2528,6 +5186,12 @@ server <- function(input, output, session) {
       }
     )
     
+
+    shinyjs::hide("volcano-loader-overlay")
+    
+  }) 
+    
+    
     # Add the download log UI
     output$download_log_ui <- renderUI({
       if (!is.null(uploaded_df())) {
@@ -2536,6 +5200,8 @@ server <- function(input, output, session) {
           downloadButton("download_log", "Download Process Log")
         )
       }
+    
+      
       
     })
     
@@ -2565,8 +5231,7 @@ server <- function(input, output, session) {
       log_event(log_messages, "Session ended", "INFO")
       isolate(log_messages(""))  # Clear logs
     })
-    
-  
-})
+   
 }
+  
 shinyApp(ui = ui, server = server)

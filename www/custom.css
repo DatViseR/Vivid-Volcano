@@ -167,6 +167,21 @@ div.ui.raised.segment:first-child {
 
 }
 
+/* Or for a specific width: */
+.ui.raised.segment .ui.file.input .ui.input {
+ width:79% !important;
+
+}
+
+@media (max-width: 810px) {
+  /* Adjust the width of the file input */
+  .ui.raised.segment .ui.file.input .ui.input {
+    width: 100% !important;
+  }
+}
+
+
+
 /* Fix flex layout for header toggle */
 div[style*="display: flex; flex-direction: column"] {
     
@@ -181,14 +196,41 @@ div.ui.raised.segment:hover {
    
 }
 
+/* Adjust download demo spacing */
+
+.download-demo {
+    margin-top: 0.3rem !important;     
+    margin-bottom: 1rem !important;    
+    padding: 0.5em 0 !important;  
+    transform: translateY(-1rem) !important;
+}
+
+.download-demo .ui.button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Target radio buttons within the form */
+.ui.form .field .ui.radio.checkbox {
+    margin-top: 0.05rem !important;    /* Space above each radio button */
+    margin-bottom: 0.05rem !important; /* Space below each radio button */
+    padding-top: 0 !important;        /* Remove default padding */
+    padding-bottom: 0 !important;     /* Remove default padding */
+}
+
+/* If needed, also target the label spacing */
+.ui.form .field > label {
+    margin-bottom: 0.3rem !important;  /* Space between field label and first radio button */
+}
 
 
 /* Add spacing between elements inside segments */
 .ui.raised.segment:not(:first-of-type) > * {
-    margin-bottom: 1rem;
+    margin-bottom: 0.8rem;
 }
 
 .ui.raised.segment:first-of-type > * {
+   padding 0rem 0rem;
   }
 
 
@@ -584,3 +626,191 @@ div.ui.raised.segment:hover {
     }
 
 }   
+
+/*GSEA SECTION STYLING*/
+/* The h4 titles in the GSEA tabset now appear at the same height*/
+
+.segment-header {
+  position: relative;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+
+
+/* Ensure proper spacing in the controls grid */
+.ui.stackable.grid {
+  margin-top: 0.3rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Adjust radio button group alignment */
+.radiobuttongroup {
+  margin-bottom: 0 !important;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 801px) {
+  .ui.stackable.grid > .column:not(.row) {
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+  }
+}
+
+/* Adjust spacing for mobile view */
+@media only screen and (max-width: 801px) {
+  .ui.grid.stackable.mobile.reversed > .column:not(.row) {
+    margin-bottom: 2rem !important;
+  }
+  
+  .ui.grid.stackable.mobile.reversed > .column:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+
+
+/* CSS styling for mobile devices to shrink the plot without rotating it.
+   This ensures that the plot container adapts to smaller screen sizes. */
+@media only screen and (max-width: 800px) {
+  .mobile-shrink-plot {
+    width: 90%;
+    height: auto;
+    margin: 20px auto; /* Centers the container */
+    overflow: visible;
+  }
+}
+
+/* CSS rules for reactive UI for GSEA */
+
+/* Custom segment styling with a linear-gradient background */
+/* Specific styling for GSEA segment */
+.ui.segment.custom-segment {
+  background: linear-gradient(90deg, #F5F5F5, #E0E1E2);
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+ 
+}
+
+/* Specific styling for GSEA grid */
+.custom-segment .ui.stackable.grid {
+  margin: 0;
+}
+
+/* Style the radio buttons container */
+.custom-segment .eight.wide.column .field {
+  margin-bottom: 0;
+}
+
+/* Center the action button container */
+.custom-segment .eight.wide.column:last-child > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Ensure proper spacing in mobile view */
+@media screen and (max-width: 767px) {
+  .custom-segment .ui.stackable.grid > .row > .column {
+    padding: 10px !important;
+  }
+  
+  .custom-segment .eight.wide.column:last-child {
+    margin-top: 10px;
+  }
+}
+/********* TOOLTIP*//****************
+
+
+/* Tooltip container */
+.tooltip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;  /* Reduced from 10px to bring it closer to the ribbon */
+  height: 100%;
+  vertical-align: middle;
+  }
+
+
+/* Container for ribbon and icon */
+.ribbon-container {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  gap: 0;
+}
+
+/* Question mark icon */
+.info-icon {
+  color: #2185D0 !important;
+  font-size: 20px !important;
+  cursor: help;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  line-height: 1;
+  position: relative;
+  left: -18px;  /* Pull the icon slightly closer to the ribbon */
+  transform: translateY(-1px);  /* Slightly adjust the vertical position */
+}
+
+
+
+/* Tooltip text */
+.tooltip-text {
+  visibility: hidden;
+  position: absolute;
+  width: 250px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+/* Show tooltip on hover */
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* CSS for the loaders*/ 
+#gsea-loader-overlay, #volcano-loader-overlay {
+  display: none; 
+        position: fixed; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+        width: 300px; 
+        height: 300px; 
+        background: rgba(0,0,0,0.7); 
+        z-index: 9999;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+  }
+
+
