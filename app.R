@@ -2957,6 +2957,7 @@ server <- function(input, output, session) {
   log_messages <- reactiveVal("")
   #display
   is_mobile <- reactiveVal(FALSE)
+ 
   #analysis
   gsea_results <- reactiveVal(NULL)
   
@@ -3311,6 +3312,7 @@ observeEvent(input$clientWidth, {
     base_tabs <- list(
       list(
         menu = "Static Volcano Plot and GO enrichment table",
+        id = "static_volcano",
         content = div(
           div(class = "ui two column grid",
               # First column (50%) - Plot and Downloads
@@ -3353,12 +3355,14 @@ observeEvent(input$clientWidth, {
       ),
       list(
         menu = "Interactive Volcano Plot",
+        id = "interactive_volcano",
         content = div(
           plotlyOutput("volcano_plotly", width = "800px", height = "740px")
         )
       ),
       list(
         menu = "GO Category Details",
+        id = "go_category",
         content = div(
           segment(
             class = "basic",
@@ -3377,6 +3381,7 @@ observeEvent(input$clientWidth, {
     if (isTRUE(input$GSEA_acvited)) {
       gsea_tab <- list(
         menu = "GSEA Results",
+        id = "gsea_results_tab",
         content = div(
           segment(
             class = "basic",
@@ -3504,11 +3509,15 @@ observeEvent(input$clientWidth, {
   })
   
   ### Render the dynamic tabset ----
+  
   output$dynamic_tabset <- renderUI({
-    tabset(tabs = tab_list())
+    tabset(
+      tabs = tab_list(),
+      id = "dynamic_tabset",
+      active = "Static Volcano Plot and GO enrichment table"  # Use the menu text
+    )
   })
   
- 
   
   
 ## Run GSEA observer ---- 
@@ -3547,6 +3556,9 @@ observeEvent(input$clientWidth, {
     # If all validations pass, proceed with GSEA
     shinyjs::show("gsea-loader-overlay") 
     
+    update_tabset(session, 
+                  "dynamic_tabset", "gsea_results_tab") 
+                 
     
     plotOntologyValue(input$gsea_ontology)
     
@@ -4579,6 +4591,11 @@ output$download_gsea_plot <- downloadHandler(
     
     shinyjs::show("volcano-loader-overlay")
     
+
+    update_tabset(session, 
+                 "dynamic_tabset", 
+                "static_volcano")  
+                   
     df <- uploaded_df() 
 
     log_event(log_messages, "Starting volcano plot generation", "INFO input$draw_volcano")
