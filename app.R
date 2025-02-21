@@ -6096,7 +6096,14 @@ output$download_gsea_plot <- downloadHandler(
           max.overlaps = Inf,
           nudge_y = 0.3,
           alpha = 0.7
-        )
+        )+
+      # added fill for custom genes points
+      geom_point(data = custom_label_data, 
+                 aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
+                 , size = 1.8, color = "black", alpha = 0.7)
+        
+      
+      
     }
     
     if (!is_mobile()) {
