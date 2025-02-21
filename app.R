@@ -5644,6 +5644,8 @@ output$download_gsea_plot <- downloadHandler(
       log_event(log_messages, "GO categories selection enabled", "INFO from input$show_go_category")
     } else {
       log_event(log_messages, "GO categories selection disabled", "INFO from input$show_go_category")
+      # Clears the selectize input when disabling
+      updateSelectizeInput(session, "go_category", selected = NULL)
     }
   })
   
@@ -5663,11 +5665,20 @@ output$download_gsea_plot <- downloadHandler(
   })
   
   # Reactive expression to track chosen GO categories
+  # chosen_go reactive returns NULL when GO categories are disabled
   chosen_go <- reactive({
-    log_event(log_messages, "Reactive to track choosen GO categories initialized - input should be null", "INFO")
-    input$go_category
+    # Only return GO categories if the feature is enabled
+    if (!input$show_go_category) {
+      log_event(log_messages, "GO categories disabled - returning NULL", "INFO")
+      return(NULL)
+    }
     
+    log_event(log_messages, "Returning selected GO categories", "INFO")
+    input$go_category
   })
+  
+  
+  
   
   
   color_palette <- c("#440154FF", "darkblue","gold","darkorange","darkcyan","deeppink","black") 
@@ -5938,6 +5949,11 @@ output$download_gsea_plot <- downloadHandler(
       scale_y_continuous(
         limits = limits_y
       )
+    
+    
+    # Reset to base layer only - this helps to erase all the layers that 
+    # might have persisted in memory (case that happened with GO annotations)
+    volcano_plot$layers <- volcano_plot$layers[1] 
       
    
     # Generate subtitle based on the input settings
