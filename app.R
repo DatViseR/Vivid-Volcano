@@ -4115,6 +4115,9 @@ server <- function(input, output, session) {
   regulated_sets <- reactiveVal(NULL)
   
   volcano_plot_rv <- reactiveVal()
+  
+  
+  
   # logging system
   log_messages <- reactiveVal("")
   #display
@@ -6425,12 +6428,13 @@ output$custom_gene_labels_ui <- renderUI({
         gt::gtsave(gt_table, file, inline_css = TRUE)
       }
     )
-###### Reactive UI for the custom x-axis limits ----
+###### Reactive UI for the custom x-axis limits and hiding text annotations----
     output$x_limits_ui <- renderUI({
       req(input$draw_volcano)
       abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
       abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
       limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
+      tagList(
       div(class = "ui center aligned container volcano-limits-container",
           div(class = "ui action input volcano-limits-input-group",
               numericInput(
@@ -6446,8 +6450,13 @@ output$custom_gene_labels_ui <- renderUI({
                 label = "Add custom x-axis limits [+- log2 fold]",
                 class = "ui blue button volcano-limits-button"
               )
-          )
-      )
+          )),
+      div(class = "ui center aligned container",
+          toggle("hide_annot", "Hide Top text Annotations \n and reset y-axis limits", FALSE)
+      ))
+      
+      
+      
     })
     
     observeEvent(input$redraw_volcano, {
@@ -6460,9 +6469,41 @@ output$custom_gene_labels_ui <- renderUI({
       
     })
     
+    observeEvent(input$hide_annot, {
+      req(input$draw_volcano)    
+      log_event(log_messages, "Toggling text annotations", "INFO input$hide_annot")
+      
+      # Create copies of the plot
+      original_plot <- volcano_plot_rv()
+      mod_plot <- volcano_plot_rv()
+      
+      if (input$hide_annot) {
+        # When toggle is ON - hide annotations and reset y-axis
+        max_y <- max(-log10(as.numeric(df[[input$pvalue_col]])))
+        limits_y <- c(-0.01, max_y + 0.03 * max_y)
+        
+        # Modify only mod_plot - keep all layers EXCEPT those created by annotate()
+        mod_plot$layers <- mod_plot$layers[sapply(mod_plot$layers, function(x) {
+          is_not_annotation <- TRUE
+          if (inherits(x$geom, "GeomText") || inherits(x$geom, "GeomLabel")) {
+            is_not_annotation <- !is.null(x$mapping$label) ||
+              inherits(x$geom, "GeomTextRepel") ||
+              inherits(x$geom, "GeomLabelRepel")
+          }
+          return(is_not_annotation)
+        })]
+        
+        # Reset y-axis limits
+        mod_plot <- mod_plot + 
+          scale_y_continuous(limits = limits_y)
+        
+        volcano_plot_rv(mod_plot)
+      } else {
+        # When toggle is OFF - use the original plot
+        volcano_plot_rv(original_plot)
+      }
+    })
     
-    
-
     shinyjs::hide("volcano-loader-overlay")
     
   }) 
