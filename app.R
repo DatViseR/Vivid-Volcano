@@ -5925,8 +5925,9 @@ output$custom_gene_labels_ui <- renderUI({
       return(NULL)
     }
     
-    # limits for y slighly bigger to have space for annotation
-    limits_y <- c(0, max(-log10(as.numeric(df[[input$pvalue_col]])) + 1.5))
+    # default limits for the y axis
+    max_y <- max(-log10(as.numeric(df[[input$pvalue_col]])))
+    limits_y <- c(-0.01, max_y + 0.03 *max_y)
     
     abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
     abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
@@ -5969,11 +5970,19 @@ output$custom_gene_labels_ui <- renderUI({
     subtitle <- NULL
     
     if (input$color_highlight) {
+      # increase the limits_y to fitt the annotations 
+      
+      limits_y <- c(-0.01, max_y + 0.09*max_y)
+      
       log_event(log_messages, "Color highlighting enabled", "INFO input$draw_volcano")
       upregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) > 0) %>% nrow()
       downregulated_count <- df %>% filter(adjusted_pvalues < input$alpha & !!sym(input$fold_col) < 0) %>% nrow()
       total_count <- df %>% nrow()
       volcano_plot <- volcano_plot +
+      
+      # increase the scale y to fit the annotations   
+       scale_y_continuous(limits = limits_y) +  
+          
         annotate("text", x = -Inf, y = Inf, label = paste0("Upregulated n= ", upregulated_count), color = input$up_color, hjust = -0.1 ,vjust = 2, size = 5.5 ) +
         annotate("text", x = -Inf, y = Inf, label = paste0("Downregulated n= ", downregulated_count), color = input$down_color, hjust = -0.1, vjust = 1, size = 5.5)+
         annotate("text", x = -Inf, y = Inf, label = paste0("Detected n= ", total_count), color = "#A0A0A0", hjust = -0.1, vjust = 3, size = 5.5)
@@ -6005,6 +6014,10 @@ output$custom_gene_labels_ui <- renderUI({
     # Add annotations for chosen GO categories
     if (input$show_go_category) {
       chosen <- chosen_go()
+      limits_y <- c(-0.01, max_y + ifelse(input$color_highlight, 0.09*max_y + 0.03*max_y*length(chosen),
+                                      0.03*max_y*length(chosen) )
+                    )                                                                  
+      
       selected_GO <- GO %>% filter(name %in% chosen)
       
       if ("id" %in% colnames(selected_GO)) {
@@ -6020,6 +6033,8 @@ output$custom_gene_labels_ui <- renderUI({
         color <- input[[paste0("color_", gsub("[^a-zA-Z0-9]", "_", go))]]
         go_detail <- paste0(go, ": ", unique(selected_GO$id[selected_GO$name == go]))
         volcano_plot <- volcano_plot +
+          scale_y_continuous(limits = limits_y) +
+          
           annotate("text", x = Inf, y = Inf, label = go_detail, color = color, hjust = 1.1, vjust = 1 + i*1.2, size = 5.5)
       }
     }  
