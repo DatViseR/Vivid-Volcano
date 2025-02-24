@@ -58,7 +58,45 @@ GO <- arrow::read_parquet("GO.parquet2")
 
 ##################---CRUCIAL CUSTOM FUNCTION DEFINITIONS----###################
 
-# The logger factory function that creates a logger function for a specific session  
+# 
+#' 
+#' 
+#' @title Create Logger
+#' @description The logger factory function that creates a logger function for a specific session 
+#' that formats and stores log messages with timestamps and session identifiers. 
+#' The logger maintains a consistent format and can output messages both to
+#' a reactive value and the console.
+#' 
+#' @param session A Shiny session object used to create unique session identifiers
+#' 
+#' @return A function that takes three parameters:
+#'   \itemize{
+#'     \item log_messages_rv: A reactive value to store log messages
+#'     \item message: The message to log
+#'     \item type: The type of log message (default: "INFO")
+#'   }
+#' 
+#' @details The returned logging function creates formatted log entries with:
+#'   \itemize{
+#'     \item Timestamp in YYYY-MM-DD HH:MM:SS format
+#'     \item Shortened session identifier (6-character hash)
+#'     \item Message type (e.g., "INFO", "ERROR", "WARNING")
+#'     \item The actual log message
+#'   }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server function:
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   logger(log_messages, "Application started", "INFO")
+#' }
+#' }
+#' 
+#' @importFrom digest digest
+#' @importFrom shiny is.reactive isolate
+#' @export
 
 create_logger <- function(session) {
   # Create session-specific identifiers
@@ -91,8 +129,50 @@ create_logger <- function(session) {
   }
 }
 
-# The structure logging helper function - it can be used to log the structure of any R object or modified to 
-# log other properties of the object
+
+#' Create Structure Logger
+#' 
+#' @title Create Structure Logger
+#' @description # The structure logging helper function -
+#'  it can be used to log the structure of any R object or modified to 
+# log other properties of the of R objects using dplyr's glimpse function. 
+# This logger extends the basic logger functionality to 
+# include detailed object structure information.
+#' 
+#' @param session A Shiny session object used to create unique session identifiers
+#' 
+#' @return A function that takes four parameters:
+#'   \itemize{
+#'     \item log_messages_rv: A reactive value to store log messages
+#'     \item obj: The R object whose structure should be logged
+#'     \item message: Custom message prefix (default: "Object structure:")
+#'     \item type: The type of log message (default: "INFO")
+#'   }
+#' 
+#' @details The returned function combines the functionality of the basic logger with
+#' structure inspection capabilities. It:
+#'   \itemize{
+#'     \item Uses dplyr::glimpse to capture object structure
+#'     \item Combines custom message with structure information
+#'     \item Maintains consistent logging format with session tracking
+#'   }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server function:
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   structure_logger <- create_structure_logger(session)
+#'   df <- data.frame(x = 1:3, y = letters[1:3])
+#'   structure_logger(log_messages, df, "Data frame structure:")
+#' }
+#' }
+#' 
+#' @importFrom dplyr glimpse
+#' @seealso \code{\link{create_logger}} for the basic logging functionality
+#' @export
+
+
 create_structure_logger <- function(session) {
   # Get the basic logger
   log_event <- create_logger(session)
@@ -115,7 +195,8 @@ create_structure_logger <- function(session) {
 #'
 #' @description
 #' Analyzes specified columns in a data frame for NA values, removes rows with NAs,
-#' removes columns that are fully NA, and provides comprehensive statistics and user feedback about the cleaning process.
+#' removes columns that are fully NA, and provides comprehensive statistics 
+#' and user feedback about the cleaning process.
 #'
 #' @param df A data frame containing the input data
 #' @param pvalue_col Character string specifying the name of the p-value column
@@ -336,11 +417,61 @@ diagnose_input_columns_and_remove_NA <- function(df, pvalue_col, fold_col, annot
 
 
 
-#' Clean Gene Names
-#' @param genes Vector of gene names to clean
-#' @param log_messages_rv Reactive value for storing log messages (optional)
-#' @param log_event Function for logging events (optional)
-#' @return Vector of cleaned, unique gene names
+#' Clean and Standardize Gene Names
+#' 
+#' @title Clean Gene Names
+#' @description Standardizes and cleans gene names by removing special characters, 
+#' converting to uppercase, and ensuring uniqueness. This function handles common 
+#' issues in gene name formatting such as multiple entries, special characters, 
+#' and inconsistent spacing.
+#' 
+#' @param genes A vector of gene names to be cleaned
+#' @param log_messages_rv Optional reactive value for storing log messages
+#' @param log_event Optional logging function created by create_logger()
+#' 
+#' @return A vector of cleaned, unique gene names with the following modifications:
+#'   \itemize{
+#'     \item Removed NA values
+#'     \item Removed text after delimiters (;,|)
+#'     \item Trimmed whitespace
+#'     \item Converted to uppercase
+#'     \item Removed special characters
+#'     \item Removed duplicates
+#'   }
+#' 
+#' @details The function performs the following cleaning steps in order:
+#'   1. Removes NA values
+#'   2. Keeps only the first part of compound names (before ;,| or space)
+#'   3. Removes leading and trailing whitespace
+#'   4. Removes empty strings
+#'   5. Converts to uppercase
+#'   6. Removes all characters except letters and numbers
+#'   7. Removes duplicates
+#' 
+#' @examples
+#' \dontrun{
+#' # Basic usage without logging
+#' genes <- c("Gene1", "gene1;alt", "GENE-2", NA, "Gene1", "gene_3")
+#' cleaned <- clean_gene_names(genes)
+#' print(cleaned)  # Returns: c("GENE1", "GENE2", "GENE3")
+#' 
+#' # Usage with logging in Shiny
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   genes <- c("Gene1", "gene1;alt", "GENE-2", NA)
+#'   cleaned <- clean_gene_names(genes, log_messages, logger)
+#' }
+#' }
+#' 
+#' @importFrom magrittr %>%
+#' @importFrom stats na.omit
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for creating the logging function
+#' 
+#' @export
 clean_gene_names <- function(genes, 
                              log_messages_rv = NULL,  # Optional: for logging messages
                              log_event = NULL) {      # Optional: logging function
@@ -424,8 +555,83 @@ perform_hypergeometric_test_silent <- function(population_size, success_populati
 }
 
 
-
-
+#' Calculate Gene Ontology Enrichment Analysis
+#' 
+#' @title Calculate GO Enrichment
+#' @description Performs Gene Ontology (GO) enrichment analysis using hypergeometric testing
+#' on a set of input genes. Includes comprehensive logging of the analysis process and
+#' applies Bonferroni correction for multiple testing. This function is used in the Draw VOlcano module,
+#' but not in the GSEA module which uses identify_top_enriched_GO_enrichment instead.
+#' 
+#' @param genes Vector or list of gene identifiers to analyze
+#' @param go_categories Vector of GO category names to test for enrichment
+#' @param go_data Data frame containing GO annotations with columns 'name' (GO category) 
+#'        and 'gene' (gene identifier)
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A data frame containing enrichment analysis results with columns:
+#'   \itemize{
+#'     \item GO_Category: Name of the GO category
+#'     \item P_Value: Unadjusted p-value from hypergeometric test
+#'     \item Adjusted_P_Value: Bonferroni-corrected p-value (n=1160)
+#'     \item Population_Size: Total number of genes in background (19689 human coding genes)
+#'     \item Success_Population_Size: Number of genes in the GO category
+#'     \item Sample_Size: Number of input genes after cleaning
+#'     \item Sample_Success_Size: Number of input genes found in the GO category
+#'   }
+#' 
+#' @details
+#' The function performs these steps:
+#' 1. Cleans and standardizes input gene names
+#' 2. Processes each GO category separately
+#' 3. Performs hypergeometric testing for enrichment
+#' 4. Applies Bonferroni correction for multiple testing
+#' 
+#' The background population is set to 19,689 genes (human coding genes excluding pseudogenes).
+#' Bonferroni correction uses n=1160 (estimate for level 4 hierarchy GO tags).
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example input data
+#'   genes <- c("BRCA1", "BRCA2", "TP53", "PTEN")
+#'   go_cats <- c("DNA repair", "cell cycle", "apoptosis")
+#'   go_data <- data.frame(
+#'     name = c("DNA repair", "DNA repair", "cell cycle"),
+#'     gene = c("BRCA1", "BRCA2", "TP53")
+#'   )
+#'   
+#'   # Calculate enrichment
+#'   results <- calculate_go_enrichment(
+#'     genes, 
+#'     go_cats, 
+#'     go_data, 
+#'     log_messages, 
+#'     logger
+#'   )
+#' }
+#' }
+#' 
+#' @importFrom dplyr filter pull bind_rows
+#' @importFrom stats p.adjust
+#' @importFrom magrittr %>%
+#' 
+#' @seealso 
+#' \code{\link{clean_gene_names}} for gene name preprocessing
+#' \code{\link{perform_hypergeometric_test}} for statistical testing
+#' 
+#' @note 
+#' The function uses a fixed background population size of 19,689 genes and 
+#' applies Bonferroni correction with n=1160. These values may need adjustment
+#' based on your specific analysis context. This function is used in the Draw VOlcano module,
+#' but not in the GSEA module which uses identify_top_enriched_GO_enrichmentinstead.
+#' 
+#' @export
 calculate_go_enrichment <- function(genes, go_categories, go_data, log_messages_rv, log_event) {
   # Initial gene processing logging
   log_event(log_messages_rv, 
@@ -956,9 +1162,97 @@ identify_top_go_enrichment <- function(detected_genes,
 }
 
 
-
-# Creates a GO enrichment table for upregulated, downregulated, and all regulated genes based on the input data frame
-
+#' @title Calculate GO Enrichment Tables
+#' @description Performs Gene Ontology (GO) enrichment analysis separately for 
+#' upregulated, downregulated, and all regulated genes based on provided significance 
+#' thresholds and fold change values. Includes comprehensive error handling and logging.
+#' 
+#' @param df Data frame containing differential expression analysis results
+#' @param annotation_col Character, name of the column containing gene annotations
+#' @param go_categories Vector of GO category names to test for enrichment
+#' @param go_data Data frame containing GO annotations with columns 'name', 'id', and 'gene'
+#' @param alpha Numeric, significance threshold for adjusted p-values
+#' @param fold_col Character, name of the column containing fold change values
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' @param log_structure Structure logging function created by create_structure_logger()
+#' 
+#' @return A list containing three elements:
+#'   \itemize{
+#'     \item upregulated: List with 'data' containing GO enrichment results for upregulated genes
+#'     \item downregulated: List with 'data' containing GO enrichment results for downregulated genes
+#'     \item regulated: List with 'data' containing GO enrichment results for all regulated genes
+#'   }
+#' Each 'data' element is a data frame with columns:
+#'   \itemize{
+#'     \item GO_Category: Name of the GO category
+#'     \item P_Value: Unadjusted p-value
+#'     \item Adjusted_P_Value: Bonferroni-corrected p-value
+#'     \item Population_Size: Total number of background genes
+#'     \item Success_Population_Size: Number of genes in GO category
+#'     \item Sample_Size: Number of input genes
+#'     \item Sample_Success_Size: Number of matches
+#'     \item id: GO term identifier
+#'   }
+#' 
+#' @details 
+#' The function performs these steps:
+#' 1. Filters genes based on significance (alpha) and fold change direction
+#' 2. Performs separate GO enrichment analyses for each gene group
+#' 3. Handles cases with no regulated genes by returning empty data frames
+#' 4. Adds GO term identifiers to results
+#' 5. Implements comprehensive error handling and logging
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   structure_logger <- create_structure_logger(session)
+#'   
+#'   # Example input data
+#'   df <- data.frame(
+#'     gene = c("BRCA1", "TP53", "PTEN"),
+#'     log2FC = c(2.1, -1.5, 1.8),
+#'     adjusted_pvalues = c(0.01, 0.03, 0.02)
+#'   )
+#'   
+#'   go_cats <- c("DNA repair", "cell cycle")
+#'   go_data <- data.frame(
+#'     name = c("DNA repair", "cell cycle"),
+#'     id = c("GO:0006281", "GO:0007049"),
+#'     gene = c("BRCA1", "TP53")
+#'   )
+#'   
+#'   results <- calculate_go_enrichment_table(
+#'     df = df,
+#'     annotation_col = "gene",
+#'     go_categories = go_cats,
+#'     go_data = go_data,
+#'     alpha = 0.05,
+#'     fold_col = "log2FC",
+#'     log_messages,
+#'     logger,
+#'     structure_logger
+#'   )
+#' }
+#' }
+#' 
+#' @importFrom dplyr filter pull distinct left_join sym
+#' @importFrom rlang .data !!
+#' 
+#' @seealso 
+#' \code{\link{calculate_go_enrichment}} for the core enrichment calculation
+#' \code{\link{create_logger}} for logging functionality
+#' \code{\link{create_structure_logger}} for structure logging
+#' 
+#' @note 
+#' The function assumes the presence of an 'adjusted_pvalues' column in the input
+#' data frame. Empty results are handled gracefully with appropriate structure
+#' and NA values.
+#' 
+#' @export
 calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_data, alpha, fold_col, log_messages_rv, log_event, log_structure) {
   # Log start of analysis with parameters
   log_event(log_messages_rv,
@@ -1108,9 +1402,107 @@ calculate_go_enrichment_table <- function(df, annotation_col, go_categories, go_
   return(enrichment_results_list)
 }
 
-# Creates a publication-ready plot for pdf outputs with custom dimensions and text sizes based on the input base plot and 
-# defined output
 
+
+#' @title Create Publication Plot
+#' @description Converts a ggplot object into a publication-ready format by adjusting 
+#' dimensions, point sizes, text sizes, and margins according to standardized journal 
+#' figure specifications. Includes comprehensive logging of all modifications.
+#' 
+#' @param base_plot A ggplot2 object to be converted to publication format
+#' @param width_mm Numeric, desired width in millimeters
+#' @param height_mm Numeric, desired height in millimeters
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A modified ggplot2 object with publication-ready formatting
+#' 
+#' @details 
+#' Supports five standardized size configurations:
+#' \itemize{
+#'   \item 85x85mm (single column square)
+#'   \item 114x114mm (1.5 column square)
+#'   \item 114x65mm (1.5 column rectangle)
+#'   \item 174x174mm (double column square)
+#'   \item 174x98mm (double column rectangle)
+#' }
+#' 
+#' Point size configurations for each format:
+#' \describe{
+#'   \item{85x85mm}{base: 0.6, highlight: 0.9, annotation: 1.5}
+#'   \item{114x114mm}{base: 0.8, highlight: 1.2, annotation: 2.0}
+#'   \item{114x65mm}{base: 0.7, highlight: 1.05, annotation: 1.75}
+#'   \item{174x174mm}{base: 1.0, highlight: 1.5, annotation: 2.5}
+#'   \item{174x98mm}{base: 0.9, highlight: 1.35, annotation: 2.25}
+#' }
+#' 
+#' Layout configurations:
+#' \describe{
+#'   \item{Compact (85x85mm, 114x65mm)}{
+#'     \itemize{
+#'       \item Title size: 10pt
+#'       \item Text size: 6pt
+#'       \item Margins: top=10pt, right=10pt, bottom=5pt, left=5pt
+#'     }
+#'   }
+#'   \item{Standard (other sizes)}{
+#'     \itemize{
+#'       \item Title size: 12pt
+#'       \item Text size: 8pt
+#'       \item Margins: top=30pt, right=85pt, bottom=10pt, left=10pt
+#'     }
+#'   }
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Create base volcano plot
+#'   base_plot <- ggplot(data, aes(x = log2FC, y = -log10(pvalue))) +
+#'     geom_point()
+#'   
+#'   # Convert to single-column publication format
+#'   pub_plot <- create_publication_plot(
+#'     base_plot = base_plot,
+#'     width_mm = 85,
+#'     height_mm = 85,
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#'   
+#'   # Save the plot
+#'   ggsave("publication_plot.pdf", pub_plot, 
+#'          width = 85 * 0.0393701, 
+#'          height = 85 * 0.0393701)
+#' }
+#' }
+#' 
+#' @importFrom ggplot2 theme element_text margin
+#' @importFrom rlang %||%
+#' 
+#' @section Plot Layer Modifications:
+#' The function automatically detects and modifies different types of layers:
+#' \itemize{
+#'   \item Point geometries: Adjusts sizes based on highlight status
+#'   \item Text and label geometries: Adjusts sizes based on annotation status
+#'   \item Theme elements: Updates text sizes and margins based on plot dimensions
+#' }
+#' 
+#' @note 
+#' - Dimensions should be provided in millimeters
+#' - The function automatically converts measurements to inches for ggsave compatibility
+#' - Highlighted points are identified by their color (darkgreen or red)
+#' - Annotations are identified by infinite x and y coordinates
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' \code{\link[ggplot2]{theme}} for theme modifications
+#' 
+#' @export
 create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages_rv, log_event) {
   # Log start of plot creation with dimensions
   log_event(log_messages_rv,
@@ -1237,9 +1629,106 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 }
 
 
-
-
-# Process the data with fixed label format using colon separator - previously it was / but some ratios
+#' Build Gene Set Enrichment Analysis (GSEA) Plots
+#' 
+#' @title Build GSEA Plots
+#' @description Creates publication-ready Gene Set Enrichment Analysis visualizations 
+#' for up-regulated, down-regulated, and bidirectionally-regulated genes. Supports 
+#' different ontology types and includes options for displaying non-significant results.
+#' 
+#' @param enrichment_results_list List containing enrichment analysis results with 
+#'        components $top_results and $top10_results, each containing $bidirectional, 
+#'        $up, and $down data frames
+#' @param ontology Character, type of ontology being analyzed (e.g., "Biological Process")
+#' @param show_not_significant Logical, whether to show non-significant terms (default: FALSE)
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' @param plotOntologyValue Character, one of "P" (Biological Process), 
+#'        "F" (Molecular Function), or "C" (Cellular Component)
+#' 
+#' @return A list containing three ggplot objects:
+#'   \itemize{
+#'     \item bidirectional: Plot for bidirectionally-regulated genes
+#'     \item up: Plot for up-regulated genes
+#'     \item down: Plot for down-regulated genes
+#'   }
+#' Each plot is NULL if no data is available for that category.
+#' 
+#' @details 
+#' Plot Features:
+#' \itemize{
+#'   \item Horizontal bar charts showing fold enrichment
+#'   \item Color gradient indicating significance (-log10 adjusted p-value)
+#'   \item Term labels including regulated/detected gene counts
+#'   \item Grey bars for non-significant terms (when show_not_significant = TRUE)
+#'   \item Customized semantic UI blue color scheme
+#' }
+#' 
+#' Color Scheme:
+#' \itemize{
+#'   \item Light blue (#E6F3FF) for low significance
+#'   \item Semantic UI Blue (#2185D0) for medium significance
+#'   \item Navy blue (#084B8A) for high significance
+#'   \item Grey (grey90) for non-significant terms
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example enrichment results
+#'   enrichment_results <- list(
+#'     top_results = list(
+#'       bidirectional = data.frame(
+#'         name = c("GO:Term1", "GO:Term2"),
+#'         p_adj = c(0.01, 0.03),
+#'         regulated_count = c(10, 15),
+#'         total_count = c(100, 150),
+#'         fold_enrichment = c(2.5, 1.8)
+#'       ),
+#'       up = data.frame(...),
+#'       down = data.frame(...)
+#'     ),
+#'     top10_results = list(...)
+#'   )
+#'   
+#'   plots <- build_gsea_plots(
+#'     enrichment_results_list = enrichment_results,
+#'     ontology = "Biological Process",
+#'     show_not_significant = FALSE,
+#'     log_messages = log_messages,
+#'     log_event = logger,
+#'     plotOntologyValue = "P"
+#'   )
+#' }
+#' }
+#' 
+#' 
+#' @importFrom ggplot2 ggplot aes geom_bar scale_fill_gradient2 labs 
+#'             theme_minimal theme element_markdown element_text element_blank 
+#'             element_rect margin
+#' @importFrom dplyr mutate arrange
+#' @importFrom rlang if_else
+#' 
+#' @section Plot Customization:
+#' The function includes several visual customizations:
+#' \itemize{
+#'   \item Font sizes: 11pt for axis text and legends, 12pt for titles
+#'   \item Compact margins: 5pt on all sides
+#'   \item Legend position: Bottom right corner with white background
+#'   \item Line height adjustment for multi-line term labels
+#'   \item Removed vertical gridlines for cleaner appearance
+#' }
+#' 
+#' @note 
+#' - Required data frame columns: name, p_adj, regulated_count, total_count, fold_enrichment
+#' - Assumes adjusted p-value threshold of 0.05 for significance
+#' - Uses markdown formatting for term labels
+#' 
+#' # Process the data with fixed label format using colon separator - previously it was / but some ratios
 # were not rendered properly 
 
 # Issue explanation: The original problem occurred because ggplot2's element_markdown()
@@ -1248,8 +1737,13 @@ create_publication_plot <- function(base_plot, width_mm, height_mm, log_messages
 # number combinations to be rendered incorrectly or become invisible. The solution was
 # to use a colon instead of a forward slash to prevent the fraction interpretation
 # while maintaining a clear ratio representation.
-
-
+#' 
+#' 
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @export
 build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Process", 
                              show_not_significant = FALSE, log_messages_rv, log_event,
                              plotOntologyValue) {  
@@ -1261,7 +1755,7 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
             "DEBUG from build_gsea_plots")
   
   # 2. Data preparation: Check if each category exists in the input data
-  # Fix: Check both top10_results and top_results for data availability
+# Checks both top10_results and top_results for data availability
   has_bidirectional <- if (show_not_significant) {
     !is.null(enrichment_results_list$top10_results$bidirectional) && 
       nrow(enrichment_results_list$top10_results$bidirectional) > 0
@@ -1363,7 +1857,8 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
     }
     
     # Data processing
-    # Note: Using colon instead of slash to avoid markdown fraction interpretation
+    # Note: Using colon instead of slash to avoid markdown fraction interpretation,
+    # (needed because of element_markdown() from ggtext)
     plot_data <- results_data %>%
       mutate(
         term_label = sprintf("<b>%s</b><br>%d:%d [regulated:detected]", 
@@ -1438,7 +1933,116 @@ build_gsea_plots <- function(enrichment_results_list, ontology = "Biological Pro
   return(plots)
 }
 
-
+#' Build GSEA Results Table using GT Package
+#' 
+#' @title Build GSEA GT Table
+#' @description Creates a formatted GT (Grammar of Tables) table displaying Gene Set 
+#' Enrichment Analysis (GSEA) results. The table includes separate sections for 
+#' up-regulated, down-regulated, and bidirectionally-regulated genes with custom 
+#' styling and informative footnotes.
+#' 
+#' @param enrichment_results_list List containing GSEA results with structure:
+#'   \itemize{
+#'     \item top_results
+#'       \itemize{
+#'         \item bidirectional: Data frame of bidirectionally regulated terms
+#'         \item up: Data frame of up-regulated terms
+#'         \item down: Data frame of down-regulated terms
+#'       }
+#'   }
+#' @param color_highlight Character vector of length 2 containing hex color codes:
+#'   \itemize{
+#'     \item [1]: Color for down-regulated genes section
+#'     \item [2]: Color for up-regulated genes section
+#'   }
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A GT table object containing the formatted GSEA results, or a simple 
+#' message table if no significant results are found.
+#' 
+#' @details 
+#' Table Structure:
+#' \itemize{
+#'   \item Title: "Gene Set Enrichment Analysis Results"
+#'   \item Subtitle: "Significantly enriched Gene Ontology terms"
+#'   \item Columns:
+#'     \itemize{
+#'       \item GO Term: Name of the GO term
+#'       \item Detected Genes in Term: Total number of genes in the GO term
+#'       \item Regulated Genes in Term: Number of regulated genes in the term
+#'       \item Fold Enrichment: Enrichment ratio (2 decimal places)
+#'       \item P-value: Raw p-value (<0.001 or 3 decimal places)
+#'       \item Adjusted P-value: BH-adjusted p-value (<0.001 or 3 decimal places)
+#'     }
+#' }
+#' 
+#' Styling Features:
+#' \itemize{
+#'   \item Custom background colors for regulation groups
+#'   \item Bold column headers and group labels
+#'   \item 12px font size
+#'   \item Full-width table layout
+#'   \item Informative footnotes for statistical measures
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example enrichment results
+#'   enrichment_results <- list(
+#'     top_results = list(
+#'       bidirectional = data.frame(
+#'         name = c("DNA repair", "Cell cycle"),
+#'         p_value = c(0.001, 0.01),
+#'         p_adj = c(0.005, 0.03),
+#'         regulated_count = c(10, 15),
+#'         total_count = c(100, 150),
+#'         fold_enrichment = c(2.5, 1.8)
+#'       ),
+#'       up = data.frame(...),
+#'       down = data.frame(...)
+#'     )
+#'   )
+#'   
+#'   # Create table with custom colors
+#'   gsea_table <- build_gsea_gt_table(
+#'     enrichment_results_list = enrichment_results,
+#'     color_highlight = c("#FFE6E6", "#E6FFE6"),  # Light red and light green
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#' }
+#' }
+#' 
+#' @importFrom gt gt tab_header cols_label fmt_number tab_options tab_style 
+#'             tab_footnote cells_column_labels cells_row_groups cell_text cell_fill pct px
+#' @importFrom dplyr mutate select bind_rows
+#' @importFrom tibble tibble
+#' 
+#' @section Footnotes:
+#' The table includes detailed footnotes explaining:
+#' \itemize{
+#'   \item Adjusted p-value calculation using Benjamini-Hochberg method
+#'   \item Raw p-value calculation using hypergeometric test
+#'   \item Interpretation of fold enrichment values
+#' }
+#' 
+#' @note 
+#' - Required columns in input data frames: name, p_value, p_adj, regulated_count, 
+#'   total_count, fold_enrichment
+#' - Returns a simple message table if no significant results are found
+#' - Group styling uses bidirectional (gray), up-regulated (user-defined), and 
+#'   down-regulated (user-defined) colors
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @export
 
 build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_messages_rv, log_event) {
   # Log function start
@@ -1546,13 +2150,7 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
       appears among the regulated gene set compared to what would be expected by chance"
       ,
       locations = cells_column_labels("Fold_Enrichment")
-      
-    )%>%
-    
-    
-    
-    
-    
+      )%>%
     tab_options(
       table.width = pct(100),
       table.font.size = px(12),
@@ -1601,18 +2199,108 @@ build_gsea_gt_table <- function(enrichment_results_list, color_highlight, log_me
   return(gt_table)
 }
 
-
-
-
-#' Filter redundant GO terms from GSEA results
+#' Filter Gene Set Enrichment Analysis Results
 #' 
-#' @param enrichment_results_list List containing GSEA results
-#' @param filter_pattern Pattern to match in GO term names
-#' @param log_messages_rv Reactive value for log storage
-#' @param log_event Logging function
-#'
-#' @return Filtered GSEA results list
+#' @title Filter GSEA Results
+#' @description Filters Gene Set Enrichment Analysis (GSEA) results based on a pattern 
+#' match, keeping the most significant matching term for each category while 
+#' preserving the original structure and non-matching terms.
+#' 
+#' @param enrichment_results_list List containing GSEA results with structure:
+#'   \itemize{
+#'     \item all_results: Complete results for each regulation type
+#'     \item top_results: Significant results (p_adj < 0.05, fold enrichment >= 1.5)
+#'     \item top10_results: Top 10 results regardless of significance
+#'     \item missing_genes: List of genes not found in analysis
+#'   }
+#' Each results component contains three sub-lists: up, down, and bidirectional
+#' 
+#' @param filter_pattern Character string containing the pattern to match against GO terms
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A list with the same structure as the input, but filtered:
+#'   \itemize{
+#'     \item all_results: Filtered complete results
+#'     \item top_results: Rebuilt top significant results from filtered data
+#'     \item top10_results: Rebuilt top 10 results from filtered data
+#'     \item missing_genes: Unchanged from input
+#'   }
+#' 
+#' @details 
+#' Filtering Process:
+#' \enumerate{
+#'   \item For each regulation type (up, down, bidirectional):
+#'     \itemize{
+#'       \item Finds terms matching the pattern (case-insensitive)
+#'       \item Keeps only the most significant matching term
+#'       \item Preserves all non-matching terms
+#'       \item Maintains original sorting by adjusted p-value
+#'     }
+#'   \item Rebuilds result categories:
+#'     \itemize{
+#'       \item top_results: Significant terms (p_adj < 0.05, fold enrichment >= 1.5)
+#'       \item top10_results: Top 10 terms by significance
+#'     }
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example GSEA results
+#'   enrichment_results <- list(
+#'     all_results = list(
+#'       up = data.frame(
+#'         name = c("DNA repair", "DNA replication", "cell cycle"),
+#'         p_adj = c(0.01, 0.02, 0.03),
+#'         p_value = c(0.005, 0.01, 0.015),
+#'         fold_enrichment = c(2.5, 2.0, 1.8)
+#'       ),
+#'       down = data.frame(...),
+#'       bidirectional = data.frame(...)
+#'     ),
+#'     top_results = list(...),
+#'     top10_results = list(...)
+#'   )
+#'   
+#'   # Filter for DNA-related terms
+#'   filtered_results <- filter_gsea_results(
+#'     enrichment_results_list = enrichment_results,
+#'     filter_pattern = "DNA",
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#' }
+#' }
+#' 
+#' @section Filtering Rules:
+#' \itemize{
+#'   \item Pattern matching is case-insensitive
+#'   \item Empty data frames are returned unchanged
+#'   \item If no matches are found, original data is returned
+#'   \item For multiple matches, only the most significant term is kept
+#'   \item Non-matching terms are preserved
+#' }
+#' 
+#' @note 
+#' Required columns in input data frames:
+#' \itemize{
+#'   \item name: GO term name
+#'   \item p_adj: Adjusted p-value
+#'   \item p_value: Raw p-value
+#'   \item fold_enrichment: Enrichment ratio
+#' }
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
 #' @export
+
 filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_messages_rv, log_event) {
   log_event(log_messages_rv, 
             sprintf("Starting GSEA filtering with pattern '%s'", filter_pattern), 
@@ -1746,7 +2434,123 @@ filter_gsea_results <- function(enrichment_results_list, filter_pattern, log_mes
 
 
 
-# Creates a GT table with color-coded row groups for regulated genes based on the input enrichment results list 
+
+#' Build Formatted GT Table for Gene Ontology Enrichment Results
+#' 
+#' @title Build GO Enrichment GT Table
+#' @description Creates a formatted GT (Grammar of Tables) table displaying Gene 
+#' Ontology enrichment results with separate sections for bidirectionally regulated, 
+#' up-regulated, and down-regulated genes. Includes enrichment ratios, statistical 
+#' tests, and comprehensive footnotes.
+#' 
+#' @param enrichment_results_list List containing enrichment results with structure:
+#'   \itemize{
+#'     \item regulated$data: Data frame for bidirectionally regulated genes
+#'     \item upregulated$data: Data frame for up-regulated genes
+#'     \item downregulated$data: Data frame for down-regulated genes
+#'   }
+#' Each data frame must contain columns: GO_Category, id, Success_Population_Size, 
+#' Sample_Size, Sample_Success_Size, P_Value, Adjusted_P_Value
+#' 
+#' @param upregulated_count Integer, number of up-regulated genes
+#' @param downregulated_count Integer, number of down-regulated genes
+#' @param color_highlight Character vector of length 2:
+#'   \itemize{
+#'     \item [1]: Color for down-regulated section
+#'     \item [2]: Color for up-regulated section
+#'   }
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A GT table object containing formatted enrichment results with:
+#'   \itemize{
+#'     \item Color-coded sections for each regulation type
+#'     \item Enrichment ratios for detected and regulated genes
+#'     \item Statistical test results with formatted p-values
+#'     \item Explanatory footnotes
+#'   }
+#' 
+#' @details 
+#' Table Features:
+#' \itemize{
+#'   \item Columns:
+#'     \itemize{
+#'       \item GO name: Gene Ontology term name
+#'       \item GO id: Gene Ontology identifier
+#'       \item Detected genes enrichment: Ratio of detected genes in GO term to total background
+#'       \item Regulated genes enrichment: Ratio of regulated genes in GO term to total regulated
+#'       \item Statistical tests: Raw and Bonferroni-adjusted p-values
+#'       \item Gene counts: Numbers of detected and regulated genes in each category
+#'     }
+#'   \item Formatting:
+#'     \itemize{
+#'       \item P-values: "<0.001" for small values, 3 decimal places otherwise
+#'       \item Enrichment ratios: 3 decimal places
+#'       \item 12px font size
+#'       \item Bold column headers
+#'       \item Full-width table layout
+#'     }
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example enrichment results
+#'   enrichment_results <- list(
+#'     regulated = list(
+#'       data = data.frame(
+#'         GO_Category = c("DNA repair", "Cell cycle"),
+#'         id = c("GO:0006281", "GO:0007049"),
+#'         Success_Population_Size = c(100, 150),
+#'         Sample_Size = c(50, 50),
+#'         Sample_Success_Size = c(10, 15),
+#'         P_Value = c(0.001, 0.01),
+#'         Adjusted_P_Value = c(0.005, 0.03)
+#'       )
+#'     ),
+#'     upregulated = list(data = data.frame(...)),
+#'     downregulated = list(data = data.frame(...))
+#'   )
+#'   
+#'   # Create table
+#'   gt_table <- build_gt_table(
+#'     enrichment_results_list = enrichment_results,
+#'     upregulated_count = 30,
+#'     downregulated_count = 20,
+#'     color_highlight = c("#FFE6E6", "#E6FFE6"),  # Light red and light green
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#' }
+#' }
+#' 
+#' @importFrom gt gt tab_header fmt_markdown cols_label tab_footnote 
+#'             cells_column_labels cols_hide tab_options tab_row_group 
+#'             tab_style cells_row_groups cell_text cell_fill pct px
+#' @importFrom dplyr mutate select bind_rows
+#' 
+#' @section Footnotes:
+#' The table includes detailed footnotes explaining:
+#' \itemize{
+#'   \item Bonferroni correction methodology (n=1160 for level 4 GO hierarchy)
+#'   \item Detected gene enrichment calculation and interpretation
+#'   \item Regulated gene enrichment calculation and interpretation
+#' }
+#' 
+#' @note 
+#' - P-values less than 0.001 are displayed as "<0.001"
+#' - Bidirectionally regulated section uses light gray (#D3D3D3) background
+#' - Sample_Size column is hidden but used for group labels
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
+#' @export
 
 build_gt_table <- function(enrichment_results_list, upregulated_count, downregulated_count, color_highlight, log_messages_rv, log_event) {
  
@@ -1811,7 +2615,7 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
     upregulated_df,
     downregulated_df
   ) %>%
-    select(-Population_Size) %>%  # Remove "Number of human genes" column
+    select(-Population_Size) %>%  # Removes "Number of human genes" column
     mutate(
       P_Value = as.character(P_Value),
       Adjusted_P_Value = as.character(Adjusted_P_Value)
@@ -1934,9 +2738,118 @@ build_gt_table <- function(enrichment_results_list, upregulated_count, downregul
   return(gt_table)
 }
 
-#This function creates GT tables for each GO category with columns for genes in the GO category,
-#downregulated genes, and upregulated genes, with detected genes in bold and regulated in color.
 
+#' @title Build GO Category Gene Lists Table
+#' @description Creates a formatted GT (Grammar of Tables) table showing gene lists 
+#' for selected GO categories, with color-coded display of up-regulated and 
+#' down-regulated genes, and visual distinction between detected and non-detected genes.
+#' 
+#' @param df Data frame containing differential expression analysis results
+#' @param annotation_col Character, name of the column containing gene annotations
+#' @param chosen_go Character vector of selected GO category names
+#' @param go_data Data frame containing GO annotations with columns:
+#'   \itemize{
+#'     \item name: GO category name
+#'     \item id: GO identifier
+#'     \item gene: Gene identifier
+#'   }
+#' @param alpha Numeric, significance threshold for adjusted p-values
+#' @param fold_col Character, name of the column containing fold change values
+#' @param color_highlight Character vector of length 2:
+#'   \itemize{
+#'     \item [1]: Color for down-regulated genes
+#'     \item [2]: Color for up-regulated genes
+#'   }
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return A GT table object with four columns:
+#'   \itemize{
+#'     \item GO Category: GO term name and ID
+#'     \item All Genes: Complete gene list with visual formatting
+#'     \item Downregulated Genes: List of down-regulated genes
+#'     \item Upregulated Genes: List of up-regulated genes
+#'   }
+#' 
+#' @details 
+#' Gene Classification:
+#' \itemize{
+#'   \item Detected genes: All genes present in the input data
+#'   \item Regulated genes: Genes with adjusted p-value < alpha
+#'   \item Up-regulated: Regulated genes with positive fold change
+#'   \item Down-regulated: Regulated genes with negative fold change
+#' }
+#' 
+#' Visual Formatting:
+#' \itemize{
+#'   \item Bold: Detected genes
+#'   \item Color (up): Up-regulated genes
+#'   \item Color (down): Down-regulated genes
+#'   \item Plain: Non-detected genes
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example data
+#'   df <- data.frame(
+#'     gene = c("BRCA1", "TP53", "PTEN"),
+#'     log2FC = c(2.1, -1.5, 1.8),
+#'     adjusted_pvalues = c(0.01, 0.03, 0.02)
+#'   )
+#'   
+#'   go_data <- data.frame(
+#'     name = c("DNA repair", "DNA repair", "cell cycle"),
+#'     id = c("GO:0006281", "GO:0006281", "GO:0007049"),
+#'     gene = c("BRCA1", "TP53", "PTEN")
+#'   )
+#'   
+#'   # Create gene lists table
+#'   gene_table <- build_gt_gene_lists(
+#'     df = df,
+#'     annotation_col = "gene",
+#'     chosen_go = c("DNA repair", "cell cycle"),
+#'     go_data = go_data,
+#'     alpha = 0.05,
+#'     fold_col = "log2FC",
+#'     color_highlight = c("#FFE6E6", "#E6FFE6"),
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#' }
+#' }
+#' 
+#' @importFrom gt gt tab_header cols_label tab_style fmt_markdown tab_options 
+#'             cells_body cell_text pct px
+#' @importFrom dplyr filter pull bind_rows sym
+#' @importFrom rlang !!
+#' 
+#' @section Table Features:
+#' \itemize{
+#'   \item Responsive width (100%)
+#'   \item 12px base font size
+#'   \item Bold column headers
+#'   \item Top-aligned text in GO Category column
+#'   \item Markdown formatting support for gene lists
+#'   \item Color-coded regulation status
+#' }
+#' 
+#' @note 
+#' - Requires clean_gene_names() function for gene name standardization
+#' - Uses HTML spans for color formatting in the All Genes column
+#' - Displays "No genes found" messages when appropriate
+#' - GO Category column combines term name and ID with newline
+#' 
+#' @seealso 
+#' \code{\link{clean_gene_names}} for gene name preprocessing
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
+#' @export
 build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, fold_col, color_highlight, log_messages_rv, log_event) {
   # Debug color inputs
   cat("\n==== Color Values Received ====\n")
@@ -2111,10 +3024,98 @@ build_gt_gene_lists <- function(df, annotation_col, chosen_go, go_data, alpha, f
 
 
 
-
-
-
-# Checks p-values in a data frame column to find out if they are logged or not and unlogs them if necessary
+##' Check and Unlog P-values
+#' 
+#' @title Check and Unlog P-values
+#' @description Validates p-values in a data frame and attempts to reverse -log10 
+#' transformation if detected. Performs comprehensive range checking and handles NA values.
+#' 
+#' @param df Data frame containing p-values
+#' @param pvalue_col Character, name of the column containing p-values
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' 
+#' @return The input data frame with potentially transformed p-values if -log10 
+#' transformation was detected and reversed. Original data frame is returned if no 
+#' transformation was needed or possible.
+#' 
+#' @details 
+#' Validation Steps:
+#' \enumerate{
+#'   \item Checks for NA values
+#'   \item Identifies values outside valid p-value range [0,1]
+#'   \item Detects potential -log10 transformation
+#'   \item Attempts to reverse -log10 transformation if detected
+#'   \item Verifies successful transformation
+#' }
+#' 
+#' Detection Criteria:
+#' \itemize{
+#'   \item Values between -50 and 50 suggest -log10 transformation
+#'   \item Negative values or values > 1 indicate invalid p-values
+#'   \item NA values are counted but preserved
+#' }
+#' 
+#' @section Logging Messages:
+#' The function generates several types of log messages:
+#' \describe{
+#'   \item{PVALUE}{Basic process information}
+#'   \item{WARNING}{Issues with data quality}
+#'   \item{ERROR}{Critical problems with values}
+#'   \item{SUCCESS}{Successful transformations}
+#'   \item{VALIDATION}{Confirmation of valid values}
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   
+#'   # Example with regular p-values
+#'   df1 <- data.frame(
+#'     pvalue = c(0.01, 0.05, 0.001, NA)
+#'   )
+#'   result1 <- check_and_unlog_pvalues(
+#'     df = df1,
+#'     pvalue_col = "pvalue",
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#'   
+#'   # Example with -log10 transformed p-values
+#'   df2 <- data.frame(
+#'     pvalue = c(2, 1.30, 3, NA)  # -log10(0.01), -log10(0.05), -log10(0.001)
+#'   )
+#'   result2 <- check_and_unlog_pvalues(
+#'     df = df2,
+#'     pvalue_col = "pvalue",
+#'     log_messages = log_messages,
+#'     log_event = logger
+#'   )
+#' }
+#' }
+#' 
+#' @section Edge Cases:
+#' \itemize{
+#'   \item NA values are preserved and counted
+#'   \item Values outside [-50, 50] are considered invalid and not transformed
+#'   \item Zero p-values are allowed but may indicate potential issues
+#'   \item Extremely small p-values may result from unlogging large negative values
+#' }
+#' 
+#' @note 
+#' - The function assumes -log10 transformation if values are in [-50, 50]
+#' - Takes absolute values before unlogging to handle negative -log10 values
+#' - Original column is overwritten if transformation is performed
+#' - NA handling is passive (preserved without modification)
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
+#' @export
 
 check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) {
   log_event(log_messages_rv, "Starting p-value range check", "PVALUE")
@@ -2174,120 +3175,103 @@ check_and_unlog_pvalues <- function(df, pvalue_col, log_messages_rv, log_event) 
   return(df)
 }
 
-# data preprocesing function detecting non-numeric values in columns supposed to be numeric 
-# the function analyze observations with suspicious values - logs the summary of those values 
-# and remove the rows tha may result in coercion to character values instead of numeric 
-#' Diagnose and trim numeric-like columns, then display a summary alert.
-#'
-#' This function scans columns in a dataframe for non-numeric values in columns
-#' that are likely meant to be numeric. If suspicious entries are found, a summary
-#' alert is displayed using shinyalert. When the user clicks "Continue", those rows
-#' with non-numeric entries are removed, and the final trimmed dataframe is
 
-diagnose_dataframe_v4 <- function(log_messages_rv, log_event, uploaded_df) {
-  # Get the current dataframe from the reactive value
-  df <- uploaded_df()
-  
-  # Define keywords for identifying numeric-like columns
-  keywords <- c("log", "fold", "pvalue", "padj", "mean", "std", "variance", 
-                "count", "value", "diff", "change", "ratio", "score", "rank")
-  
-  potential_numeric_cols <- grep(
-    paste(keywords, collapse = "|"), 
-    colnames(df), 
-    value = TRUE, 
-    ignore.case = TRUE
-  )
-  
-  if (length(potential_numeric_cols) == 0) {
-    log_event(log_messages_rv, "No numeric-like columns detected.", "INFO from diagnose_dataframe_v4")
-    return(invisible(NULL))
-  }
-  
-  # Modified to store both rows and counts
-  invalid_rows_list <- lapply(potential_numeric_cols, function(col) {
-    suspicious_rows <- which(!is.na(df[[col]]) & is.na(suppressWarnings(as.numeric(df[[col]]))))
-    if (length(suspicious_rows) > 0) {
-      log_event(
-        log_messages_rv,
-        paste0("Column '", col, "' has ", length(suspicious_rows), " suspicious (non-numeric) entries."),
-        "WARN from diagnose_dataframe_v4"
-      )
-      list(
-        rows = suspicious_rows,
-        count = length(suspicious_rows)
-      )
-    } else {
-      NULL
-    }
-  })
-  names(invalid_rows_list) <- potential_numeric_cols
-  
-  # Filter out NULL entries and get all suspicious rows
-  valid_entries <- !sapply(invalid_rows_list, is.null)
-  problematic_cols <- names(invalid_rows_list)[valid_entries]
-  invalid_rows_list <- invalid_rows_list[valid_entries]
-  
-  all_suspicious_rows <- unique(unlist(lapply(invalid_rows_list, function(x) x$rows)))
-  
-  if (length(all_suspicious_rows) == 0) {
-    log_event(log_messages_rv, "No suspicious non-numeric and not NA entries found in numeric-like columns.", "INFO from diagnose_dataframe_v4")
-    return(invisible(NULL))
-  }
-  
-  # Create detailed message for each problematic column
-  column_messages <- sapply(seq_along(problematic_cols), function(i) {
-    sprintf("• %s suspicious non-numeric and not NA values found in column '%s' that is supposed to be numeric",
-            invalid_rows_list[[i]]$count,
-            problematic_cols[i])
-  })
-  
-  # Build the complete alert text
-  alert_text <- paste0(
-    "<div style='text-align: left;'>",
-    "<strong>Data Processing Warning:</strong><br/><br/>",
-    paste(column_messages, collapse = "<br/>"),
-    "<br/><br/>",
-    "Total rows to be removed: ", length(all_suspicious_rows),
-    "<br/><br/>",
-    "Click 'Proceed' to remove these rows and convert columns to numeric format.",
-    "</div>"
-  )
-  
-  shinyalert::shinyalert(
-    title = "Suspicious Values Detected",
-    text = HTML(alert_text),
-    type = "warning",
-    html = TRUE,
-    closeOnEsc = FALSE,
-    closeOnClickOutside = FALSE,
-    showConfirmButton = TRUE,
-    confirmButtonText = "Proceed",
-    callbackR = function(user_proceeded) {
-      if (isTRUE(user_proceeded)) {
-        log_event(
-          log_messages_rv,
-          paste0("User proceeded. Removing ", length(all_suspicious_rows), " suspicious rows."),
-          "INFO from diagnose_dataframe_v4"
-        )
-        
-        # Create cleaned version of the dataframe
-        cleaned_df <- df[-all_suspicious_rows, ]
-        
-        # Coerce problematic columns to numeric
-        for (col_name in potential_numeric_cols) {
-          cleaned_df[[col_name]] <- suppressWarnings(as.numeric(cleaned_df[[col_name]]))
-        }
-        
-        # Update the reactive value with cleaned data
-        uploaded_df(cleaned_df)
-      }
-    }
-  )
-  
-  return(invisible(NULL))
-}
-
+#' Diagnose Expression Columns for Suspicious Values
+#' 
+#' @title Diagnose Expression Data Columns
+#' @description Identifies and handles potentially problematic values in expression-related 
+#' columns (e.g., log2 fold changes, expression levels). Provides interactive alerts 
+#' for user confirmation before removing suspicious data points.
+#' 
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' @param uploaded_df Reactive function returning the data frame to analyze
+#' 
+#' @return Invisibly returns NULL. Function operates through side effects:
+#'   \itemize{
+#'     \item Updates the uploaded_df reactive value if suspicious values are removed
+#'     \item Generates log messages
+#'     \item Shows interactive alerts
+#'   }
+#' 
+#' @details 
+#' Detection Process:
+#' \enumerate{
+#'   \item Identifies expression-related columns using keywords:
+#'     \itemize{
+#'       \item "log2"
+#'       \item "expression"
+#'       \item "fold"
+#'     }
+#'   \item Checks for values where abs(value) > 10
+#'   \item Presents findings to user via shinyalert
+#'   \item Removes flagged rows upon user confirmation
+#' }
+#' 
+#' @section Alert Features:
+#' The function generates an HTML-formatted alert showing:
+#' \itemize{
+#'   \item Number of suspicious values per column
+#'   \item Column names with issues
+#'   \item Option to proceed with removal
+#'   \item Cannot be dismissed without user action
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   uploaded_df <- reactiveVal(data.frame(
+#'     gene = c("A", "B", "C", "D"),
+#'     log2_fc = c(2, 15, -1, -20),
+#'     expression = c(1, 2, 11, 4)
+#'   ))
+#'   
+#'   # Call the diagnostic function
+#'   observeEvent(input$analyze, {
+#'     diagnose_expression_column(
+#'       log_messages_rv = log_messages,
+#'       log_event = logger,
+#'       uploaded_df = uploaded_df
+#'     )
+#'   })
+#' }
+#' }
+#' 
+#' @section Logging Messages:
+#' The function generates several types of log messages:
+#' \describe{
+#'   \item{Column Detection}{Reports found expression-related columns}
+#'   \item{Value Analysis}{Reports presence/absence of suspicious values}
+#'   \item{User Actions}{Records user's decision about removing rows}
+#'   \item{Data Modification}{Reports number of rows removed if applicable}
+#' }
+#' 
+#' @note 
+#' - Assumes log2-transformed expression values
+#' - Values |x| > 10 are considered suspicious
+#' - Case-insensitive column name matching
+#' - Modifies data only with user confirmation
+#' - Alert cannot be dismissed by clicking outside or pressing ESC
+#' 
+#' @importFrom shinyalert shinyalert
+#' @importFrom htmltools HTML
+#' 
+#' @section Dependencies:
+#' Requires the following packages:
+#' \itemize{
+#'   \item shinyalert: For interactive alerts
+#'   \item htmltools: For HTML formatting in alerts
+#' }
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' \code{\link[shinyalert]{shinyalert}} for alert creation
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
+#' @export
 diagnose_expression_column <- function(log_messages_rv, log_event, uploaded_df) {
   # Get the current dataframe from the reactive value
   df <- uploaded_df()
@@ -2365,22 +3349,207 @@ diagnose_expression_column <- function(log_messages_rv, log_event, uploaded_df) 
 }
 
 
-# one diagnostic and cleaning function that
-
-# Checks for columns that should be numeric but have suspicious non numeric and not NA values - log event
-
-# If there are such values in columns supposed to be numeric remove those observations - log event
-
-# Coerce those columns to numeric - log event and structure of df after step
-
-# Search for column with log2 fold
-
-# remove  values > abs(10) - log event
-
-# log structure after second cleaning step
-
-# show nicely formated shiny alert with information on the performed data processing and information to the user
-
+#' Diagnose and Clean Data for Omics Analysis
+#' 
+#' @title Diagnose and Clean Numeric Data
+#' @description Performs automated diagnosis and cleaning of data frames containing
+#' omics data, focusing on numeric columns and fold change values. Provides 
+#' interactive user feedback and logging of all modifications.
+#' 
+#' @param df Data frame to be diagnosed and cleaned
+#' @param log_messages_rv Reactive value for storing log messages
+#' @param log_event Logging function created by create_logger()
+#' @param log_structure Structure logging function for data frame updates
+#' 
+#' @return Clean data frame with:
+#'   \itemize{
+#'     \item Non-numeric values removed from numeric-like columns
+#'     \item Extreme fold change values (|x| > 10) removed
+#'     \item Columns coerced to appropriate numeric types
+#'   }
+#' 
+#' @details 
+#' Cleaning Process:
+#' \enumerate{
+#'   \item Identifies numeric-like columns using keywords:
+#'     \itemize{
+#'       \item log, fold, pvalue, padj, mean, std, variance
+#'       \item count, value, diff, change, ratio, score, rank
+#'     }
+#'   \item Removes non-numeric values from numeric columns
+#'   \item Coerces columns to numeric type
+#'   \item Identifies and removes extreme fold changes (|x| > 10)
+#'   \item Provides interactive confirmation via shinyalert
+#' }
+#' 
+#' @section Alert Features:
+#' The function generates a styled HTML alert showing:
+#' \itemize{
+#'   \item Non-numeric value removal details
+#'   \item Extreme value removal details
+#'   \item Summary statistics (initial/final row counts)
+#'   \item Warning note about data processing
+#'   \item Options to proceed or cancel changes
+#' }
+#' 
+#' @examples
+#' \dontrun{
+#' # In Shiny server context
+#' server <- function(input, output, session) {
+#'   log_messages <- reactiveVal("")
+#'   logger <- create_logger(session)
+#'   structure_logger <- create_structure_logger(session)
+#'   
+#'   # Example data with issues
+#'   df <- data.frame(
+#'     gene = c("A", "B", "C", "D"),
+#'     log2_fc = c(2, "NA", -1, 15),
+#'     pvalue = c(0.01, "invalid", 0.05, 0.03),
+#'     stringsAsFactors = FALSE
+#'   )
+#'   
+#'   # Clean data
+#'   cleaned_df <- diagnose_and_clean_data(
+#'     df = df,
+#'     log_messages_rv = log_messages,
+#'     log_event = logger,
+#'     log_structure = structure_logger
+#'   )
+#' }
+#' }
+#' 
+#' @section CSS Styling:
+#' The alert includes custom CSS classes:
+#' \describe{
+#'   \item{.cleaning-section}{Main content sections with blue border}
+#'   \item{.summary-section}{Summary statistics with gray border}
+#'   \item{.warning-note}{Warning message with yellow border}
+#'   \item{code}{Inline code formatting}
+#' }
+#' 
+#' @section Logging Messages:
+#' The function generates several types of log messages:
+#' \describe{
+#'   \item{INFO}{Process steps and counts}
+#'   \item{WARN}{Detection of suspicious values}
+#'   \item{SUCCESS}{User acceptance of changes}
+#' }
+#' 
+#' @note 
+#' - Case-insensitive column name matching
+#' - Modifies data only with user confirmation
+#' - Preserves original data if user cancels
+#' - Alert cannot be dismissed without user action
+#' - Returns original data frame if no cleaning needed
+#' 
+#' @importFrom shinyalert shinyalert
+#' @importFrom htmltools HTML
+#' 
+#' @section Dependencies:
+#' Required packages:
+#' \itemize{
+#'   \item shinyalert: For interactive alerts
+#'   \item htmltools: For HTML formatting
+#' }
+#' 
+#' #' @section Numeric Column Detection:
+#' The function uses a comprehensive keyword system to identify potentially numeric columns:
+#' 
+#' Primary Keywords (Statistical):
+#' \describe{
+#'   \item{log}{Identifies log-transformed data (e.g., log2_fc, log10_expr)}
+#'   \item{fold}{Captures fold changes (e.g., fold_change, foldChange)}
+#'   \item{pvalue}{Detects significance values (e.g., pvalue, p.value, pval)}
+#'   \item{padj}{Finds adjusted p-values (e.g., padj, p_adjusted)}
+#' }
+#' 
+#' Statistical Measures:
+#' \describe{
+#'   \item{mean}{Sample means and averages}
+#'   \item{std}{Standard deviations}
+#'   \item{variance}{Variance measurements}
+#' }
+#' 
+#' Quantitative Measures:
+#' \describe{
+#'   \item{count}{Read counts or occurrence frequencies}
+#'   \item{value}{Generic numeric values}
+#'   \item{diff}{Differences or changes}
+#'   \item{change}{Alternative to diff/fold}
+#'   \item{ratio}{Proportions and ratios}
+#' }
+#' 
+#' Ranking/Scoring:
+#' \describe{
+#'   \item{score}{Numerical scores or ratings}
+#'   \item{rank}{Ranked values or positions}
+#' }
+#' 
+#' Detection Process:
+#' \enumerate{
+#'   \item Column name matching:
+#'     \itemize{
+#'       \item Case-insensitive pattern matching
+#'       \item Handles various separator styles (., _, -)
+#'       \item Matches partial words (e.g., "log" matches "log2fc")
+#'     }
+#'   \item Content validation:
+#'     \itemize{
+#'       \item Checks if values can be coerced to numeric
+#'       \item Identifies suspicious non-numeric entries
+#'       \item Preserves NA values as valid missing data
+#'     }
+#'   \item Special cases:
+#'     \itemize{
+#'       \item Handles scientific notation (e.g., 1e-10)
+#'       \item Recognizes common numeric strings ("-1.23")
+#'       \item Identifies potentially misformatted numbers
+#'     }
+#' }
+#' 
+#' Example Column Matches:
+#' ```r
+#' # Will be detected as numeric:
+#' log2_fold_change
+#' Log2FC
+#' pvalue_adjusted
+#' mean_expression
+#' count_normalized
+#' diff_score
+#' 
+#' # Won't be detected as numeric:
+#' gene_name
+#' sample_id
+#' condition
+#' ```
+#' 
+#' @note 
+#' Column Detection Details:
+#' \itemize{
+#'   \item Keywords are applied using regex pattern matching
+#'   \item Detection is performed before any data modification
+#'   \item False positives are possible but rare due to keyword specificity
+#'   \item Column detection results are logged for verification
+#'   \item Users can review detected columns via the interactive alert
+#' }
+#' 
+#' Common Edge Cases:
+#' \itemize{
+#'   \item Mixed numeric/character columns are flagged for cleaning
+#'   \item Percentage values with '%' symbols are identified
+#'   \item Currency values with symbols are detected
+#'   \item Date-like numeric columns are typically excluded
+#'   \item Special characters in column names are handled
+#' }
+#' 
+#' 
+#' @seealso 
+#' \code{\link{create_logger}} for logging functionality
+#' \code{\link{create_structure_logger}} for structure logging
+#' \code{\link[shinyalert]{shinyalert}} for alert creation
+#' 
+#' @author Tomasz Stępkowski <dzdzstepel@gmail.com>
+#' @export
 diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structure) {
   # Initialize variables at the start
   cleaned_df <- df
@@ -2620,13 +3789,6 @@ diagnose_and_clean_data <- function(df, log_messages_rv, log_event, log_structur
   
   return(cleaned_df)
 }
-
-
-
-
-
-
-
 
 
 ################################### ----UI---#################################
@@ -3022,7 +4184,7 @@ observeEvent(input$clientWidth, {
     log_event(log_messages, "Dataset uploaded successfully", "SUCCESS from upload observer")
  
        
-    # Call diagnose_dataframe_v4 with just the reactive value
+
     # Run combined diagnostic and cleaning
     df_cleaned <- diagnose_and_clean_data(
       df = df,
@@ -4482,6 +5644,8 @@ output$download_gsea_plot <- downloadHandler(
       log_event(log_messages, "GO categories selection enabled", "INFO from input$show_go_category")
     } else {
       log_event(log_messages, "GO categories selection disabled", "INFO from input$show_go_category")
+      # Clears the selectize input when disabling
+      updateSelectizeInput(session, "go_category", selected = NULL)
     }
   })
   
@@ -4501,11 +5665,20 @@ output$download_gsea_plot <- downloadHandler(
   })
   
   # Reactive expression to track chosen GO categories
+  # chosen_go reactive returns NULL when GO categories are disabled
   chosen_go <- reactive({
-    log_event(log_messages, "Reactive to track choosen GO categories initialized - input should be null", "INFO")
-    input$go_category
+    # Only return GO categories if the feature is enabled
+    if (!input$show_go_category) {
+      log_event(log_messages, "GO categories disabled - returning NULL", "INFO")
+      return(NULL)
+    }
     
+    log_event(log_messages, "Returning selected GO categories", "INFO")
+    input$go_category
   })
+  
+  
+  
   
   
   color_palette <- c("#440154FF", "darkblue","gold","darkorange","darkcyan","deeppink","black") 
@@ -4552,17 +5725,24 @@ output$download_gsea_plot <- downloadHandler(
   })
   
   # First, create the UI with empty choices
-  output$custom_gene_labels_ui <- renderUI({
+output$custom_gene_labels_ui <- renderUI({
     if (input$select_custom_labels) {
       req(uploaded_df(), input$annotation_col)
-      selectizeInput(
-        "custom_gene_labels", 
-        "Select gene names to label", 
-        choices = NULL,  # Start with no choices
-        multiple = TRUE
+      tagList(
+        selectizeInput(
+          "custom_gene_labels", 
+          "Select gene names to label", 
+          choices = NULL,  # Start with no choices
+          multiple = TRUE
+        ),
+        colourInput(
+          "custom_label_color",
+          "Color for custom labeled genes",
+          value = "#000000"  # Default black color
+        )
       )
     }
-  })
+})
   
   # Then, update it with server-side processing - this server side processing was suggested by R console warning message that
   # appeared in the previous version with client side processing and no updataSelectizeInput function
@@ -4776,6 +5956,11 @@ output$download_gsea_plot <- downloadHandler(
       scale_y_continuous(
         limits = limits_y
       )
+    
+    
+    # Reset to base layer only - this helps to erase all the layers that 
+    # might have persisted in memory (case that happened with GO annotations)
+    volcano_plot$layers <- volcano_plot$layers[1] 
       
    
     # Generate subtitle based on the input settings
@@ -4913,20 +6098,32 @@ output$download_gsea_plot <- downloadHandler(
     # Add custom gene labels if feature is enabled
     if (input$select_custom_labels && !is.null(custom_genes())) {
       log_event(log_messages, "Adding custom gene labels", "INFO input$draw_volcano")
-      custom_label_data <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes())
+      custom_label_data_nonsig <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes()& adjusted_pvalues > input$alpha)
+      custom_label_data_sig <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes() & adjusted_pvalues < input$alpha)
       
       # Use trimmed labels if applicable
       if (input$trim_gene_names) {
-        custom_label_data$trimmed_labels <- sapply(custom_label_data[[input$annotation_col]], function(x) {
+        custom_label_data_nonsig$trimmed_labels <- sapply(custom_label_data_nonsig[[input$annotation_col]], function(x) {
           strsplit(as.character(x), "[,; :]+")[[1]][1]
         })
       } else {
-        custom_label_data$trimmed_labels <- custom_label_data[[input$annotation_col]]
+        custom_label_data_nonsig$trimmed_labels <- custom_label_data_nonsig[[input$annotation_col]]
       }
+      
+      # Use trimmed labels if applicable
+      if (input$trim_gene_names) {
+        custom_label_data_sig$trimmed_labels <- sapply(custom_label_data_sig[[input$annotation_col]], function(x) {
+          strsplit(as.character(x), "[,; :]+")[[1]][1]
+        })
+      } else {
+        custom_label_data_sig$trimmed_labels <- custom_label_data_sig[[input$annotation_col]]
+      }
+      
+      
       
       volcano_plot <- volcano_plot +
         geom_label_repel(
-          data = custom_label_data,
+          data = custom_label_data_nonsig,
           aes(label = trimmed_labels),
           size = 4,
           color = "black",
@@ -4934,7 +6131,33 @@ output$download_gsea_plot <- downloadHandler(
           max.overlaps = Inf,
           nudge_y = 0.3,
           alpha = 0.7
-        )
+        )+
+        
+        geom_label_repel(
+          data = custom_label_data_sig,
+          aes(label = trimmed_labels),
+          size = 4,
+          color = "white",
+          fill = input$custom_label_color,
+          max.overlaps = Inf,
+          nudge_y = 0.3,
+          alpha = 0.7,
+          fontface = "bold"
+        )+
+        
+        
+        
+        
+      # added fill for custom genes points
+      geom_point(data = custom_label_data_nonsig, 
+                 aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
+                 , size = 1.8, color = input$custom_label_color, alpha = 0.7)+
+        
+      geom_point(data = custom_label_data_sig, 
+                   aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
+                   , size = 1.8, color = input$custom_label_color, alpha = 0.7)   
+        
+        
     }
     
     if (!is_mobile()) {
