@@ -813,4 +813,34 @@ div.ui.raised.segment:hover {
         align-items: center;
   }
 
+/***** action button for custom x axis limits */
 
+
+/* Specific styles for volcano plot limits input group */
+
+.volcano-limits-container .ui.action.input.volcano-limits-input-group {
+  width: auto !important;
+}
+
+.volcano-limits-container .ui.action.input.volcano-limits-input-group input[type="number"] {
+  height: 38px !important;
+  width: 100px !important; /* Set specific width for number input */
+}
+
+.volcano-limits-container .volcano-limits-button.ui.button {
+  height: 38px !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 20px !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  min-width: 250px !important; /* Ensure button is wide enough for text */
+  justify-content: center !important;
+}
+
+/* Ensure input group can accommodate the wider button */
+.volcano-limits-container .ui.action.input {
+  display: inline-flex !important;
+  align-items: stretch !important;
+}

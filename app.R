@@ -4479,10 +4479,11 @@ observeEvent(input$clientWidth, {
           div(class = "ui two column grid",
               # First column (50%) - Plot and Downloads
               div(class = "column",
+                  
                   segment(
                     class = "basic",
                     plotOutput("volcano_plot", width = "100%", height = "600px")
-                  ),
+                  ),uiOutput("x_limits_ui"),
                   segment(
                     class = "basic",
                     h4(class = "ui header", "Download Plots"),
@@ -5768,6 +5769,7 @@ output$custom_gene_labels_ui <- renderUI({
 # Draw volcano observer ----  
   observeEvent(input$draw_volcano, {
     req(uploaded_df(), input$pvalue_col, input$fold_col, input$annotation_col, input$adj)
+    volcano_plot_rv(NULL)  # Reset the reavtive value
     
     shinyjs::show("volcano-loader-overlay")
     
@@ -6408,12 +6410,48 @@ output$custom_gene_labels_ui <- renderUI({
         gt::gtsave(gt_table, file, inline_css = TRUE)
       }
     )
+###### Reactive UI for the custom x-axis limits ----
+    output$x_limits_ui <- renderUI({
+      req(input$draw_volcano)
+      abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
+      abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
+      limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
+      div(class = "ui center aligned container volcano-limits-container",
+          div(class = "ui action input volcano-limits-input-group",
+              numericInput(
+                inputId = "x_limits",
+                label = NULL,
+                value = round(limit_for_x_scale, 0.1),
+                min = 0.5,
+                max = 10,
+                step = 0.1
+              ),
+              actionButton(
+                inputId = "redraw_volcano",
+                label = "Add custom x-axis limits [+- log2 fold]",
+                class = "ui blue button volcano-limits-button"
+              )
+          )
+      )
+    })
+    
+    observeEvent(input$redraw_volcano, {
+      req(input$draw_volcano)    
+      log_event(log_messages, "Redrawing volcano plot with custom x-axis limits", "INFO input$redraw_volcano")
+      volcano_plot_rv(volcano_plot_rv() +
+                        scale_x_continuous(
+                          limits = c(-input$x_limits, input$x_limits)
+                        ))
+      
+    })
+    
+    
     
 
     shinyjs::hide("volcano-loader-overlay")
     
   }) 
-    
+#### End of the draw volcano observer ----    
     
     # Add the download log UI
     output$download_log_ui <- renderUI({
@@ -6423,13 +6461,9 @@ output$custom_gene_labels_ui <- renderUI({
           downloadButton("download_log", "Download Process Log")
         )
       }
-    
-      
-      
     })
-    
-    
-    
+  
+
     output$download_log <- downloadHandler(
       filename = function() {
         paste0("vivid_volcano_log_", session_id, ".txt")
