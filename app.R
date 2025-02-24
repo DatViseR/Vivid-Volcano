@@ -5725,17 +5725,24 @@ output$download_gsea_plot <- downloadHandler(
   })
   
   # First, create the UI with empty choices
-  output$custom_gene_labels_ui <- renderUI({
+output$custom_gene_labels_ui <- renderUI({
     if (input$select_custom_labels) {
       req(uploaded_df(), input$annotation_col)
-      selectizeInput(
-        "custom_gene_labels", 
-        "Select gene names to label", 
-        choices = NULL,  # Start with no choices
-        multiple = TRUE
+      tagList(
+        selectizeInput(
+          "custom_gene_labels", 
+          "Select gene names to label", 
+          choices = NULL,  # Start with no choices
+          multiple = TRUE
+        ),
+        colourInput(
+          "custom_label_color",
+          "Color for custom labeled genes",
+          value = "#000000"  # Default black color
+        )
       )
     }
-  })
+})
   
   # Then, update it with server-side processing - this server side processing was suggested by R console warning message that
   # appeared in the previous version with client side processing and no updataSelectizeInput function
@@ -6091,20 +6098,32 @@ output$download_gsea_plot <- downloadHandler(
     # Add custom gene labels if feature is enabled
     if (input$select_custom_labels && !is.null(custom_genes())) {
       log_event(log_messages, "Adding custom gene labels", "INFO input$draw_volcano")
-      custom_label_data <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes())
+      custom_label_data_nonsig <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes()& adjusted_pvalues > input$alpha)
+      custom_label_data_sig <- df %>% filter(!!sym(input$annotation_col) %in% custom_genes() & adjusted_pvalues < input$alpha)
       
       # Use trimmed labels if applicable
       if (input$trim_gene_names) {
-        custom_label_data$trimmed_labels <- sapply(custom_label_data[[input$annotation_col]], function(x) {
+        custom_label_data_nonsig$trimmed_labels <- sapply(custom_label_data_nonsig[[input$annotation_col]], function(x) {
           strsplit(as.character(x), "[,; :]+")[[1]][1]
         })
       } else {
-        custom_label_data$trimmed_labels <- custom_label_data[[input$annotation_col]]
+        custom_label_data_nonsig$trimmed_labels <- custom_label_data_nonsig[[input$annotation_col]]
       }
+      
+      # Use trimmed labels if applicable
+      if (input$trim_gene_names) {
+        custom_label_data_sig$trimmed_labels <- sapply(custom_label_data_sig[[input$annotation_col]], function(x) {
+          strsplit(as.character(x), "[,; :]+")[[1]][1]
+        })
+      } else {
+        custom_label_data_sig$trimmed_labels <- custom_label_data_sig[[input$annotation_col]]
+      }
+      
+      
       
       volcano_plot <- volcano_plot +
         geom_label_repel(
-          data = custom_label_data,
+          data = custom_label_data_nonsig,
           aes(label = trimmed_labels),
           size = 4,
           color = "black",
@@ -6113,13 +6132,32 @@ output$download_gsea_plot <- downloadHandler(
           nudge_y = 0.3,
           alpha = 0.7
         )+
-      # added fill for custom genes points
-      geom_point(data = custom_label_data, 
-                 aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
-                 , size = 1.8, color = "black", alpha = 0.7)
         
-      
-      
+        geom_label_repel(
+          data = custom_label_data_sig,
+          aes(label = trimmed_labels),
+          size = 4,
+          color = "white",
+          fill = input$custom_label_color,
+          max.overlaps = Inf,
+          nudge_y = 0.3,
+          alpha = 0.7,
+          fontface = "bold"
+        )+
+        
+        
+        
+        
+      # added fill for custom genes points
+      geom_point(data = custom_label_data_nonsig, 
+                 aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
+                 , size = 1.8, color = input$custom_label_color, alpha = 0.7)+
+        
+      geom_point(data = custom_label_data_sig, 
+                   aes(x = !!sym(input$fold_col), y = -log10(!!sym(input$pvalue_col)))
+                   , size = 1.8, color = input$custom_label_color, alpha = 0.7)   
+        
+        
     }
     
     if (!is_mobile()) {
