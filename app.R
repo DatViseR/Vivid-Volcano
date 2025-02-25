@@ -4116,7 +4116,7 @@ server <- function(input, output, session) {
   
   volcano_plot_rv <- reactiveVal()
   
-  
+  volcano_plot_original <- reactiveVal()
   
   # logging system
   log_messages <- reactiveVal("")
@@ -6308,70 +6308,8 @@ output$custom_gene_labels_ui <- renderUI({
       outputOptions(output, "download_log_button", suspendWhenHidden = FALSE)
       
       
-      
     })
     
-    
-
-    output$download_plot1 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages, log_event = log_event)
-        ggsave(file, publication_plot, width = 85, height = 85, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot2 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages, log_event = log_event)
-        ggsave(file, publication_plot, width = 114, height = 114, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot3 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages, log_event = log_event)
-        ggsave(file, publication_plot, width = 114, height = 65, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot4 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages, log_event = log_event)
-        ggsave(file, publication_plot, width = 174, height = 174, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
-    
-    output$download_plot5 <- downloadHandler(
-      filename = function() {
-        paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-      },
-      content = function(file) {
-        req(volcano_plot_rv())
-        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages, log_event = log_event)
-        ggsave(file, publication_plot, width = 174, height = 98, 
-               units = "mm", device = cairo_pdf)
-      }
-    )
     
     # Download handler for GO enrichment table
     output$download_go_enrichment <- downloadHandler(
@@ -6427,20 +6365,106 @@ output$custom_gene_labels_ui <- renderUI({
         log_event(log_messages, "GO gene list table created successfully and ready for saving as formatted html", "SUCCESS from output$download_go_gene_list")
         gt::gtsave(gt_table, file, inline_css = TRUE)
       }
-    )
-###### Reactive UI for the custom x-axis limits and hiding text annotations----
-    output$x_limits_ui <- renderUI({
-      req(input$draw_volcano)
-      abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
-      abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
-      limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
-      tagList(
+    )  
+    volcano_plot_rv(volcano_plot)
+    volcano_plot_original(volcano_plot)
+    shinyjs::hide("volcano-loader-overlay")
+  
+  })
+
+### This is were the draw volcano observer ends ----    
+    
+####   Downloaders for the volcano ----
+  
+  output$download_plot1 <- downloadHandler(
+    filename = function() {
+      paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+    },
+    content = function(file) {
+      req(volcano_plot_rv())
+      publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages, log_event = log_event)
+      ggsave(file, publication_plot, width = 85, height = 85, 
+             units = "mm", device = cairo_pdf)
+    }
+  )
+  
+  output$download_plot2 <- downloadHandler(
+    filename = function() {
+      paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+    },
+    content = function(file) {
+      req(volcano_plot_rv())
+      publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages, log_event = log_event)
+      ggsave(file, publication_plot, width = 114, height = 114, 
+             units = "mm", device = cairo_pdf)
+    }
+  )
+  
+  output$download_plot3 <- downloadHandler(
+    filename = function() {
+      paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+    },
+    content = function(file) {
+      req(volcano_plot_rv())
+      publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages, log_event = log_event)
+      ggsave(file, publication_plot, width = 114, height = 65, 
+             units = "mm", device = cairo_pdf)
+    }
+  )
+  
+  output$download_plot4 <- downloadHandler(
+    filename = function() {
+      paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+    },
+    content = function(file) {
+      req(volcano_plot_rv())
+      publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages, log_event = log_event)
+      ggsave(file, publication_plot, width = 174, height = 174, 
+             units = "mm", device = cairo_pdf)
+    }
+  )
+  
+  output$download_plot5 <- downloadHandler(
+    filename = function() {
+      paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+    },
+    content = function(file) {
+      req(volcano_plot_rv())
+      publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages, log_event = log_event)
+      ggsave(file, publication_plot, width = 174, height = 98, 
+             units = "mm", device = cairo_pdf)
+    }
+  )
+  
+  
+  
+  
+  
+#### Reactive UI for the custom x-axis limits and hiding text annotations----
+
+  # reactive expression for the x-axis limits calculation
+  x_axis_limits <- reactive({
+    req(input$draw_volcano, uploaded_df(), input$fold_col)  # Add proper requirements
+    df <- uploaded_df()  # Get the data from your reactive value
+    
+    abs_min <- min(abs(df[[input$fold_col]]), na.rm = TRUE)
+    abs_max <- max(abs(df[[input$fold_col]]), na.rm = TRUE)
+    limit_for_x_scale <- ifelse(abs_max > abs_min, abs_max, abs_min)
+    round(limit_for_x_scale, 0.1)
+  })
+  
+  # Reactive UI for x limits using the reactive expression
+  output$x_limits_ui <- renderUI({
+    req(input$draw_volcano)
+    limit_for_x_scale <- x_axis_limits()
+    
+    tagList(
       div(class = "ui center aligned container volcano-limits-container",
           div(class = "ui action input volcano-limits-input-group",
               numericInput(
                 inputId = "x_limits",
                 label = NULL,
-                value = round(limit_for_x_scale, 0.1),
+                value = limit_for_x_scale,
                 min = 0.5,
                 max = 10,
                 step = 0.1
@@ -6454,60 +6478,62 @@ output$custom_gene_labels_ui <- renderUI({
       div(class = "ui center aligned container",
           toggle("hide_annot", "Hide Top text Annotations \n and reset y-axis limits", FALSE)
       ))
-      
-      
-      
-    })
+  })
     
-    observeEvent(input$redraw_volcano, {
-      req(input$draw_volcano)    
-      log_event(log_messages, "Redrawing volcano plot with custom x-axis limits", "INFO input$redraw_volcano")
-      volcano_plot_rv(volcano_plot_rv() +
-                        scale_x_continuous(
-                          limits = c(-input$x_limits, input$x_limits)
-                        ))
-      
-    })
+  # Observer for custom x-axis limits
+  observeEvent(input$redraw_volcano, {
+    req(input$draw_volcano, input$x_limits, volcano_plot_rv())    
+    log_event(log_messages, "Redrawing volcano plot with custom x-axis limits", "INFO input$redraw_volcano")
     
-    observeEvent(input$hide_annot, {
-      req(input$draw_volcano)    
-      log_event(log_messages, "Toggling text annotations", "INFO input$hide_annot")
-      
-      # Create copies of the plot
-      original_plot <- volcano_plot_rv()
+    # Store current state before modification
+    current_plot <- volcano_plot_rv()
+    modified_plot <- current_plot +
+      scale_x_continuous(
+        limits = c(-input$x_limits, input$x_limits)
+      )
+    
+    # Update both reactive values
+    volcano_plot_rv(modified_plot)
+    volcano_plot_original(modified_plot)  # Update original to maintain x-axis changes
+  })
+  
+  # Observer for toggling annotations
+  observeEvent(input$hide_annot, {
+    req(input$draw_volcano, uploaded_df(), input$pvalue_col, volcano_plot_rv())    
+    log_event(log_messages, "Toggling text annotations", "INFO input$hide_annot")
+    
+    if (input$hide_annot) {
+      # When toggle is ON - hide annotations and reset y-axis
       mod_plot <- volcano_plot_rv()
+      df <- uploaded_df()  # Get current data frame from reactive value
       
-      if (input$hide_annot) {
-        # When toggle is ON - hide annotations and reset y-axis
-        max_y <- max(-log10(as.numeric(df[[input$pvalue_col]])))
-        limits_y <- c(-0.01, max_y + 0.03 * max_y)
-        
-        # Modify only mod_plot - keep all layers EXCEPT those created by annotate()
-        mod_plot$layers <- mod_plot$layers[sapply(mod_plot$layers, function(x) {
-          is_not_annotation <- TRUE
-          if (inherits(x$geom, "GeomText") || inherits(x$geom, "GeomLabel")) {
-            is_not_annotation <- !is.null(x$mapping$label) ||
-              inherits(x$geom, "GeomTextRepel") ||
-              inherits(x$geom, "GeomLabelRepel")
-          }
-          return(is_not_annotation)
-        })]
-        
-        # Reset y-axis limits
-        mod_plot <- mod_plot + 
-          scale_y_continuous(limits = limits_y)
-        
-        volcano_plot_rv(mod_plot)
-      } else {
-        # When toggle is OFF - use the original plot
-        volcano_plot_rv(original_plot)
-      }
-    })
+      max_y <- max(-log10(as.numeric(df[[input$pvalue_col]])))
+      limits_y <- c(-0.01, max_y + 0.03 * max_y)
+      
+      # Modify only mod_plot - keep all layers EXCEPT those created by annotate()
+      mod_plot$layers <- mod_plot$layers[sapply(mod_plot$layers, function(x) {
+        is_not_annotation <- TRUE
+        if (inherits(x$geom, "GeomText") || inherits(x$geom, "GeomLabel")) {
+          is_not_annotation <- !is.null(x$mapping$label) ||
+            inherits(x$geom, "GeomTextRepel") ||
+            inherits(x$geom, "GeomLabelRepel")
+        }
+        return(is_not_annotation)
+      })]
+      
+      # Reset y-axis limits
+      mod_plot <- mod_plot + 
+        scale_y_continuous(limits = limits_y)
+      
+      volcano_plot_rv(mod_plot)
+    } else {
+      # When toggle is OFF - restore from original
+      volcano_plot_rv(volcano_plot_original())
+    }
+  })
     
-    shinyjs::hide("volcano-loader-overlay")
     
-  }) 
-#### End of the draw volcano observer ----    
+    
     
     # Add the download log UI
     output$download_log_ui <- renderUI({
