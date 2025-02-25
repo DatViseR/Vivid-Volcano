@@ -3834,7 +3834,40 @@ ui <- semanticPage(
     $(window).on('resize', function() {
       Shiny.setInputValue('clientWidth', window.innerWidth);
     });
-    "
+   // Toggle behavior for annotations - including click events on labels
+    $(document).on('change', '#hide_annot', function() {
+      toggleAnnotationState($(this).is(':checked'));
+    });
+
+    // Add click handlers for the text labels
+    $(document).on('click', '#show-text, #hide-text', function() {
+      var isHideText = $(this).attr('id') === 'hide-text';
+      var checkbox = $('#hide_annot');
+      
+      // Update checkbox state
+      checkbox.prop('checked', isHideText);
+      
+      // Trigger change event for Shiny
+      checkbox.trigger('change');
+      
+      // Update visual state
+      toggleAnnotationState(isHideText);
+      
+      // Send value to Shiny explicitly
+      Shiny.setInputValue('hide_annot', isHideText);
+    });
+
+    // Function to handle state changes
+    function toggleAnnotationState(isHidden) {
+      if (isHidden) {
+        $('#show-text').removeClass('green').addClass('basic');
+        $('#hide-text').removeClass('basic').addClass('green');
+      } else {
+        $('#hide-text').removeClass('green').addClass('basic');
+        $('#show-text').removeClass('basic').addClass('green');
+      }
+    }
+  "
   ))
     
     
@@ -6454,11 +6487,22 @@ output$custom_gene_labels_ui <- renderUI({
   })
   
   # Reactive UI for x limits using the reactive expression
+ 
+  has_annotations <- reactive({
+    req(input$draw_volcano)
+    # Check if either color highlighting or GO categories are active and have annotations
+    (input$color_highlight && 
+        nrow(uploaded_df() %>% filter(adjusted_pvalues < input$alpha)) > 0) || 
+      (input$show_go_category && length(input$go_category) > 0)
+  })
+  
+  # Modify the renderUI
   output$x_limits_ui <- renderUI({
     req(input$draw_volcano)
     limit_for_x_scale <- x_axis_limits()
     
     tagList(
+      # Main container
       div(class = "ui center aligned container volcano-limits-container",
           div(class = "ui action input volcano-limits-input-group",
               numericInput(
@@ -6475,9 +6519,38 @@ output$custom_gene_labels_ui <- renderUI({
                 class = "ui blue button volcano-limits-button"
               )
           )),
-      div(class = "ui center aligned container",
-          toggle("hide_annot", "Hide Top text Annotations \n and reset y-axis limits", FALSE)
-      ))
+      
+      # Toggle section - only shown when annotations exist
+      if (has_annotations()) {
+        div(class = "ui center aligned container toggle-container",
+            div(class = "ui grid middle aligned compact", # Added 'compact' class
+                div(class = "seven wide column right aligned no-padding-right", # Changed from 6 to 7 and added custom class
+                    tags$span(
+                      id = "show-text",
+                      class = "ui label green tiny",
+                      "showing top annotations"
+                    )
+                ),
+                div(class = "two wide column center aligned no-padding", # Changed from 4 to 2 and added custom class
+                    div(class = "ui fitted toggle checkbox",
+                        tags$input(
+                          type = "checkbox",
+                          id = "hide_annot"
+                        ),
+                        tags$label("")
+                    )
+                ),
+                div(class = "seven wide column left aligned no-padding-left", # Changed from 6 to 7 and added custom class
+                    tags$span(
+                      id = "hide-text",
+                      class = "ui label basic tiny",
+                      "top annotations hidden"
+                    )
+                )
+            )
+        )
+      }
+    )
   })
     
   # Observer for custom x-axis limits

@@ -844,3 +844,67 @@ div.ui.raised.segment:hover {
   display: inline-flex !important;
   align-items: stretch !important;
 }
+
+/* styles for hide annot ui*/  
+.ui.label.tiny {
+        font-size: 0.85em !important;
+        padding: 0.5em 1em !important;
+        margin: 0 !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .ui.label.green {
+        background-color: #21ba45 !important;
+        color: white !important;
+        border: none !important;
+      }
+
+      .ui.grid.middle.aligned {
+        margin: 1em 0 !important;
+      }
+
+      .ui.fitted.toggle.checkbox {
+        display: flex;
+        justify-content: center;
+      }
+
+      .volcano-limits-container {
+        margin-bottom: 1em !important;
+      }
+
+      .volcano-limits-input-group {
+        margin: 0.5em 0 !important;
+      }
+      
+      
+      .no-padding-right {
+  padding-right: 0 !important;
+}
+
+.no-padding-left {
+  padding-left: 0 !important;
+}
+
+.no-padding {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.ui.grid.compact {
+  margin: 0.5em 0 !important;
+}
+
+.ui.grid.compact > .column {
+  padding-top: 0.5em !important;
+  padding-bottom: 0.5em !important;
+}
+
+/* Adjust the toggle position */
+.ui.fitted.toggle.checkbox {
+  margin: 0 0.5em !important;
+}
+      
+.ui.label.tiny {
+  cursor: pointer !important;  /* Add pointer cursor to show clickability */
+  user-select: none !important;  /* Prevent text selection when clicking */
+}      
