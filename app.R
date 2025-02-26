@@ -23,6 +23,14 @@ library(gridExtra)
 library(webshot2)
 library(shinyalert)  
 library(tidyr)
+library(shiny.telemetry)
+
+# Source telemetry setup
+source("Telemetry_setup.R")
+# Initialize telemetry
+telemetry <- initialize_telemetry()
+
+
 
 # Loading the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data and in the script
@@ -52,6 +60,7 @@ GO <- arrow::read_parquet("GO.parquet2")
 # .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
 # ..$ delim  : chr "\t"
 # ..- attr(*, "class")= chr "col_spec"
+
 
 
 
