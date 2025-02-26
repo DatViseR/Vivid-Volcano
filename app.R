@@ -23,13 +23,32 @@ library(gridExtra)
 library(webshot2)
 library(shinyalert)  
 library(tidyr)
-library(shiny.telemetry)
 
-# Source telemetry setup
-source("Telemetry_setup.R")
-# Initialize telemetry
-telemetry <- initialize_telemetry()
+#### TELEMETRY#############
 
+# Initialize telemetry connection
+
+# Test script for custom telemetry
+source("telemetry_module.R")
+
+# # Create telemetry instance
+# telemetry <- create_telemetry("Vivid-Volcano-Test")
+# 
+# if (!is.null(telemetry)) {
+#   # Log a test event
+#   telemetry$log_event("test_event", list(
+#     test_time = format(Sys.time()),
+#     user = Sys.info()["user"]
+#   ))
+#   
+#   cat("✅ Test event logged successfully\n")
+#   
+#   # End the session
+#   telemetry$end_session()
+#   cat("✅ Session ended\n")
+# } else {
+#   cat("❌ Failed to initialize telemetry\n")
+# }
 
 
 # Loading the GO data once globally
@@ -4147,7 +4166,34 @@ ui <- semanticPage(
 
 server <- function(input, output, session) {
   
-
+## Telemetry ----
+  telemetry <- create_telemetry("Vivid-Volcano")
+  
+  # Log session start - FIXED VERSION
+  if (!is.null(telemetry)) {
+    # Use only non-reactive properties or safely extract reactive values
+    telemetry$log_event("session_start", list(
+      user_agent = session$request$HTTP_USER_AGENT,
+      # Avoid reactive values here
+      app_start_time = format(Sys.time())
+    ))
+  }
+  
+  # Add an observer to safely capture clientData after app is initialized
+  observe({
+    # This runs inside a reactive context, so it's safe
+    if (!is.null(telemetry)) {
+      # We can safely use reactiveValuesToList here
+      client_info <- reactiveValuesToList(session$clientData)
+      telemetry$log_event("client_info_captured", list(
+        window_width = client_info$pixelRatio,
+        window_height = client_info$innerHeight,
+        pixel_ratio = client_info$pixelRatio,
+        url = client_info$url_pathname
+        # Add other properties as needed
+      ))
+    }
+  })
   
 ## Reactive values ----  
   
@@ -6650,6 +6696,15 @@ output$custom_gene_labels_ui <- renderUI({
     # Clear logs when session ends
     session$onSessionEnded(function() {
       log_event(log_messages, "Session ended", "INFO")
+      
+      
+      # Log session end in telemetry
+      if (!is.null(telemetry)) {
+        telemetry$log_event("session_end")
+        telemetry$end_session()
+      }
+      
+      
       isolate(log_messages(""))  # Clear logs
     })
    
