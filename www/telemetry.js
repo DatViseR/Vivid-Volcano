@@ -1,59 +1,134 @@
-// Improved telemetry.js with duplicate prevention
+// Improved telemetry.js with fixed visit counter
+// For Vivid Volcano app - Version 2.0
 (function() {
   // Debug helper function
   function debug(message) {
     console.log("[Telemetry] " + message);
   }
 
+  // Constants
+  const STORAGE_KEY = "vividVolcanoVisits";
+  const DEBOUNCE_TIME = 300; // milliseconds
+  
   // Initialize tracking when the app loads
   $(document).ready(function() {
-    debug("Initializing telemetry...");
-    initializeVisitTracking();
-    setupButtonTracking();
+    debug("Initializing telemetry v2.0...");
+    
+    // Wait briefly to ensure DOM is fully loaded
+    setTimeout(function() {
+      initializeVisitTracking();
+      setupButtonTracking();
+    }, 100);
   });
 
-  // Set up visit tracking with localStorage
+  // ----- FIXED VISIT TRACKING -----
   function initializeVisitTracking() {
+    debug("Starting visit tracking...");
+    
     try {
-      // Get stored value with explicit fallback
-      var rawCount = window.localStorage.getItem("vividVolcanoVisits");
-      debug("Raw localStorage value: " + rawCount);
-      
-      // Handle null, undefined, NaN cases
-      var visitCount = 1; // Default to 1
-      
-      if (rawCount !== null && rawCount !== undefined && rawCount !== "") {
-        var parsedCount = parseInt(rawCount, 10);
-        if (!isNaN(parsedCount)) {
-          visitCount = parsedCount + 1;
-        }
+      // 1. Verify localStorage is available
+      if (!storageAvailable('localStorage')) {
+        debug("localStorage not available - using fallback");
+        trackVisitWithoutStorage();
+        return;
       }
       
-      // Make sure it's at least 1
-      if (visitCount < 1) visitCount = 1;
+      // 2. Get the current value
+      let visitCount;
+      try {
+        // Read and log the raw value for debugging
+        const rawValue = window.localStorage.getItem(STORAGE_KEY);
+        debug(`Raw localStorage value: "${rawValue}"`);
+        
+        if (rawValue === null || rawValue === undefined || rawValue === "") {
+          // First visit or cleared storage
+          debug("No previous visit count found, this is first visit");
+          visitCount = 1;
+        } else {
+          // Parse existing value and increment
+          const storedCount = parseInt(rawValue, 10);
+          if (isNaN(storedCount)) {
+            debug(`Invalid stored value: "${rawValue}", resetting to 1`);
+            visitCount = 1;
+          } else {
+            visitCount = storedCount + 1;
+            debug(`Incrementing visit count from ${storedCount} to ${visitCount}`);
+          }
+        }
+      } catch (parseError) {
+        debug("Error parsing visit count: " + parseError);
+        visitCount = 1;
+      }
       
-      // Save updated count
-      debug("Setting localStorage to: " + visitCount);
-      window.localStorage.setItem("vividVolcanoVisits", visitCount.toString());
+      // 3. Store the updated value back to localStorage
+      try {
+        window.localStorage.setItem(STORAGE_KEY, visitCount.toString());
+        debug(`Saved visit count ${visitCount} to localStorage`);
+        
+        // Verify storage worked by reading it back
+        const verifyValue = window.localStorage.getItem(STORAGE_KEY);
+        debug(`Verification - localStorage now contains: "${verifyValue}"`);
+        
+        if (verifyValue !== visitCount.toString()) {
+          debug("WARNING: Storage verification failed!");
+        }
+      } catch (storageError) {
+        debug("Error storing visit count: " + storageError);
+      }
       
-      // Send to Shiny with explicit event name
-      debug("Sending visit_count to Shiny: " + visitCount);
+      // 4. Send to Shiny
+      debug(`Sending visit count to Shiny: ${visitCount}`);
       Shiny.setInputValue("telemetry_visit_count", visitCount);
       
-      // Debug info
-      debug("Visit tracking initialized successfully");
+      // 5. Schedule verification
+      setTimeout(verifyVisitStorage, 1000);
+      
     } catch (e) {
-      console.error("Error in visit tracking: ", e);
+      debug("Error in visit tracking: " + e.message);
+      trackVisitWithoutStorage();
+    }
+  }
+  
+  // Verify localStorage is working
+  function storageAvailable(type) {
+    try {
+      const storage = window[type];
+      const testKey = '__storage_test__';
+      storage.setItem(testKey, testKey);
+      storage.removeItem(testKey);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Fallback for when localStorage isn't available
+  function trackVisitWithoutStorage() {
+    debug("Using session cookie fallback for visit tracking");
+    Shiny.setInputValue("telemetry_visit_count", 1);
+    Shiny.setInputValue("telemetry_storage_issue", true);
+  }
+  
+  // Verification function to check storage is persisting
+  function verifyVisitStorage() {
+    try {
+      const currentValue = window.localStorage.getItem(STORAGE_KEY);
+      debug(`Storage verification check: "${currentValue}"`);
+      
+      // Set a flag that can be used for debugging
+      window.telemetryVisitVerified = true;
+      window.telemetryVisitValue = currentValue;
+    } catch (e) {
+      debug("Storage verification failed: " + e.message);
     }
   }
 
-  // FIXED: Button tracking with debouncing to prevent duplicates
+  // ----- BUTTON TRACKING (KEEP AS-IS) -----
   function setupButtonTracking() {
     debug("Setting up button tracking with debounce");
     
     // Track last clicked time to prevent duplicates
     var lastClickTime = {};
-    var DEBOUNCE_TIME = 300; // milliseconds
     
     function trackButtonClick(buttonType, btnId) {
       var now = new Date().getTime();
@@ -93,4 +168,54 @@
     
     debug("Button tracking initialized with debounce protection");
   }
+  
+  // Expose diagnostic functions globally
+  window.telemetryDiagnostics = {
+    checkVisitCount: function() {
+      try {
+        const value = window.localStorage.getItem(STORAGE_KEY);
+        console.log("Current visit count in localStorage:", value);
+        return value;
+      } catch (e) {
+        console.error("Error checking visit count:", e);
+        return null;
+      }
+    },
+    resetVisitCount: function() {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+        console.log("Visit count reset");
+        return true;
+      } catch (e) {
+        console.error("Error resetting visit count:", e);
+        return false;
+      }
+    },
+    testStorage: function() {
+      let results = {
+        available: storageAvailable('localStorage'),
+        canWrite: false,
+        canRead: false,
+        canPersist: false
+      };
+      
+      if (results.available) {
+        try {
+          window.localStorage.setItem('__test_key__', 'test_value');
+          results.canWrite = true;
+          
+          const readValue = window.localStorage.getItem('__test_key__');
+          results.canRead = readValue === 'test_value';
+          
+          window.localStorage.removeItem('__test_key__');
+          results.canPersist = window.localStorage.getItem('__test_key__') === null;
+        } catch (e) {
+          console.error("Storage test error:", e);
+        }
+      }
+      
+      console.log("Storage test results:", results);
+      return results;
+    }
+  };
 })();
