@@ -3852,7 +3852,7 @@ ui <- semanticPage(
               href = paste0("custom.css?v=", Sys.time())),
     tags$link(rel = "stylesheet", 
               href = "https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.3/dist/semantic.min.css"),
-
+    tags$script(src = "telemetry.js"),
   tags$script(HTML(
     "
     // Send the current client width to the server
@@ -4167,31 +4167,35 @@ ui <- semanticPage(
 server <- function(input, output, session) {
   
 ## Telemetry ----
-  telemetry <- create_telemetry("Vivid-Volcano")
+  # Initialize telemetry
+  user_agent <- session$request$HTTP_USER_AGENT
+  telemetry <- create_telemetry(user_agent)
   
-  # Log session start - FIXED VERSION
-  if (!is.null(telemetry)) {
-    # Use only non-reactive properties or safely extract reactive values
-    telemetry$log_event("session_start", list(
-      user_agent = session$request$HTTP_USER_AGENT,
-      # Avoid reactive values here
-      app_start_time = format(Sys.time())
-    ))
-  }
-  
-  # Add an observer to safely capture clientData after app is initialized
-  observe({
-    # This runs inside a reactive context, so it's safe
+  # When visit information is received from browser local storage
+  observeEvent(input$telemetry_visit_count, {
+    req(input$telemetry_visit_count)
+    
     if (!is.null(telemetry)) {
-      # We can safely use reactiveValuesToList here
-      client_info <- reactiveValuesToList(session$clientData)
-      telemetry$log_event("client_info_captured", list(
-        window_width = client_info$pixelRatio,
-        window_height = client_info$innerHeight,
-        pixel_ratio = client_info$pixelRatio,
-        url = client_info$url_pathname
-        # Add other properties as needed
-      ))
+      telemetry$update_visitor_info(
+        visit_count = input$telemetry_visit_count
+      )
+    }
+  })
+  
+  # Track button clicks
+  observeEvent(input$telemetry_button_click, {
+    req(input$telemetry_button_click)
+    
+    if (!is.null(telemetry)) {
+      button_type <- input$telemetry_button_click$button
+      telemetry$increment_counter(button_type)
+    }
+  })
+  
+  # End session tracking when user leaves
+  session$onSessionEnded(function() {
+    if (!is.null(telemetry)) {
+      telemetry$end_session()
     }
   })
   
@@ -6698,12 +6702,8 @@ output$custom_gene_labels_ui <- renderUI({
       log_event(log_messages, "Session ended", "INFO")
       
       
-      # Log session end in telemetry
-      if (!is.null(telemetry)) {
-        telemetry$log_event("session_end")
-        telemetry$end_session()
-      }
-      
+    
+       
       
       isolate(log_messages(""))  # Clear logs
     })
