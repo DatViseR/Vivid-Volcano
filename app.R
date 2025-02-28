@@ -26,19 +26,10 @@ library(tidyr)
 
 #### TELEMETRY####### 
 
-# Initialize telemetry connection
-
-# # Test script for custom telemetry
-# source("telemetry_module.R")  - when sourced the deployment in the posit connect cloud failed
-# that is why the code for the module is copied inside app.R
-# Telemetry module for tracking user visits and interactions
-#source("./telemetry_module.R")  # This is also not working so the module content is copied here:
-# Telemetry using IPv6 connection was not working on posit cloud.
-# The modified module uses REST API to connect to the telemetry database
-
-# VividTelemetry class
-
-source("./www/Telemetry_module_API.R")
+# This telemetry module uses REST API to connect to supabase and send the data to Postgres database
+# If you want to use this module, you need to set up the supabase account and get the API key and URL
+# If you want to use the app locally this should be commented out
+source("./R/Telemetry_module_API.R")
 
 
 # Loading the GO data once globally
