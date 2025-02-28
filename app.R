@@ -28,27 +28,15 @@ library(tidyr)
 
 # Initialize telemetry connection
 
-# Test script for custom telemetry
-source("telemetry_module.R")
+# # Test script for custom telemetry
+# source("telemetry_module.R")  - when sourced the deployment in the posit connect cloud failed
+# that is why the code for the module is copied inside app.R
 
-# # Create telemetry instance
-# telemetry <- create_telemetry("Vivid-Volcano-Test")
-# 
-# if (!is.null(telemetry)) {
-#   # Log a test event
-#   telemetry$log_event("test_event", list(
-#     test_time = format(Sys.time()),
-#     user = Sys.info()["user"]
-#   ))
-#   
-#   cat("✅ Test event logged successfully\n")
-#   
-#   # End the session
-#   telemetry$end_session()
-#   cat("✅ Session ended\n")
-# } else {
-#   cat("❌ Failed to initialize telemetry\n")
-# }
+# Telemetry module for tracking user visits and interactions
+
+# Correct way to reference files in the app directory
+source("./telemetry_module.R")  # Note the "./" prefix
+
 
 
 # Loading the GO data once globally
