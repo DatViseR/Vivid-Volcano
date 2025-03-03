@@ -24,6 +24,14 @@ library(webshot2)
 library(shinyalert)  
 library(tidyr)
 
+#### TELEMETRY####### 
+
+# This telemetry module uses REST API to connect to supabase and send the data to Postgres database
+# If you want to use this module, you need to set up the supabase account and get the API key and URL
+# If you want to use the app locally this should be commented out
+source("./R/Telemetry_module_API.R")
+
+
 # Loading the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data and in the script
 # Parquet_GO_source_data_preparation_script.R
@@ -52,6 +60,7 @@ GO <- arrow::read_parquet("GO.parquet2")
 # .. ..- attr(*, "class")= chr [1:2] "collector_guess" "collector"
 # ..$ delim  : chr "\t"
 # ..- attr(*, "class")= chr "col_spec"
+
 
 
 
@@ -3824,7 +3833,7 @@ ui <- semanticPage(
               href = paste0("custom.css?v=", Sys.time())),
     tags$link(rel = "stylesheet", 
               href = "https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.3/dist/semantic.min.css"),
-
+    tags$script(src = "telemetry.js"),
   tags$script(HTML(
     "
     // Send the current client width to the server
@@ -4138,7 +4147,38 @@ ui <- semanticPage(
 
 server <- function(input, output, session) {
   
-
+## Telemetry ----
+  # Initialize telemetry
+  user_agent <- session$request$HTTP_USER_AGENT
+  telemetry <- create_telemetry(user_agent)
+  
+  # When visit information is received from browser local storage
+  observeEvent(input$telemetry_visit_count, {
+    req(input$telemetry_visit_count)
+    
+    if (!is.null(telemetry)) {
+      telemetry$update_visitor_info(
+        visit_count = input$telemetry_visit_count
+      )
+    }
+  })
+  
+  # Track button clicks
+  observeEvent(input$telemetry_button_click, {
+    req(input$telemetry_button_click)
+    
+    if (!is.null(telemetry)) {
+      button_type <- input$telemetry_button_click$button
+      telemetry$increment_counter(button_type)
+    }
+  })
+  
+  # End session tracking when user leaves
+  session$onSessionEnded(function() {
+    if (!is.null(telemetry)) {
+      telemetry$end_session()
+    }
+  })
   
 ## Reactive values ----  
   
@@ -5175,37 +5215,6 @@ output$gsea_results_table <- render_gt({
 
 # Hide loader and re-enable button
 
-shinyjs::hide("gsea-loader-overlay")
-
-})
-
-# Observer for GSEA filter pattern----
-observeEvent(input$apply_filter, {
-  req(input$apply_filter, input$gsea_filter_pattern)
-  
-  # Log the start of filtering process.
-  log_event(log_messages, 
-            sprintf("Applying filter pattern: %s", input$gsea_filter_pattern), 
-            "INFO from GSEA filter observer")
-  
-  # Apply the filter using our function.
-  filtered_results <- filter_gsea_results(
-    enrichment_results_list = gsea_results(),
-    filter_pattern = input$gsea_filter_pattern,
-    log_messages_rv = log_messages,
-    log_event = log_event
-  )
-  
-  # Store the filtered results.
-  gsea_filtered_results(filtered_results)
-  
-  # Log the completion of filtering.
-  log_event(log_messages, 
-            "Filter pattern applied successfully", 
-            "SUCCESS from GSEA filter observer")
-}, ignoreInit = TRUE)
-
-
 
 ## GSEA result downloaders ----
 
@@ -5237,343 +5246,192 @@ output$download_gsea_plot <- downloadHandler(
 )
 
 
-  output$reg_gene_list <- downloadHandler(
-    filename = function() {
-      current_datetime <- format(Sys.time(), "%Y%m%d_%H%M%S")
-      paste0(
-        "reg_genes_adj_pval_",
-        input$alpha,
-        "_method_",
-        input$adj,
-        "_",
-        current_datetime,
-        ".csv"
-      )
-    },
-    content = function(file) {
-      req(regulated_sets())
+output$reg_gene_list <- downloadHandler(
+  filename = function() {
+    current_datetime <- format(Sys.time(), "%Y%m%d_%H%M%S")
+    paste0(
+      "reg_genes_adj_pval_",
+      input$alpha,
+      "_method_",
+      input$adj,
+      "_",
+      current_datetime,
+      ".csv"
+    )
+  },
+  content = function(file) {
+    req(regulated_sets())
+    
+    tryCatch({
+      # Get the regulated sets
+      sets <- regulated_sets()
       
-      tryCatch({
-        # Get the regulated sets
-        sets <- regulated_sets()
-        
-        # Log the start of download process
-        log_event(log_messages, 
-                  "Starting regulated genes list download using GSEA-processed sets", 
-                  "INFO")
-        
-        # Create a data frame with two columns
-        max_length <- max(length(sets$up), length(sets$down))
-        reg_genes_df <- data.frame(
-          Upregulated = c(sets$up, rep(NA, max_length - length(sets$up))),
-          Downregulated = c(sets$down, rep(NA, max_length - length(sets$down)))
-        )
-        
-        # Write to CSV
-        write.csv(reg_genes_df, file, row.names = FALSE)
-        
-        # Log successful download
-        log_event(log_messages, 
-                  sprintf("Download successful: %d up-regulated and %d down-regulated genes", 
-                          length(sets$up), 
-                          length(sets$down)), 
-                  "SUCCESS")
-        
-      }, error = function(e) {
-        log_event(log_messages, 
-                  sprintf("Error during download: %s", e$message), 
-                  "ERROR")
-        stop(paste("Error generating file:", e$message))
-      })
+      # Log the start of download process
+      log_event(log_messages, 
+                "Starting regulated genes list download using GSEA-processed sets", 
+                "INFO")
+      
+      # Create a data frame with two columns
+      max_length <- max(length(sets$up), length(sets$down))
+      reg_genes_df <- data.frame(
+        Upregulated = c(sets$up, rep(NA, max_length - length(sets$up))),
+        Downregulated = c(sets$down, rep(NA, max_length - length(sets$down)))
+      )
+      
+      # Write to CSV
+      write.csv(reg_genes_df, file, row.names = FALSE)
+      
+      # Log successful download
+      log_event(log_messages, 
+                sprintf("Download successful: %d up-regulated and %d down-regulated genes", 
+                        length(sets$up), 
+                        length(sets$down)), 
+                "SUCCESS")
+      
+    }, error = function(e) {
+      log_event(log_messages, 
+                sprintf("Error during download: %s", e$message), 
+                "ERROR")
+      stop(paste("Error generating file:", e$message))
+    })
+  }
+) 
+
+
+output$download_full_gsea <- downloadHandler(
+  filename = function() {
+    paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+  },
+  content = function(file) {
+    # Debug log the state
+    if (!is.null(log_event)) {
+      log_event(log_messages,
+                sprintf("Download full results triggered:\n- Results exist: %s\n- Results structure valid: %s",
+                        !is.null(gsea_results()),
+                        !is.null(gsea_results()$all_results)),
+                "DEBUG")
     }
-  ) 
-  
-  
-  output$download_full_gsea <- downloadHandler(
-    filename = function() {
-      paste0("GSEA_full_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-    },
-    content = function(file) {
-      # Debug log the state
+    
+    # Ensure results exist
+    req(gsea_results())
+    req(gsea_results()$all_results)
+    
+    tryCatch({
+      # Debug the data before binding
       if (!is.null(log_event)) {
         log_event(log_messages,
-                  sprintf("Download full results triggered:\n- Results exist: %s\n- Results structure valid: %s",
-                          !is.null(gsea_results()),
-                          !is.null(gsea_results()$all_results)),
+                  sprintf("All results content:\n- Number of sets: %d\n- Set names: %s",
+                          length(gsea_results()$all_results),
+                          paste(names(gsea_results()$all_results), collapse = ", ")),
                   "DEBUG")
       }
       
-      # Ensure results exist
-      req(gsea_results())
-      req(gsea_results()$all_results)
+      # Combine results
+      full_results_df <- bind_rows(
+        gsea_results()$all_results,
+        .id = "regulation_type"
+      )
       
-      tryCatch({
-        # Debug the data before binding
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("All results content:\n- Number of sets: %d\n- Set names: %s",
-                            length(gsea_results()$all_results),
-                            paste(names(gsea_results()$all_results), collapse = ", ")),
-                    "DEBUG")
-        }
-        
-        # Combine results
-        full_results_df <- bind_rows(
-          gsea_results()$all_results,
-          .id = "regulation_type"
-        )
-        
-        # Debug the combined data
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Combined results:\n- Rows: %d\n- Columns: %d\n- Column names: %s",
-                            nrow(full_results_df),
-                            ncol(full_results_df),
-                            paste(colnames(full_results_df), collapse = ", ")),
-                    "DEBUG")
-        }
-        
-        # Write to CSV
-        write.csv(full_results_df, file, row.names = FALSE)
-        
-      }, error = function(e) {
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Error in full results download: %s", e$message),
-                    "ERROR")
-        }
-        # Write empty file with structure
-        empty_df <- data.frame(
-          regulation_group = character(),
-          name = character(),
-          gene_set = character(),
-          total_count = integer(),
-          genes_in_term = character(),
-          regulated_count = integer(),
-          regulated_genes = character(),
-          expected_count = numeric(),
-          fold_enrichment = numeric(),
-          p_value = numeric(),
-          p_adj = numeric(),
-          stringsAsFactors = FALSE
-        )
-        write.csv(empty_df, file, row.names = FALSE)
-      })
-    }
-  )
-  
-  output$download_top_gsea <- downloadHandler(
-    filename = function() {
-      # Create filename with timestamp
-      paste0("GSEA_top_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-    },
-    content = function(file) {
-      # Verify results exist
-      req(gsea_results())
-      req(gsea_results()$top_results)
+      # Debug the combined data
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Combined results:\n- Rows: %d\n- Columns: %d\n- Column names: %s",
+                          nrow(full_results_df),
+                          ncol(full_results_df),
+                          paste(colnames(full_results_df), collapse = ", ")),
+                  "DEBUG")
+      }
       
-      tryCatch({
-        # Log download attempt if logging is enabled
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Download top results triggered at %s by %s",
-                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                            "DatViseR"),
-                    "INFO")
-        }
-        
-        # Combine top results from all regulation groups
-        top_results_df <- bind_rows(
-          gsea_results()$top_results,
-          .id = "regulation_group"
-        ) %>%
-          select(
-            regulation_group,    # Regulation direction (up/down/bidirectional)
-            name,               # GO term name
-            gene_set,           # Gene set identifier
-            total_count,        # Total genes in GO term
-            genes_in_term,      # All genes in the GO term
-            regulated_count,    # Number of regulated genes
-            regulated_genes,    # List of regulated genes
-            expected_count,     # Expected number by chance
-            fold_enrichment,    # Enrichment ratio
-            p_value,           # Raw p-value
-            p_adj              # Adjusted p-value
-          )
-        
-        # Log data summary if logging is enabled
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
-                            nrow(top_results_df),
-                            paste(unique(top_results_df$regulation_group), collapse = ", ")),
-                    "DEBUG")
-        }
-        
-        # Write data or empty structure based on whether we have results
-        if (nrow(top_results_df) > 0) {
-          write.csv(top_results_df, file, row.names = FALSE)
-          
-          # Log successful write if logging is enabled
-          if (!is.null(log_event)) {
-            log_event(log_messages,
-                      sprintf("Successfully wrote %d rows of top GSEA results to file",
-                              nrow(top_results_df)),
-                      "SUCCESS")
-          }
-        } else {
-          # Create empty data frame with correct structure
-          empty_df <- data.frame(
-            regulation_group = character(),
-            name = character(),
-            gene_set = character(),
-            total_count = integer(),
-            genes_in_term = character(),
-            regulated_count = integer(),
-            regulated_genes = character(),
-            expected_count = numeric(),
-            fold_enrichment = numeric(),
-            p_value = numeric(),
-            p_adj = numeric(),
-            stringsAsFactors = FALSE
-          )
-          
-          # Write empty structure
-          write.csv(empty_df, file, row.names = FALSE)
-          
-          # Log empty result if logging is enabled
-          if (!is.null(log_event)) {
-            log_event(log_messages,
-                      "No significant results found, wrote empty structure",
-                      "WARNING")
-          }
-        }
-        
-      }, error = function(e) {
-        # Log error if logging is enabled
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Error in top results download: %s", e$message),
-                    "ERROR")
-        }
-        
-        # Create and write empty structure on error
-        empty_df <- data.frame(
-          regulation_group = character(),
-          name = character(),
-          gene_set = character(),
-          total_count = integer(),
-          genes_in_term = character(),
-          regulated_count = integer(),
-          regulated_genes = character(),
-          expected_count = numeric(),
-          fold_enrichment = numeric(),
-          p_value = numeric(),
-          p_adj = numeric(),
-          stringsAsFactors = FALSE
-        )
-        write.csv(empty_df, file, row.names = FALSE)
-      })
-    }
-  )
+      # Write to CSV
+      write.csv(full_results_df, file, row.names = FALSE)
+      
+    }, error = function(e) {
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Error in full results download: %s", e$message),
+                  "ERROR")
+      }
+      # Write empty file with structure
+      empty_df <- data.frame(
+        regulation_group = character(),
+        name = character(),
+        gene_set = character(),
+        total_count = integer(),
+        genes_in_term = character(),
+        regulated_count = integer(),
+        regulated_genes = character(),
+        expected_count = numeric(),
+        fold_enrichment = numeric(),
+        p_value = numeric(),
+        p_adj = numeric(),
+        stringsAsFactors = FALSE
+      )
+      write.csv(empty_df, file, row.names = FALSE)
+    })
+  }
+)
 
-  
-  output$download_top10_gsea <- downloadHandler(
-    filename = function() {
-      # Create filename with timestamp
-      paste0("GSEA_top10_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-    },
-    content = function(file) {
-      # Verify results exist
-      req(gsea_results())
-      req(gsea_results()$top10_results)
+output$download_top_gsea <- downloadHandler(
+  filename = function() {
+    # Create filename with timestamp
+    paste0("GSEA_top_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+  },
+  content = function(file) {
+    # Verify results exist
+    req(gsea_results())
+    req(gsea_results()$top_results)
+    
+    tryCatch({
+      # Log download attempt if logging is enabled
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Download top results triggered at %s by %s",
+                          format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                          "DatViseR"),
+                  "INFO")
+      }
       
-      tryCatch({
-        # Log download attempt if logging is enabled
+      # Combine top results from all regulation groups
+      top_results_df <- bind_rows(
+        gsea_results()$top_results,
+        .id = "regulation_group"
+      ) %>%
+        select(
+          regulation_group,    # Regulation direction (up/down/bidirectional)
+          name,               # GO term name
+          gene_set,           # Gene set identifier
+          total_count,        # Total genes in GO term
+          genes_in_term,      # All genes in the GO term
+          regulated_count,    # Number of regulated genes
+          regulated_genes,    # List of regulated genes
+          expected_count,     # Expected number by chance
+          fold_enrichment,    # Enrichment ratio
+          p_value,           # Raw p-value
+          p_adj              # Adjusted p-value
+        )
+      
+      # Log data summary if logging is enabled
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                          nrow(top_results_df),
+                          paste(unique(top_results_df$regulation_group), collapse = ", ")),
+                  "DEBUG")
+      }
+      
+      # Write data or empty structure based on whether we have results
+      if (nrow(top_results_df) > 0) {
+        write.csv(top_results_df, file, row.names = FALSE)
+        
+        # Log successful write if logging is enabled
         if (!is.null(log_event)) {
           log_event(log_messages,
-                    sprintf("Download top10 results triggered at %s by %s",
-                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                            "DatViseR"),
-                    "INFO")
+                    sprintf("Successfully wrote %d rows of top GSEA results to file",
+                            nrow(top_results_df)),
+                    "SUCCESS")
         }
-        
-        # Combine top results from all regulation groups
-        top10_results_df <- bind_rows(
-          gsea_results()$top10_results,
-          .id = "regulation_group"
-        ) %>%
-          select(
-            regulation_group,    # Regulation direction (up/down/bidirectional)
-            name,               # GO term name
-            gene_set,           # Gene set identifier
-            total_count,        # Total genes in GO term
-            genes_in_term,      # All genes in the GO term
-            regulated_count,    # Number of regulated genes
-            regulated_genes,    # List of regulated genes
-            expected_count,     # Expected number by chance
-            fold_enrichment,    # Enrichment ratio
-            p_value,           # Raw p-value
-            p_adj              # Adjusted p-value
-          )
-        
-        # Log data summary if logging is enabled
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
-                            nrow(top10_results_df),
-                            paste(unique(top10_results_df$regulation_group), collapse = ", ")),
-                    "DEBUG")
-        }
-        
-        # Write data or empty structure based on whether we have results
-        if (nrow(top10_results_df) > 0) {
-          write.csv(top10_results_df, file, row.names = FALSE)
-          
-          # Log successful write if logging is enabled
-          if (!is.null(log_event)) {
-            log_event(log_messages,
-                      sprintf("Successfully wrote %d rows of top GSEA results to file",
-                              nrow(top10_results_df)),
-                      "SUCCESS")
-          }
-        } else {
-          # Create empty data frame with correct structure
-          empty_df <- data.frame(
-            regulation_group = character(),
-            name = character(),
-            gene_set = character(),
-            total_count = integer(),
-            genes_in_term = character(),
-            regulated_count = integer(),
-            regulated_genes = character(),
-            expected_count = numeric(),
-            fold_enrichment = numeric(),
-            p_value = numeric(),
-            p_adj = numeric(),
-            stringsAsFactors = FALSE
-          )
-          
-          # Write empty structure
-          write.csv(empty_df, file, row.names = FALSE)
-          
-          # Log empty result if logging is enabled
-          if (!is.null(log_event)) {
-            log_event(log_messages,
-                      "No significant results found, wrote empty structure",
-                      "WARNING")
-          }
-        }
-        
-      }, error = function(e) {
-        # Log error if logging is enabled
-        if (!is.null(log_event)) {
-          log_event(log_messages,
-                    sprintf("Error in top results download: %s", e$message),
-                    "ERROR")
-        }
-        
-        # Create and write empty structure on error
+      } else {
+        # Create empty data frame with correct structure
         empty_df <- data.frame(
           regulation_group = character(),
           name = character(),
@@ -5588,69 +5446,258 @@ output$download_gsea_plot <- downloadHandler(
           p_adj = numeric(),
           stringsAsFactors = FALSE
         )
+        
+        # Write empty structure
         write.csv(empty_df, file, row.names = FALSE)
-      })
-    }
-  )
-  
-  
-  
-  
-  
-  
-  
-  
-  output$download_gsea_results <- downloadHandler(
-    filename = function() {
-      paste0("GSEA_Results_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
-    },
-    content = function(file) {
-      req(gsea_results())
+        
+        # Log empty result if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    "No significant results found, wrote empty structure",
+                    "WARNING")
+        }
+      }
       
-      # Log download attempt
-      log_event(log_messages,
-                "GSEA results table download initiated",
-                "INFO from download_gsea_results")
+    }, error = function(e) {
+      # Log error if logging is enabled
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Error in top results download: %s", e$message),
+                  "ERROR")
+      }
       
-      tryCatch({
-        # Create table with current color settings
-        gt_table <- build_gsea_gt_table(
-          enrichment_results_list = gsea_results(),
-          color_highlight = if(input$color_highlight) {
-            c(input$down_color, input$up_color)
-          } else {
-            c("#D3D3D3", "#D3D3D3")
-          },
-          log_messages_rv = log_messages,
-          log_event = log_event
+      # Create and write empty structure on error
+      empty_df <- data.frame(
+        regulation_group = character(),
+        name = character(),
+        gene_set = character(),
+        total_count = integer(),
+        genes_in_term = character(),
+        regulated_count = integer(),
+        regulated_genes = character(),
+        expected_count = numeric(),
+        fold_enrichment = numeric(),
+        p_value = numeric(),
+        p_adj = numeric(),
+        stringsAsFactors = FALSE
+      )
+      write.csv(empty_df, file, row.names = FALSE)
+    })
+  }
+)
+
+
+output$download_top10_gsea <- downloadHandler(
+  filename = function() {
+    # Create filename with timestamp
+    paste0("GSEA_top10_results_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
+  },
+  content = function(file) {
+    # Verify results exist
+    req(gsea_results())
+    req(gsea_results()$top10_results)
+    
+    tryCatch({
+      # Log download attempt if logging is enabled
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Download top10 results triggered at %s by %s",
+                          format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                          "DatViseR"),
+                  "INFO")
+      }
+      
+      # Combine top results from all regulation groups
+      top10_results_df <- bind_rows(
+        gsea_results()$top10_results,
+        .id = "regulation_group"
+      ) %>%
+        select(
+          regulation_group,    # Regulation direction (up/down/bidirectional)
+          name,               # GO term name
+          gene_set,           # Gene set identifier
+          total_count,        # Total genes in GO term
+          genes_in_term,      # All genes in the GO term
+          regulated_count,    # Number of regulated genes
+          regulated_genes,    # List of regulated genes
+          expected_count,     # Expected number by chance
+          fold_enrichment,    # Enrichment ratio
+          p_value,           # Raw p-value
+          p_adj              # Adjusted p-value
+        )
+      
+      # Log data summary if logging is enabled
+      if (!is.null(log_event)) {
+        log_event(log_messages,
+                  sprintf("Top results summary:\n- Total rows: %d\n- Regulation groups: %s",
+                          nrow(top10_results_df),
+                          paste(unique(top10_results_df$regulation_group), collapse = ", ")),
+                  "DEBUG")
+      }
+      
+      # Write data or empty structure based on whether we have results
+      if (nrow(top10_results_df) > 0) {
+        write.csv(top10_results_df, file, row.names = FALSE)
+        
+        # Log successful write if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    sprintf("Successfully wrote %d rows of top GSEA results to file",
+                            nrow(top10_results_df)),
+                    "SUCCESS")
+        }
+      } else {
+        # Create empty data frame with correct structure
+        empty_df <- data.frame(
+          regulation_group = character(),
+          name = character(),
+          gene_set = character(),
+          total_count = integer(),
+          genes_in_term = character(),
+          regulated_count = integer(),
+          regulated_genes = character(),
+          expected_count = numeric(),
+          fold_enrichment = numeric(),
+          p_value = numeric(),
+          p_adj = numeric(),
+          stringsAsFactors = FALSE
         )
         
-        # Save as HTML with inline CSS
+        # Write empty structure
+        write.csv(empty_df, file, row.names = FALSE)
+        
+        # Log empty result if logging is enabled
+        if (!is.null(log_event)) {
+          log_event(log_messages,
+                    "No significant results found, wrote empty structure",
+                    "WARNING")
+        }
+      }
+      
+    }, error = function(e) {
+      # Log error if logging is enabled
+      if (!is.null(log_event)) {
         log_event(log_messages,
-                  "GSEA results table created successfully and ready for saving as formatted html",
-                  "SUCCESS from download_gsea_results")
-        
-        gtsave(gt_table, file, inline_css = TRUE)
-        
-      }, error = function(e) {
-        log_event(log_messages,
-                  sprintf("Error in GSEA results table download: %s", e$message),
-                  "ERROR from download_gsea_results")
-        
-        # Create and save empty table with error message
-        empty_table <- gt(tibble(
-          Message = "Error generating GSEA results table. Please try again."
-        )) %>%
-          tab_options(
-            table.width = pct(40),
-            container.width = pct(40),
-            column_labels.visible = FALSE
-          )
-        gtsave(empty_table, file, inline_css = TRUE)
-      })
-    }
-  )  
+                  sprintf("Error in top results download: %s", e$message),
+                  "ERROR")
+      }
+      
+      # Create and write empty structure on error
+      empty_df <- data.frame(
+        regulation_group = character(),
+        name = character(),
+        gene_set = character(),
+        total_count = integer(),
+        genes_in_term = character(),
+        regulated_count = integer(),
+        regulated_genes = character(),
+        expected_count = numeric(),
+        fold_enrichment = numeric(),
+        p_value = numeric(),
+        p_adj = numeric(),
+        stringsAsFactors = FALSE
+      )
+      write.csv(empty_df, file, row.names = FALSE)
+    })
+  }
+)
+
+
+
+
+
+
+
+
+output$download_gsea_results <- downloadHandler(
+  filename = function() {
+    paste0("GSEA_Results_Table_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
+  },
+  content = function(file) {
+    req(gsea_results())
+    
+    # Log download attempt
+    log_event(log_messages,
+              "GSEA results table download initiated",
+              "INFO from download_gsea_results")
+    
+    tryCatch({
+      # Create table with current color settings
+      gt_table <- build_gsea_gt_table(
+        enrichment_results_list = gsea_results(),
+        color_highlight = if(input$color_highlight) {
+          c(input$down_color, input$up_color)
+        } else {
+          c("#D3D3D3", "#D3D3D3")
+        },
+        log_messages_rv = log_messages,
+        log_event = log_event
+      )
+      
+      # Save as HTML with inline CSS
+      log_event(log_messages,
+                "GSEA results table created successfully and ready for saving as formatted html",
+                "SUCCESS from download_gsea_results")
+      
+      gtsave(gt_table, file, inline_css = TRUE)
+      
+    }, error = function(e) {
+      log_event(log_messages,
+                sprintf("Error in GSEA results table download: %s", e$message),
+                "ERROR from download_gsea_results")
+      
+      # Create and save empty table with error message
+      empty_table <- gt(tibble(
+        Message = "Error generating GSEA results table. Please try again."
+      )) %>%
+        tab_options(
+          table.width = pct(40),
+          container.width = pct(40),
+          column_labels.visible = FALSE
+        )
+      gtsave(empty_table, file, inline_css = TRUE)
+    })
+  }
+)  
+
+
+
+
+
+
+
+shinyjs::hide("gsea-loader-overlay")
+
+
+})
+
+# Observer for GSEA filter pattern----
+observeEvent(input$apply_filter, {
+  req(input$apply_filter, input$gsea_filter_pattern)
   
+  # Log the start of filtering process.
+  log_event(log_messages, 
+            sprintf("Applying filter pattern: %s", input$gsea_filter_pattern), 
+            "INFO from GSEA filter observer")
+  
+  # Apply the filter using our function.
+  filtered_results <- filter_gsea_results(
+    enrichment_results_list = gsea_results(),
+    filter_pattern = input$gsea_filter_pattern,
+    log_messages_rv = log_messages,
+    log_event = log_event
+  )
+  
+  # Store the filtered results.
+  gsea_filtered_results(filtered_results)
+  
+  # Log the completion of filtering.
+  log_event(log_messages, 
+            "Filter pattern applied successfully", 
+            "SUCCESS from GSEA filter observer")
+}, ignoreInit = TRUE)
+
+
     
 # Color highlight observer and reactive UI color pickers----
     
@@ -6399,79 +6446,92 @@ output$custom_gene_labels_ui <- renderUI({
         gt::gtsave(gt_table, file, inline_css = TRUE)
       }
     )  
+    
+    
+    
+    
+    ####   Downloaders for the volcano ----
+    
+    output$download_plot1 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages, log_event = log_event)
+        ggsave(file, publication_plot, width = 85, height = 85, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot2 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages, log_event = log_event)
+        ggsave(file, publication_plot, width = 114, height = 114, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot3 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages, log_event = log_event)
+        ggsave(file, publication_plot, width = 114, height = 65, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot4 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages, log_event = log_event)
+        ggsave(file, publication_plot, width = 174, height = 174, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    output$download_plot5 <- downloadHandler(
+      filename = function() {
+        paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
+      },
+      content = function(file) {
+        req(volcano_plot_rv())
+        publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages, log_event = log_event)
+        ggsave(file, publication_plot, width = 174, height = 98, 
+               units = "mm", device = cairo_pdf)
+      }
+    )
+    
+    
+    
+    
+    
+    
+    
+    
+    
     volcano_plot_rv(volcano_plot)
     volcano_plot_original(volcano_plot)
     shinyjs::hide("volcano-loader-overlay")
   
   })
 
+  
+  
+  
 ### This is were the draw volcano observer ends ----    
     
-####   Downloaders for the volcano ----
-  
-  output$download_plot1 <- downloadHandler(
-    filename = function() {
-      paste0("volcano_plot_85x85_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-    },
-    content = function(file) {
-      req(volcano_plot_rv())
-      publication_plot <- create_publication_plot(volcano_plot_rv(), 85, 85, log_messages_rv = log_messages, log_event = log_event)
-      ggsave(file, publication_plot, width = 85, height = 85, 
-             units = "mm", device = cairo_pdf)
-    }
-  )
-  
-  output$download_plot2 <- downloadHandler(
-    filename = function() {
-      paste0("volcano_plot_114x114_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-    },
-    content = function(file) {
-      req(volcano_plot_rv())
-      publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 114, log_messages_rv = log_messages, log_event = log_event)
-      ggsave(file, publication_plot, width = 114, height = 114, 
-             units = "mm", device = cairo_pdf)
-    }
-  )
-  
-  output$download_plot3 <- downloadHandler(
-    filename = function() {
-      paste0("volcano_plot_114x65_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-    },
-    content = function(file) {
-      req(volcano_plot_rv())
-      publication_plot <- create_publication_plot(volcano_plot_rv(), 114, 65, log_messages_rv = log_messages, log_event = log_event)
-      ggsave(file, publication_plot, width = 114, height = 65, 
-             units = "mm", device = cairo_pdf)
-    }
-  )
-  
-  output$download_plot4 <- downloadHandler(
-    filename = function() {
-      paste0("volcano_plot_174x174_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-    },
-    content = function(file) {
-      req(volcano_plot_rv())
-      publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 174,log_messages_rv = log_messages, log_event = log_event)
-      ggsave(file, publication_plot, width = 174, height = 174, 
-             units = "mm", device = cairo_pdf)
-    }
-  )
-  
-  output$download_plot5 <- downloadHandler(
-    filename = function() {
-      paste0("volcano_plot_174x98_", format(Sys.time(), "%Y%m%d_%H%M"), ".pdf")
-    },
-    content = function(file) {
-      req(volcano_plot_rv())
-      publication_plot <- create_publication_plot(volcano_plot_rv(), 174, 98, log_messages_rv = log_messages, log_event = log_event)
-      ggsave(file, publication_plot, width = 174, height = 98, 
-             units = "mm", device = cairo_pdf)
-    }
-  )
-  
-  
-  
-  
+
   
 #### Reactive UI for the custom x-axis limits and hiding text annotations----
 
@@ -6641,6 +6701,11 @@ output$custom_gene_labels_ui <- renderUI({
     # Clear logs when session ends
     session$onSessionEnded(function() {
       log_event(log_messages, "Session ended", "INFO")
+      
+      
+    
+       
+      
       isolate(log_messages(""))  # Clear logs
     })
    
