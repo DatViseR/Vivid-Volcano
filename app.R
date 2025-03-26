@@ -32,6 +32,13 @@ library(tidyr)
 
 #source("./Scripts_R/Telemetry_module_API.R")
 
+message("------TELEMETRY INFO---------")
+message("Telemetry module is commented out for your convenient local use - 
+        no data is being collected. Uncomment and add API key to .Renviron file if you want to use your own telemetry. The default variables used by telemetry module are SUPABASE_URL=[url for you database] and 
+        SUPABASE_KEY=[API_key]. You can set them in .Renviron file. You can also use direct connection
+        to database - check optional module in telemetry_modules folder. If you just want to use the app locally, the code should stay commented out.")
+        
+message("----------------------------")
 
 # Loading the GO data once globally
 # The preparation of this file is described in https://github.com/DatViseR/Vivid-GO-data and in the script
