@@ -200,8 +200,8 @@ VIvid Volcano application](Paper_figures/GSEA.jpeg)
 # Acknowledgements
 
 The author would like to thank all the beta users especially Konrad
-Kowalski and dr Anna Marusiak for their feedback and suggestions that
-helped to improve the application.
+Kowalski , dr Anna Marusiak and Dr Bartosz Wojtaś for their feedback,
+suggestions or test data that helped to improve the application.
 
 The author would like to thank the developers of R, RStudio, and the R
 community for providing the tools and support necessary to create this
