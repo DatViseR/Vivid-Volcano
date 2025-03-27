@@ -1,7 +1,7 @@
 ---
 title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics
   Data"
-author: "Tomasz M.Stępkowski"
+author: "Tomasz M. Stępkowski"
 params:
   affiliation: "DatViseR - Freelance R programmer, Warsaw, Poland"
   tags: R ,R Shiny, Bioinformatics, Omics, Proteomics, Transcriptomics,  Genomics
@@ -41,7 +41,7 @@ and explanatory data analysis.
 # Statement of need
 
 Modern biological research relies heavily on omics technologies
-(genomics, proteomics, transcriptomics, etc.) that generate large,
+(genomics, proteomics, transcriptomics, etc. ) that generate large,
 complex datasets requiring specialized analysis and processing by
 bioinformaticians – experts with a unique combination of programming,
 statistics, and data science skills blended with biology domain
@@ -50,13 +50,13 @@ produce pre-processed data conveying metadata on experiments and
 statistical results for the changes in expression of thousands of
 proteins, genes, etc. However, to draw valid biological conclusions,
 this pre-processed data must be explored and explained by subdomain
-experts who are usually experimentalists who designed the experiments
-but often do not have strong computational skills enabling them to
-effectively explore data and visualize crucial conclusions. Despite the
-widespread adoption of omics technologies in biological research, many
-experimental scientists struggle with data analysis due to technical
-barriers and communication challenges between computational and
-experimental disciplines, even with bioinformatician support.
+experts who are usually experimentalists who designed the experiments.
+Those often do not have strong computational skills to effectively
+explore data and visualize crucial conclusions. Despite the widespread
+adoption of omics technologies in biological research, many experimental
+scientists struggle with data analysis due to technical barriers and
+communication challenges between computational and experimental
+disciplines, even with bioinformatician support.
 
 Vivid Volcano was designed with two basic aims: 1. Empowering
 experimental biologists with a tool that can help them explore and
@@ -77,17 +77,17 @@ Volcano maintains a simple and efficient design that does not rely on
 Bioconductor libraries, making it more accessible and easier to
 maintain. Vivid Volcano was designed to provide a smooth and intuitive
 user experience. For more advanced users who would like to validate the
-under-the-hood processes, the application also implements a custom
-process log system that tracks data processing outcomes, facilitating
-debugging and enabling analysis of app functionality. These features
-collectively enable experimental biologists to gain deeper insights from
-their omics data, accelerate research workflows, and produce
-publication-quality outputs without advanced computational skills.
+under-the-hood processes, the application also implements a process log
+system that tracks data processing outcomes, facilitating debugging and
+enabling analysis of app functionality. These features collectively
+enable experimental biologists to gain deeper insights from their omics
+data, accelerate research workflows, and produce publication-quality
+outputs without advanced computational skills.
 
-Vivid Volcano has been designed based on firsthand experience with the
-challenges faced by experimental biologists working with omics data and
-aims to provide comprehensive yet accessible solutions for generating
-publication-ready outputs from preprocessed omics datasets.
+In summary Vivid Volcano has been designed based on firsthand experience
+with the challenges faced by experimental biologists working with omics
+data and aims to provide comprehensive yet accessible solutions for
+generating publication-ready outputs from preprocessed omics datasets.
 
 The application is available online at
 <https://datviser-vivid-volcano.share.connect.posit.cloud/>, making it
@@ -109,16 +109,16 @@ and shinyjs[@shinyjs] and shinyalert[@shinyalert] for improved user
 experience . For statistical analysis, the application employs basic R
 operations and custom functions for ontology enrichment that don't rely
 on Bioconductor dependencies, making the application more accessible and
-maintainable. Data processing is handled through dplyr, tidyr, and other
-tidyverse packages which provide efficient data manipulation
-capabilities[@dplyr][@tidyr] . The application implements a custom
-logging system to track all data transformations, ensuring transparency
-and reproducibility of results. Vivid Volcano's modular design allows
-for straightforward extension and maintenance, with clearly separated UI
-modules for data upload, visualization, statistical analysis, and
-results export. The application is deployed on Posit Connect Cloud
-(formerly RStudio Cloud), making it accessible via web browser without
-requiring local installation.
+maintainable as a web tool. Data processing is handled through dplyr,
+tidyr, and other tidyverse packages which provide efficient data
+manipulation capabilities[@dplyr][@tidyr] . The application implements a
+custom logging system to track all data transformations, ensuring
+transparency and reproducibility of results. Vivid Volcano's modular
+design allows for straightforward extension and maintenance, with
+clearly separated UI modules for data upload, visualization, statistical
+analysis, and results export. The application is deployed on Posit
+Connect Cloud (formerly RStudio Cloud), making it accessible via web
+browser without requiring local installation.
 
 # Statistics and Limitations
 

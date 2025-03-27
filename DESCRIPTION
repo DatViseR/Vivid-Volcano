@@ -1,7 +1,7 @@
 Package: VividVolcano
 Type: Shiny Application
 Title: Vivid Volcano: A Shiny App for Custom Analysis of Preprocessed Omics Data
-Version: 0.1.0-beta.4
+Version: 0.1.0
 Authors@R: 
     person(given = "Tomasz", family = "Stępkowski", 
            role = c("aut", "cre"), email = "dzdzstepel@gmail.com")
