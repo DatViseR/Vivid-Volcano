@@ -13,7 +13,7 @@ jobs:
         with:
           journal: joss
           # Path to your paper in the Publication folder
-          path: Publication/paper.md
+          paper-path: Publication/paper.md
          
          
       - name: Upload
@@ -21,4 +21,4 @@ jobs:
         with:
           name: paper
           # The generated PDF will be in this location
-          path: Publication/paper.pdf
+          paper-path: Publication/paper.pdf
