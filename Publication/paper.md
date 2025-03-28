@@ -1,6 +1,5 @@
 ---
-title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics
-  Data"
+title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data"
 tags:
 - R
 - R Shiny
