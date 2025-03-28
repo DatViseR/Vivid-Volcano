@@ -13,18 +13,20 @@ tags:
   - Omics data visualisation
   - Omics data exploration
   - Omics data analysis
-
-name: Tomasz M. Stępkowski
+  
+authors:
+  - name: Tomasz M. Stępkowski
     orcid: 0000-0002-8454-4421
     affiliation: 1
     
 affiliations:
- - name: DatViseR - Freelance R programmer, Warsaw, Poland
-   index: 1
+  - name: DatViseR - Freelance R programmer, Warsaw, Poland
+    index: 1
 
-date: 28th of March 2025
+date: 2025-03-28
 bibliography: paper.bib
 ---
+
 # Summary
 
 Vivid Volcano is an R Shiny web application – an intuitive tool that
