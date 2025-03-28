@@ -95,6 +95,8 @@ The application is available online at
 <https://datviser-vivid-volcano.share.connect.posit.cloud/>, making it
 readily accessible to researchers worldwide.
 
+The source code is available at <https://github.com/DatViseR/Vivid-Volcano>.
+
 # Technical description and implementation
 
 Vivid Volcano is built as a modular R Shiny web application leveraging
