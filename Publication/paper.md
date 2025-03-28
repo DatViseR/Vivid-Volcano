@@ -175,29 +175,28 @@ extensive bioinformatics expertise.
 
 # Figures
 
-![Fig.1. Data upload and data select and curation modules of the Vivid
-Volcano
-application](Paper_figures/Data_upload_and_curation.jpeg){width="241"}
+![Data upload and data select and curation modules of the Vivid Volcano
+application](Paper_figures/Data_upload_and_curation.jpeg){width="300"}
 
 ------------------------------------------------------------------------
 
-![Fig.2. Interactive datatable preview of the analyzed data in the Vivid
+![Interactive datatable preview of the analyzed data in the Vivid
 Volcano application.](Paper_figures/Data_preview.jpeg)
 
 ------------------------------------------------------------------------
 
-![Fig.3.Volcano plot customisation options in the Vivid Volcano
-application](Paper_figures/Volcano_plot_customisation_options.jpeg){width="234"}
+![Volcano plot customisation options in the Vivid Volcano
+application](Paper_figures/Volcano_plot_customisation_options.jpeg){width="300"}
 
 ------------------------------------------------------------------------
 
-![Fig.4. Volcano plot and publication ready tabular results generated
-with Vivid Volcano application](Paper_figures/Volcano.jpeg)
+![Volcano plot and publication ready tabular results generated with
+Vivid Volcano application](Paper_figures/Volcano.jpeg)
 
 ------------------------------------------------------------------------
 
-![Fig.5. The results of Gene Set Enrichment analysis performed with
-VIvid Volcano application](Paper_figures/GSEA.jpeg)
+![The results of Gene Set Enrichment analysis performed with VIvid
+Volcano application](Paper_figures/GSEA.jpeg)
 
 # Acknowledgements
 
