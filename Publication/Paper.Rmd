@@ -1,30 +1,30 @@
 ---
-title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics
-  Data"
-author: "Tomasz M. Stępkowski"
-params:
-  affiliation: "DatViseR - Freelance R programmer, Warsaw, Poland"
-  tags: R ,R Shiny, Bioinformatics, Omics, Proteomics, Transcriptomics,  Genomics
-    , Volcano Plot, Gene Set Enrichment Analysis, Omics data visualisation, Omics
-    data exploration
-output:
-  html_document:
-    theme: journal
-    toc: true
-    toc_float:
-      collapsed: true
-  pdf_document:
+title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data"
+tags:
+  - R 
+  - R Shiny
+  - Bioinformatics
+  - Omics
+  - Proteomics
+  - Transcriptomics
+  - Genomics
+  - Volcano Plot
+  - Gene Set Enrichment Analysis
+  - Omics data visualisation
+  - Omics data exploration
+  - Omics data analysis
+
+name: Tomasz M. Stępkowski
+    orcid: 0000-0002-8454-4421
+    affiliation: 1
     
-    toc: false
+affiliations:
+ - name: DatViseR - Freelance R programmer, Warsaw, Poland
+   index: 1
+
+date: 28th of March 2025
 bibliography: paper.bib
 ---
-
-###### `r params$affiliation`
-
-###### `r as.POSIXct(Sys.Date())`
-
-###### key words: `r params$tags`
-
 # Summary
 
 Vivid Volcano is an R Shiny web application – an intuitive tool that
