@@ -21,4 +21,4 @@ jobs:
         with:
           name: paper
           # The generated PDF will be in this location
-          paper-path: Publication/paper.pdf
+          path: Publication/paper.pdf
