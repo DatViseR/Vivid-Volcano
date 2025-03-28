@@ -14,9 +14,8 @@ jobs:
           journal: joss
           # Path to your paper in the Publication folder
           paper-path: Publication/paper.md
-          # Tell the action where to find figures relative to the paper
-          # This ensures figures in Paper_figures are found correctly
-          files-path: Publication
+         
+         
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
