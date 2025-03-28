@@ -1,29 +1,27 @@
 ---
-title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data"
+title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics
+  Data"
 tags:
-  - R 
-  - R Shiny
-  - Bioinformatics
-  - Omics
-  - Proteomics
-  - Transcriptomics
-  - Genomics
-  - Volcano Plot
-  - Gene Set Enrichment Analysis
-  - Omics data visualisation
-  - Omics data exploration
-  - Omics data analysis
-  
-authors:
-  - name: Tomasz M. Stępkowski
-    orcid: 0000-0002-8454-4421
-    affiliation: 1
-    
+- R
+- R Shiny
+- Bioinformatics
+- Omics
+- Proteomics
+- Transcriptomics
+- Genomics
+- Volcano Plot
+- Gene Set Enrichment Analysis
+- Omics data visualisation
+- Omics data exploration
+- Omics data analysis
+date: "2025-03-28"
 affiliations:
-  - name: DatViseR - Freelance R programmer, Warsaw, Poland
-    index: 1
-
-date: 2025-03-28
+- name: "DatViseR - Freelance R programmer, Warsaw, Poland"
+  index: 1
+authors:
+- name: Tomasz M. Stępkowski
+  orcid: "0000-0002-8454-4421"
+  affiliation: 1
 bibliography: paper.bib
 ---
 
