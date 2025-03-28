@@ -12,13 +12,14 @@ jobs:
         uses: openjournals/openjournals-draft-action@master
         with:
           journal: joss
-          # This should be the path to the paper within your repo.
-          paper-path: paper.md
+          # Path to your paper in the Publication folder
+          paper-path: Publication/paper.md
+          # Tell the action where to find figures relative to the paper
+          # This ensures figures in Paper_figures are found correctly
+          files-path: Publication
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: paper
-          # This is the output path where Pandoc will write the compiled
-          # PDF. Note, this should be the same directory as the input
-          # paper.md
-          path: paper.pdf
+          # The generated PDF will be in this location
+          path: Publication/paper.pdf
