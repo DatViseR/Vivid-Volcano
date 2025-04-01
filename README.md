@@ -2,13 +2,13 @@
 
 ### Vivid-Volcano is a Shiny application designed for the visualization and exploration of preprocessed omics data. It enables easy creation of highly customizable, publication-ready volcano plots, comprehensive data exploration, and gene ontology (GO) enrichment analysis. The primary goal of the app is to provide an average biologist, with little to no bioinformatics background, an intuitive tool for exploring and visualizing their preprocessed omics data. Users can download variously formatted publication-ready plots and neatly formatted tables that adhere to scientific standards.
 
-#### Key Features:
+**Current status:** • After closed beta testing, pre-released and
+waiting for the peer review from proffessional scientific software
+reviewers. Please find the link to the journal article pre-print in the
+sections below.
 
-**Currently under development:** 
-• Preparation for publication of the application and further developments in 
-response to feedback from beta users. 
+#### **Key Features:**
 
-**In the master version the following features are available:**  
 • Upload user data in TSV/CSV format or use the provided demo data\
 • Interactive preview of the uploaded data table\
 • Server-friendly binary format for gene ontology data\
@@ -32,15 +32,17 @@ of detected and regulated genes within a specific category\
 • Process log system for user sessions, useful for checking data
 processing outcomes, debugging, and analyzing app functionality
 
-The application is available in the cloud:
+**The application is available in the cloud:**
 
-[Vivid volcano live - beta
-version](https://datviser-vivid-volcano.share.connect.posit.cloud//)
+[**Vivid volcano live at POSIT Connect
+Cloud**](https://datviser-vivid-volcano.share.connect.posit.cloud//)
 
-The live demo of the first beta version - now the app is in the third round of beta testing:
+**The live demo of the first beta version linked below. Now the app is
+after closed beta testing, pre-released and waiting for professional
+peer review from the scientific community.**
 
-[Vivid volcano features- demo
-movie](https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link)
+[**Vivid volcano features- demo
+movie**](https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link)
 
 To run the app locally follow the Instructions:
 
@@ -53,7 +55,28 @@ To run the app locally follow the Instructions:
 3.  Run the app in R:\
     Rscript -e "shiny::runApp()"
 
-Contributions are welcome! Please fork the repository and submit a pull
-request.
+**Contributions are welcome!** Please fork the repository and submit a
+pull request.
 
-# 
+### How to cite Vivid Volcano?
+
+The scientific article on Vivid Volcano was sent for review and is
+currently under consideration. In the meantime, please cite the
+application as follows:
+
+**If you want to cite the pre-print of a journal article:**
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119893.svg)](https://doi.org/10.5281/zenodo.15119893)
+
+Stępkowski, T. M. (2025). Vivid Volcano: Empowering
+Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo.
+<https://doi.org/10.5281/zenodo.15119893>
+
+**If you want to cite the source code image from Zenodo:**
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119703.svg)](https://doi.org/10.5281/zenodo.15119703)
+
+Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano - an intuitive tool
+that helps experimental scientists with no bioinformatics background
+explore and analyze pre-processed omics data. Pre-release. (v0.1.0).
+Zenodo. <https://doi.org/10.5281/zenodo.15119703>
