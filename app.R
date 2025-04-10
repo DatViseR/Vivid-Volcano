@@ -31,13 +31,13 @@ library(data.table)
 # If you want to use this module, you need to set up the supabase (or similar database) account and get the API key and URL
 # If you want to use the app locally this should be commented out
 
-#source("./Scripts_R/Telemetry_module_API.R")
+source("./Scripts_R/Telemetry_module_API.R")
 
 message("------TELEMETRY INFO---------")
-message("Telemetry module is commented out for your convenient local use - 
-        no data is being collected. Uncomment and add API key to .Renviron file if you want to use your own telemetry. The default variables used by telemetry module are SUPABASE_URL=[url for you database] and 
+message("Telemetry module is not commented out in this branch - 
+        data is being collected. Add API key to .Renviron file if you want to use your own telemetry credentials. The default variables used by telemetry module are SUPABASE_URL=[url for you database] and 
         SUPABASE_KEY=[API_key]. You can set them in .Renviron file. You can also use direct connection
-        to database - check optional module in telemetry_modules folder. If you just want to use the app locally, the code should stay commented out.")
+        to database - check optional module in telemetry_modules folder. If you just want to use the app locally,clone the master branch where the telemetry code should stay commented out.")
         
 message("----------------------------")
 
@@ -426,42 +426,42 @@ server <- function(input, output, session) {
   
 ## Telemetry ----
 
-# If you want to use telemetry - uncomment the code below and create a local
-#  .Renviron file with your API key and URL for database or credential for direct connection
+# If you don not want to use telemetry clone the master branch or comment out the code below. To use telemetry create a local
+#  .Renviron file with your API key and URL for your database  credentials for direct connection
 # If you just want to use the app locally, the code below should stay commented out  
   
-    # # Initialize telemetry
-  # user_agent <- session$request$HTTP_USER_AGENT
-  # telemetry <- create_telemetry(user_agent)
-  # 
-  # # When visit information is received from browser local storage
-  # observeEvent(input$telemetry_visit_count, {
-  #   req(input$telemetry_visit_count)
-  #   
-  #   if (!is.null(telemetry)) {
-  #     telemetry$update_visitor_info(
-  #       visit_count = input$telemetry_visit_count
-  #     )
-  #   }
-  # })
-  # 
-  # # Track button clicks
-  # observeEvent(input$telemetry_button_click, {
-  #   req(input$telemetry_button_click)
-  #   
-  #   if (!is.null(telemetry)) {
-  #     button_type <- input$telemetry_button_click$button
-  #     telemetry$increment_counter(button_type)
-  #   }
-  # })
-  # 
-  # # End session tracking when user leaves
-  # session$onSessionEnded(function() {
-  #   if (!is.null(telemetry)) {
-  #     telemetry$end_session()
-  #   }
-  # })
-  # 
+  # Initialize telemetry
+  user_agent <- session$request$HTTP_USER_AGENT
+  telemetry <- create_telemetry(user_agent)
+
+  # When visit information is received from browser local storage
+  observeEvent(input$telemetry_visit_count, {
+    req(input$telemetry_visit_count)
+
+    if (!is.null(telemetry)) {
+      telemetry$update_visitor_info(
+        visit_count = input$telemetry_visit_count
+      )
+    }
+  })
+
+  # Track button clicks
+  observeEvent(input$telemetry_button_click, {
+    req(input$telemetry_button_click)
+
+    if (!is.null(telemetry)) {
+      button_type <- input$telemetry_button_click$button
+      telemetry$increment_counter(button_type)
+    }
+  })
+
+  # End session tracking when user leaves
+  session$onSessionEnded(function() {
+    if (!is.null(telemetry)) {
+      telemetry$end_session()
+    }
+  })
+
 
 ## Reactive values----  
   
