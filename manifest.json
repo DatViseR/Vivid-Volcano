@@ -1218,7 +1218,7 @@
       "Repository": "https://packagemanager.posit.co/cran/latest",
       "description": {
         "Package": "data.table",
-        "Version": "1.16.2",
+        "Version": "1.17.0",
         "Title": "Extension of `data.frame`",
         "Depends": "R (>= 3.3.0)",
         "Imports": "methods",
@@ -1230,22 +1230,22 @@
         "VignetteBuilder": "knitr",
         "Encoding": "UTF-8",
         "ByteCompile": "TRUE",
-        "Authors@R": "c(\n  person(\"Tyson\",\"Barrett\",        role=c(\"aut\",\"cre\"), email=\"t.barrett88@gmail.com\", comment = c(ORCID=\"0000-0002-2137-1391\")),\n  person(\"Matt\",\"Dowle\",           role=\"aut\",          email=\"mattjdowle@gmail.com\"),\n  person(\"Arun\",\"Srinivasan\",      role=\"aut\",          email=\"asrini@pm.me\"),\n  person(\"Jan\",\"Gorecki\",          role=\"aut\"),\n  person(\"Michael\",\"Chirico\",      role=\"aut\", comment = c(ORCID=\"0000-0003-0787-087X\")),\n  person(\"Toby\",\"Hocking\",         role=\"aut\", comment = c(ORCID=\"0000-0002-3146-0865\")),\n  person(\"Benjamin\",\"Schwendinger\",role=\"aut\", comment = c(ORCID=\"0000-0003-3315-8114\")),\n  person(\"Pasha\",\"Stetsenko\",      role=\"ctb\"),\n  person(\"Tom\",\"Short\",            role=\"ctb\"),\n  person(\"Steve\",\"Lianoglou\",      role=\"ctb\"),\n  person(\"Eduard\",\"Antonyan\",      role=\"ctb\"),\n  person(\"Markus\",\"Bonsch\",        role=\"ctb\"),\n  person(\"Hugh\",\"Parsonage\",       role=\"ctb\"),\n  person(\"Scott\",\"Ritchie\",        role=\"ctb\"),\n  person(\"Kun\",\"Ren\",              role=\"ctb\"),\n  person(\"Xianying\",\"Tan\",         role=\"ctb\"),\n  person(\"Rick\",\"Saporta\",         role=\"ctb\"),\n  person(\"Otto\",\"Seiskari\",        role=\"ctb\"),\n  person(\"Xianghui\",\"Dong\",        role=\"ctb\"),\n  person(\"Michel\",\"Lang\",          role=\"ctb\"),\n  person(\"Watal\",\"Iwasaki\",        role=\"ctb\"),\n  person(\"Seth\",\"Wenchel\",         role=\"ctb\"),\n  person(\"Karl\",\"Broman\",          role=\"ctb\"),\n  person(\"Tobias\",\"Schmidt\",       role=\"ctb\"),\n  person(\"David\",\"Arenburg\",       role=\"ctb\"),\n  person(\"Ethan\",\"Smith\",          role=\"ctb\"),\n  person(\"Francois\",\"Cocquemas\",   role=\"ctb\"),\n  person(\"Matthieu\",\"Gomez\",       role=\"ctb\"),\n  person(\"Philippe\",\"Chataignon\",  role=\"ctb\"),\n  person(\"Nello\",\"Blaser\",         role=\"ctb\"),\n  person(\"Dmitry\",\"Selivanov\",     role=\"ctb\"),\n  person(\"Andrey\",\"Riabushenko\",   role=\"ctb\"),\n  person(\"Cheng\",\"Lee\",            role=\"ctb\"),\n  person(\"Declan\",\"Groves\",        role=\"ctb\"),\n  person(\"Daniel\",\"Possenriede\",   role=\"ctb\"),\n  person(\"Felipe\",\"Parages\",       role=\"ctb\"),\n  person(\"Denes\",\"Toth\",           role=\"ctb\"),\n  person(\"Mus\",\"Yaramaz-David\",    role=\"ctb\"),\n  person(\"Ayappan\",\"Perumal\",      role=\"ctb\"),\n  person(\"James\",\"Sams\",           role=\"ctb\"),\n  person(\"Martin\",\"Morgan\",        role=\"ctb\"),\n  person(\"Michael\",\"Quinn\",        role=\"ctb\"),\n  person(\"@javrucebo\",\"\",          role=\"ctb\"),\n  person(\"@marc-outins\",\"\",        role=\"ctb\"),\n  person(\"Roy\",\"Storey\",           role=\"ctb\"),\n  person(\"Manish\",\"Saraswat\",      role=\"ctb\"),\n  person(\"Morgan\",\"Jacob\",         role=\"ctb\"),\n  person(\"Michael\",\"Schubmehl\",    role=\"ctb\"),\n  person(\"Davis\",\"Vaughan\",        role=\"ctb\"),\n  person(\"Leonardo\",\"Silvestri\",   role=\"ctb\"),\n  person(\"Jim\",\"Hester\",           role=\"ctb\"),\n  person(\"Anthony\",\"Damico\",       role=\"ctb\"),\n  person(\"Sebastian\",\"Freundt\",    role=\"ctb\"),\n  person(\"David\",\"Simons\",         role=\"ctb\"),\n  person(\"Elliott\",\"Sales de Andrade\", role=\"ctb\"),\n  person(\"Cole\",\"Miller\",          role=\"ctb\"),\n  person(\"Jens Peder\",\"Meldgaard\", role=\"ctb\"),\n  person(\"Vaclav\",\"Tlapak\",        role=\"ctb\"),\n  person(\"Kevin\",\"Ushey\",          role=\"ctb\"),\n  person(\"Dirk\",\"Eddelbuettel\",    role=\"ctb\"),\n  person(\"Tony\",\"Fischetti\",       role=\"ctb\"),\n  person(\"Ofek\",\"Shilon\",          role=\"ctb\"),\n  person(\"Vadim\",\"Khotilovich\",    role=\"ctb\"),\n  person(\"Hadley\",\"Wickham\",       role=\"ctb\"),\n  person(\"Bennet\",\"Becker\",        role=\"ctb\"),\n  person(\"Kyle\",\"Haynes\",          role=\"ctb\"),\n  person(\"Boniface Christian\",\"Kamgang\", role=\"ctb\"),\n  person(\"Olivier\",\"Delmarcell\",   role=\"ctb\"),\n  person(\"Josh\",\"O'Brien\",         role=\"ctb\"),\n  person(\"Dereck\",\"de Mezquita\",   role=\"ctb\"),\n  person(\"Michael\",\"Czekanski\",    role=\"ctb\"),\n  person(\"Dmitry\", \"Shemetov\",     role=\"ctb\"),\n  person(\"Nitish\", \"Jha\",          role=\"ctb\"),\n  person(\"Joshua\", \"Wu\",           role=\"ctb\"),\n  person(\"Iago\", \"Giné-Vázquez\",   role=\"ctb\"),\n  person(\"Anirban\", \"Chetia\",      role=\"ctb\"),\n  person(\"Doris\", \"Amoakohene\",    role=\"ctb\"),\n  person(\"Ivan\", \"Krylov\",         role=\"ctb\")\n  )",
+        "Authors@R": "c(\n  person(\"Tyson\",\"Barrett\",        role=c(\"aut\",\"cre\"), email=\"t.barrett88@gmail.com\", comment = c(ORCID=\"0000-0002-2137-1391\")),\n  person(\"Matt\",\"Dowle\",           role=\"aut\",          email=\"mattjdowle@gmail.com\"),\n  person(\"Arun\",\"Srinivasan\",      role=\"aut\",          email=\"asrini@pm.me\"),\n  person(\"Jan\",\"Gorecki\",          role=\"aut\"),\n  person(\"Michael\",\"Chirico\",      role=\"aut\", comment = c(ORCID=\"0000-0003-0787-087X\")),\n  person(\"Toby\",\"Hocking\",         role=\"aut\", comment = c(ORCID=\"0000-0002-3146-0865\")),\n  person(\"Benjamin\",\"Schwendinger\",role=\"aut\", comment = c(ORCID=\"0000-0003-3315-8114\")),\n  person(\"Ivan\", \"Krylov\",         role=\"aut\",          email=\"ikrylov@disroot.org\",   comment = c(ORCID=\"0000-0002-0172-3812\")),\n  person(\"Pasha\",\"Stetsenko\",      role=\"ctb\"),\n  person(\"Tom\",\"Short\",            role=\"ctb\"),\n  person(\"Steve\",\"Lianoglou\",      role=\"ctb\"),\n  person(\"Eduard\",\"Antonyan\",      role=\"ctb\"),\n  person(\"Markus\",\"Bonsch\",        role=\"ctb\"),\n  person(\"Hugh\",\"Parsonage\",       role=\"ctb\"),\n  person(\"Scott\",\"Ritchie\",        role=\"ctb\"),\n  person(\"Kun\",\"Ren\",              role=\"ctb\"),\n  person(\"Xianying\",\"Tan\",         role=\"ctb\"),\n  person(\"Rick\",\"Saporta\",         role=\"ctb\"),\n  person(\"Otto\",\"Seiskari\",        role=\"ctb\"),\n  person(\"Xianghui\",\"Dong\",        role=\"ctb\"),\n  person(\"Michel\",\"Lang\",          role=\"ctb\"),\n  person(\"Watal\",\"Iwasaki\",        role=\"ctb\"),\n  person(\"Seth\",\"Wenchel\",         role=\"ctb\"),\n  person(\"Karl\",\"Broman\",          role=\"ctb\"),\n  person(\"Tobias\",\"Schmidt\",       role=\"ctb\"),\n  person(\"David\",\"Arenburg\",       role=\"ctb\"),\n  person(\"Ethan\",\"Smith\",          role=\"ctb\"),\n  person(\"Francois\",\"Cocquemas\",   role=\"ctb\"),\n  person(\"Matthieu\",\"Gomez\",       role=\"ctb\"),\n  person(\"Philippe\",\"Chataignon\",  role=\"ctb\"),\n  person(\"Nello\",\"Blaser\",         role=\"ctb\"),\n  person(\"Dmitry\",\"Selivanov\",     role=\"ctb\"),\n  person(\"Andrey\",\"Riabushenko\",   role=\"ctb\"),\n  person(\"Cheng\",\"Lee\",            role=\"ctb\"),\n  person(\"Declan\",\"Groves\",        role=\"ctb\"),\n  person(\"Daniel\",\"Possenriede\",   role=\"ctb\"),\n  person(\"Felipe\",\"Parages\",       role=\"ctb\"),\n  person(\"Denes\",\"Toth\",           role=\"ctb\"),\n  person(\"Mus\",\"Yaramaz-David\",    role=\"ctb\"),\n  person(\"Ayappan\",\"Perumal\",      role=\"ctb\"),\n  person(\"James\",\"Sams\",           role=\"ctb\"),\n  person(\"Martin\",\"Morgan\",        role=\"ctb\"),\n  person(\"Michael\",\"Quinn\",        role=\"ctb\"),\n  person(\"@javrucebo\",\"\",          role=\"ctb\"),\n  person(\"@marc-outins\",\"\",        role=\"ctb\"),\n  person(\"Roy\",\"Storey\",           role=\"ctb\"),\n  person(\"Manish\",\"Saraswat\",      role=\"ctb\"),\n  person(\"Morgan\",\"Jacob\",         role=\"ctb\"),\n  person(\"Michael\",\"Schubmehl\",    role=\"ctb\"),\n  person(\"Davis\",\"Vaughan\",        role=\"ctb\"),\n  person(\"Leonardo\",\"Silvestri\",   role=\"ctb\"),\n  person(\"Jim\",\"Hester\",           role=\"ctb\"),\n  person(\"Anthony\",\"Damico\",       role=\"ctb\"),\n  person(\"Sebastian\",\"Freundt\",    role=\"ctb\"),\n  person(\"David\",\"Simons\",         role=\"ctb\"),\n  person(\"Elliott\",\"Sales de Andrade\", role=\"ctb\"),\n  person(\"Cole\",\"Miller\",          role=\"ctb\"),\n  person(\"Jens Peder\",\"Meldgaard\", role=\"ctb\"),\n  person(\"Vaclav\",\"Tlapak\",        role=\"ctb\"),\n  person(\"Kevin\",\"Ushey\",          role=\"ctb\"),\n  person(\"Dirk\",\"Eddelbuettel\",    role=\"ctb\"),\n  person(\"Tony\",\"Fischetti\",       role=\"ctb\"),\n  person(\"Ofek\",\"Shilon\",          role=\"ctb\"),\n  person(\"Vadim\",\"Khotilovich\",    role=\"ctb\"),\n  person(\"Hadley\",\"Wickham\",       role=\"ctb\"),\n  person(\"Bennet\",\"Becker\",        role=\"ctb\"),\n  person(\"Kyle\",\"Haynes\",          role=\"ctb\"),\n  person(\"Boniface Christian\",\"Kamgang\", role=\"ctb\"),\n  person(\"Olivier\",\"Delmarcell\",   role=\"ctb\"),\n  person(\"Josh\",\"O'Brien\",         role=\"ctb\"),\n  person(\"Dereck\",\"de Mezquita\",   role=\"ctb\"),\n  person(\"Michael\",\"Czekanski\",    role=\"ctb\"),\n  person(\"Dmitry\", \"Shemetov\",     role=\"ctb\"),\n  person(\"Nitish\", \"Jha\",          role=\"ctb\"),\n  person(\"Joshua\", \"Wu\",           role=\"ctb\"),\n  person(\"Iago\", \"Giné-Vázquez\",   role=\"ctb\"),\n  person(\"Anirban\", \"Chetia\",      role=\"ctb\"),\n  person(\"Doris\", \"Amoakohene\",    role=\"ctb\"),\n  person(\"Angel\", \"Feliz\",         role=\"ctb\"),\n  person(\"Michael\",\"Young\",        role=\"ctb\"),\n  person(\"Mark\", \"Seeto\",          role=\"ctb\"),\n  person(\"Philippe\", \"Grosjean\",   role=\"ctb\"),\n  person(\"Vincent\", \"Runge\",       role=\"ctb\"),\n  person(\"Christian\", \"Wia\",       role=\"ctb\"),\n  person(\"Elise\", \"Maigné\",        role=\"ctb\"),\n  person(\"Vincent\", \"Rocher\",      role=\"ctb\"),\n  person(\"Vijay\", \"Lulla\",         role=\"ctb\"),\n  person(\"Aljaž\", \"Sluga\",         role=\"ctb\"),\n  person(\"Bill\", \"Evans\",          role=\"ctb\")\n  )",
         "NeedsCompilation": "yes",
-        "Packaged": "2024-10-09 21:37:41 UTC; tysonbarrett",
-        "Author": "Tyson Barrett [aut, cre] (<https://orcid.org/0000-0002-2137-1391>),\n  Matt Dowle [aut],\n  Arun Srinivasan [aut],\n  Jan Gorecki [aut],\n  Michael Chirico [aut] (<https://orcid.org/0000-0003-0787-087X>),\n  Toby Hocking [aut] (<https://orcid.org/0000-0002-3146-0865>),\n  Benjamin Schwendinger [aut] (<https://orcid.org/0000-0003-3315-8114>),\n  Pasha Stetsenko [ctb],\n  Tom Short [ctb],\n  Steve Lianoglou [ctb],\n  Eduard Antonyan [ctb],\n  Markus Bonsch [ctb],\n  Hugh Parsonage [ctb],\n  Scott Ritchie [ctb],\n  Kun Ren [ctb],\n  Xianying Tan [ctb],\n  Rick Saporta [ctb],\n  Otto Seiskari [ctb],\n  Xianghui Dong [ctb],\n  Michel Lang [ctb],\n  Watal Iwasaki [ctb],\n  Seth Wenchel [ctb],\n  Karl Broman [ctb],\n  Tobias Schmidt [ctb],\n  David Arenburg [ctb],\n  Ethan Smith [ctb],\n  Francois Cocquemas [ctb],\n  Matthieu Gomez [ctb],\n  Philippe Chataignon [ctb],\n  Nello Blaser [ctb],\n  Dmitry Selivanov [ctb],\n  Andrey Riabushenko [ctb],\n  Cheng Lee [ctb],\n  Declan Groves [ctb],\n  Daniel Possenriede [ctb],\n  Felipe Parages [ctb],\n  Denes Toth [ctb],\n  Mus Yaramaz-David [ctb],\n  Ayappan Perumal [ctb],\n  James Sams [ctb],\n  Martin Morgan [ctb],\n  Michael Quinn [ctb],\n  @javrucebo [ctb],\n  @marc-outins [ctb],\n  Roy Storey [ctb],\n  Manish Saraswat [ctb],\n  Morgan Jacob [ctb],\n  Michael Schubmehl [ctb],\n  Davis Vaughan [ctb],\n  Leonardo Silvestri [ctb],\n  Jim Hester [ctb],\n  Anthony Damico [ctb],\n  Sebastian Freundt [ctb],\n  David Simons [ctb],\n  Elliott Sales de Andrade [ctb],\n  Cole Miller [ctb],\n  Jens Peder Meldgaard [ctb],\n  Vaclav Tlapak [ctb],\n  Kevin Ushey [ctb],\n  Dirk Eddelbuettel [ctb],\n  Tony Fischetti [ctb],\n  Ofek Shilon [ctb],\n  Vadim Khotilovich [ctb],\n  Hadley Wickham [ctb],\n  Bennet Becker [ctb],\n  Kyle Haynes [ctb],\n  Boniface Christian Kamgang [ctb],\n  Olivier Delmarcell [ctb],\n  Josh O'Brien [ctb],\n  Dereck de Mezquita [ctb],\n  Michael Czekanski [ctb],\n  Dmitry Shemetov [ctb],\n  Nitish Jha [ctb],\n  Joshua Wu [ctb],\n  Iago Giné-Vázquez [ctb],\n  Anirban Chetia [ctb],\n  Doris Amoakohene [ctb],\n  Ivan Krylov [ctb]",
+        "Packaged": "2025-02-21 01:19:45 UTC; tysonbarrett",
+        "Author": "Tyson Barrett [aut, cre] (<https://orcid.org/0000-0002-2137-1391>),\n  Matt Dowle [aut],\n  Arun Srinivasan [aut],\n  Jan Gorecki [aut],\n  Michael Chirico [aut] (<https://orcid.org/0000-0003-0787-087X>),\n  Toby Hocking [aut] (<https://orcid.org/0000-0002-3146-0865>),\n  Benjamin Schwendinger [aut] (<https://orcid.org/0000-0003-3315-8114>),\n  Ivan Krylov [aut] (<https://orcid.org/0000-0002-0172-3812>),\n  Pasha Stetsenko [ctb],\n  Tom Short [ctb],\n  Steve Lianoglou [ctb],\n  Eduard Antonyan [ctb],\n  Markus Bonsch [ctb],\n  Hugh Parsonage [ctb],\n  Scott Ritchie [ctb],\n  Kun Ren [ctb],\n  Xianying Tan [ctb],\n  Rick Saporta [ctb],\n  Otto Seiskari [ctb],\n  Xianghui Dong [ctb],\n  Michel Lang [ctb],\n  Watal Iwasaki [ctb],\n  Seth Wenchel [ctb],\n  Karl Broman [ctb],\n  Tobias Schmidt [ctb],\n  David Arenburg [ctb],\n  Ethan Smith [ctb],\n  Francois Cocquemas [ctb],\n  Matthieu Gomez [ctb],\n  Philippe Chataignon [ctb],\n  Nello Blaser [ctb],\n  Dmitry Selivanov [ctb],\n  Andrey Riabushenko [ctb],\n  Cheng Lee [ctb],\n  Declan Groves [ctb],\n  Daniel Possenriede [ctb],\n  Felipe Parages [ctb],\n  Denes Toth [ctb],\n  Mus Yaramaz-David [ctb],\n  Ayappan Perumal [ctb],\n  James Sams [ctb],\n  Martin Morgan [ctb],\n  Michael Quinn [ctb],\n  @javrucebo [ctb],\n  @marc-outins [ctb],\n  Roy Storey [ctb],\n  Manish Saraswat [ctb],\n  Morgan Jacob [ctb],\n  Michael Schubmehl [ctb],\n  Davis Vaughan [ctb],\n  Leonardo Silvestri [ctb],\n  Jim Hester [ctb],\n  Anthony Damico [ctb],\n  Sebastian Freundt [ctb],\n  David Simons [ctb],\n  Elliott Sales de Andrade [ctb],\n  Cole Miller [ctb],\n  Jens Peder Meldgaard [ctb],\n  Vaclav Tlapak [ctb],\n  Kevin Ushey [ctb],\n  Dirk Eddelbuettel [ctb],\n  Tony Fischetti [ctb],\n  Ofek Shilon [ctb],\n  Vadim Khotilovich [ctb],\n  Hadley Wickham [ctb],\n  Bennet Becker [ctb],\n  Kyle Haynes [ctb],\n  Boniface Christian Kamgang [ctb],\n  Olivier Delmarcell [ctb],\n  Josh O'Brien [ctb],\n  Dereck de Mezquita [ctb],\n  Michael Czekanski [ctb],\n  Dmitry Shemetov [ctb],\n  Nitish Jha [ctb],\n  Joshua Wu [ctb],\n  Iago Giné-Vázquez [ctb],\n  Anirban Chetia [ctb],\n  Doris Amoakohene [ctb],\n  Angel Feliz [ctb],\n  Michael Young [ctb],\n  Mark Seeto [ctb],\n  Philippe Grosjean [ctb],\n  Vincent Runge [ctb],\n  Christian Wia [ctb],\n  Elise Maigné [ctb],\n  Vincent Rocher [ctb],\n  Vijay Lulla [ctb],\n  Aljaž Sluga [ctb],\n  Bill Evans [ctb]",
         "Maintainer": "Tyson Barrett <t.barrett88@gmail.com>",
-        "Repository": "RSPM",
-        "Date/Publication": "2024-10-10 16:10:06 UTC",
-        "Built": "R 4.4.0; x86_64-w64-mingw32; 2024-10-11 04:30:48 UTC; windows",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-02-22 06:10:02 UTC",
+        "Built": "R 4.4.2; x86_64-w64-mingw32; 2025-02-25 00:51:21 UTC; windows",
         "Archs": "x64",
         "RemoteType": "standard",
         "RemotePkgRef": "data.table",
         "RemoteRef": "data.table",
-        "RemoteRepos": "https://packagemanager.posit.co/cran/latest",
+        "RemoteRepos": "https://cloud.r-project.org",
         "RemoteReposName": "CRAN",
         "RemotePkgPlatform": "x86_64-w64-mingw32",
-        "RemoteSha": "1.16.2"
+        "RemoteSha": "1.17.0"
       }
     },
     "digest": {
@@ -4354,29 +4354,38 @@
     ".github/FUNDING.yml": {
       "checksum": "6e266d4b2c71b1a8a6a8e3f3df6a054e"
     },
+    ".github/workflows/  draft-pdf.yml": {
+      "checksum": "566ded96db4b0880b40cd144d4b2e74e"
+    },
     ".RData": {
-      "checksum": "f40839aecadd7e0129dc027b0b882714"
+      "checksum": "e9d73fdc04ae67934299cb38805939ca"
     },
     ".Renviron": {
-      "checksum": "7d8f1de3d0bfe31c39261e085d57ed8b"
+      "checksum": "7d9d9c5594c67841404f0f3f7ce4850a"
     },
     ".Rprofile": {
-      "checksum": "87c61423b60c41160944125f619d1259"
+      "checksum": "18a94ac91d9c02064fe4f340c834d842"
     },
     "app.R": {
-      "checksum": "f0f69699fd12dc673f9d7b027826dbbe"
+      "checksum": "8ad230ee8397716172f401d86a8ccfce"
+    },
+    "CITATION.html": {
+      "checksum": "5fb2bf59f3d2c128c0bca42e666b7452"
+    },
+    "CITATION.md": {
+      "checksum": "45b4979a2836482b0148b2dc5637a7b6"
     },
     "data/telemetry.sqlite": {
-      "checksum": "83ab3e176f63e81dae7fd6dba7f9930d"
+      "checksum": "cc31b4b3aadfb0a60b63501190a103db"
     },
     "DESCRIPTION": {
-      "checksum": "bc66089b2391c72e05c4a4e8633ce1d6"
-    },
-    "Generates mock data for file size input testing.R": {
-      "checksum": "dd3e7ebca282d8b8b1fe77da953c342f"
+      "checksum": "981380ec27d5624ecde8c1d94ce1f9c8"
     },
     "GO.parquet2": {
       "checksum": "13cb6bbb539c2bdfb5c66b59f2b8e574"
+    },
+    "GO_source_data_preparation/Parquet_GO_source_data_preparation_srcipt.R": {
+      "checksum": "c5b49937d0fc12b875a53814378ab623"
     },
     "images/clipboard-1118121615.png": {
       "checksum": "155d2273c1415d8f5f62435ade46f2c4"
@@ -4393,47 +4402,137 @@
     "LICENCE.md": {
       "checksum": "162b282c1cf1eba4d57334487f1268e2"
     },
-    "mock_data_10mb.csv": {
-      "checksum": "020fae8d7eaaa4f8095f6e46a5260f12"
+    "man/build_gsea_gt_table.Rd": {
+      "checksum": "c4bfcf1552c58e258b0d32fa7f5128a6"
     },
-    "mock_data_15mb.csv": {
-      "checksum": "972c603e344c348705f9a27a1ea4390a"
+    "man/build_gsea_plots.Rd": {
+      "checksum": "90cb50ac4fa42724bdb4798c6cad10ee"
     },
-    "Notes on GSEA statistics.md": {
-      "checksum": "39b52db76e769decf81b8eca1c6719b5"
+    "man/build_gt_gene_lists.Rd": {
+      "checksum": "c8e0a552406fdfc2fc38d055f48930db"
     },
-    "Parquet_GO_source_data_preparation_srcipt.R": {
+    "man/build_gt_table.Rd": {
+      "checksum": "26f117b020ecf78d21aef83f6a601eaf"
+    },
+    "man/calculate_go_enrichment.Rd": {
+      "checksum": "51c4c1a6836a000db5eaacf8987f8525"
+    },
+    "man/calculate_go_enrichment_table.Rd": {
+      "checksum": "cd05bddfdfad7e6b57601c9b4dc9a954"
+    },
+    "man/check_and_unlog_pvalues.Rd": {
+      "checksum": "84594e1a88949114badfc136d3d5a50d"
+    },
+    "man/clean_gene_names.Rd": {
+      "checksum": "2ddc30f1f3f783b176ca2f93f54eac86"
+    },
+    "man/create_logger.Rd": {
+      "checksum": "36cf38de37561ee83b0885228e5fca0e"
+    },
+    "man/create_publication_plot.Rd": {
+      "checksum": "aa180e1fa9222e1ebc5bb543cd9c5644"
+    },
+    "man/create_structure_logger.Rd": {
+      "checksum": "779defb4a5d95dfdc98d17876ad111e5"
+    },
+    "man/diagnose_and_clean_data.Rd": {
+      "checksum": "aba13568d614fca6b9f7aab469ae2ba6"
+    },
+    "man/diagnose_expression_column.Rd": {
+      "checksum": "f2b2df21f21a0ac89728e1ae7c66eccb"
+    },
+    "man/diagnose_input_columns_and_remove_NA.Rd": {
+      "checksum": "45e862ef2462ec5c42bbc431bff6b8be"
+    },
+    "man/filter_gsea_results.Rd": {
+      "checksum": "b4583f51a9296d32f526aeface7678ea"
+    },
+    "man/identify_top_go_enrichment.Rd": {
+      "checksum": "98f4e71c0aa55679224c88163cffe178"
+    },
+    "man/Parquet_GO_source_data_preparation_srcipt.R": {
       "checksum": "c5b49937d0fc12b875a53814378ab623"
     },
+    "man/VividTelemetry.Rd": {
+      "checksum": "79cebb0eb54a9032e20da3653d6efed4"
+    },
+    "mock_data/Generates mock data for file size input testing.R": {
+      "checksum": "dd3e7ebca282d8b8b1fe77da953c342f"
+    },
+    "mock_data/mock_data_10mb.csv": {
+      "checksum": "020fae8d7eaaa4f8095f6e46a5260f12"
+    },
+    "mock_data/mock_data_15mb.csv": {
+      "checksum": "972c603e344c348705f9a27a1ea4390a"
+    },
+    "NAMESPACE": {
+      "checksum": "1bbefa33938e315360faea669b76ea5c"
+    },
+    "Notes_on_statistics/Notes on GSEA statistics.md": {
+      "checksum": "39b52db76e769decf81b8eca1c6719b5"
+    },
+    "Publication/paper.bib": {
+      "checksum": "7fb409e2e9f10fb1f23d35699509b130"
+    },
+    "Publication/paper.md": {
+      "checksum": "d726ba1c5186a6221913609de949f1e0"
+    },
+    "Publication/Paper_figures/Data_preview.jpeg": {
+      "checksum": "b76288623b2a1358491ba3648c271cd8"
+    },
+    "Publication/Paper_figures/Data_upload_and_curation.jpeg": {
+      "checksum": "a8588f09cec1a61d99c9f098ac0a55a5"
+    },
+    "Publication/Paper_figures/GSEA.jpeg": {
+      "checksum": "538459a62898a6025b32547a2e4371e2"
+    },
+    "Publication/Paper_figures/GT_table.jpeg": {
+      "checksum": "c02b1b757bcab365c69bd9baf0aba5cc"
+    },
+    "Publication/Paper_figures/Volcano.jpeg": {
+      "checksum": "8cec25d5ba668c823cb74d1e51252435"
+    },
+    "Publication/Paper_figures/Volcano_plot_customisation_options.jpeg": {
+      "checksum": "54304f44a4a156e321185c00ea4fa707"
+    },
+    "Publication/Stepkowski_T(2025)_Vivid_Volcano_Empowering_Non-Bioinformaticians_to_Analyze_Pre-Processed_Omics_Data(Pre-print).pdf": {
+      "checksum": "5c15a0c615a3b2e92fc5a76b7f3cc471"
+    },
     "README.html": {
-      "checksum": "89ea9cfdf53ad263f4c438616a4a7c36"
+      "checksum": "e24b02c6cab767cbeb05b157d0fbbf27"
     },
     "README.md": {
-      "checksum": "4bc1bd806b4ae0a455a61b053c834af9"
+      "checksum": "129013ef4cd611955d3d836ed2a4f2b6"
     },
     "renv.lock": {
-      "checksum": "ae5f81af37a4227d5c9060c2d243c33e"
+      "checksum": "9d9ac242b74913f164779ad9a889f6d8"
     },
-    "Telementry_counters_test.R": {
-      "checksum": "d3687fb9062c9126972c511f35211cc6"
+    "Scripts_R/Telemetry_module_API.R": {
+      "checksum": "685c20aff484461057e803c3e02d6df3"
     },
-    "Telemetry_module.R": {
+    "Scripts_R/vivid_functions.R": {
+      "checksum": "a73030ab75e7e4da1a61595ce3e7b2d6"
+    },
+    "Telemetry_modules_for_API_and_direct_connection_to_postgres/Telemetry_module_API.R": {
+      "checksum": "685c20aff484461057e803c3e02d6df3"
+    },
+    "Telemetry_modules_for_API_and_direct_connection_to_postgres/Telemetry_module_direct_connection IPv6.R": {
       "checksum": "025341891525123f0123714ef5a5c877"
     },
-    "Telemetry_test.R": {
+    "Tests/Telementry_counters_test.R": {
+      "checksum": "d3687fb9062c9126972c511f35211cc6"
+    },
+    "Tests/Telemetry_test.R": {
       "checksum": "d9d53748ebec6e80c2dcc4d9947cd2a3"
     },
-    "Test_connection.R": {
+    "Tests/Test_connection.R": {
       "checksum": "4241a24e84f2a357e8e48c61c421e815"
     },
-    "Test_supabase_connection.R": {
+    "Tests/Test_supabase_connection.R": {
       "checksum": "fafedc61b01d96e5813d27b1e1c07b2c"
     },
-    "Visit_counter_test.R": {
+    "Tests/Visit_counter_test.R": {
       "checksum": "753db6b12a82e4507aa2d9ab43eea5af"
-    },
-    "Vivid_volcano_logo.png": {
-      "checksum": "f74f655b4d720ce7cf6c5ac98c1f8149"
     },
     "www/custom.css": {
       "checksum": "6165370b60472dcf4c8ec1aed043c6cb"
