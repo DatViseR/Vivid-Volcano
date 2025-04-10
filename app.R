@@ -73,7 +73,7 @@ GO <- arrow::read_parquet("GO.parquet2")
 # SOURCING CUSTOM FUNCTIONS FOR VIVID VOLCANO APP----
 
 # source file with custom functions for Vivid Volcano
-source("./R/Vivid_functions.R")
+source("./R/vivid_functions.R")
 
 
 
