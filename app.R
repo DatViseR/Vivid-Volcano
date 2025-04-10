@@ -31,7 +31,7 @@ library(data.table)
 # If you want to use this module, you need to set up the supabase (or similar database) account and get the API key and URL
 # If you want to use the app locally this should be commented out
 
-source("./Scripts_R/Telemetry_module_API.R")
+source("./R/Telemetry_module_API.R")
 
 message("------TELEMETRY INFO---------")
 message("Telemetry module is not commented out in this branch - 
@@ -73,7 +73,7 @@ GO <- arrow::read_parquet("GO.parquet2")
 # SOURCING CUSTOM FUNCTIONS FOR VIVID VOLCANO APP----
 
 # source file with custom functions for Vivid Volcano
-source("./Scripts_R/Vivid_functions.R")
+source("./R/Vivid_functions.R")
 
 
 
