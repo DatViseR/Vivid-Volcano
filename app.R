@@ -1,6 +1,6 @@
 
 # Set maximum file size limit (e.g., 10MB = 10*1024^2)
-options(shiny.maxRequestSize = 25*1024^2)  # Set to 25MB
+options(shiny.maxRequestSize = 40*1024^2)  # Set to 40MB
 
 # LIBRARY SETUP ----
 
@@ -23,6 +23,7 @@ library(gridExtra)
 library(webshot2)
 library(shinyalert)  
 library(tidyr)
+library(data.table)
 
 # TELEMETRY ----
 
@@ -224,7 +225,7 @@ ui <- semanticPage(
                           
                           div(class = "ui file input", 
                               file_input("file1", 
-                                         label = paste0("Maximum file size: 25MB"),
+                                         label = paste0("Maximum file size: 40MB"),
                                          accept = c(".csv", ".tsv"))
                           ),
                           
@@ -531,7 +532,17 @@ observeEvent(input$clientWidth, {
   observeEvent(input$upload, {
     req(input$file1)
     in_file <- input$file1
-    df <- read_delim(in_file$datapath, delim = input$sep, col_names = input$header, locale = locale(decimal_mark = input$dec))
+    # Instaed of read_delim which was slow I introduced fread from data.table but to maintain consistency with the rest
+    #of the code the df is saved as standard data frame not data.table. Also multithreading for upload was introduced.  
+    df <- data.table::fread(
+      in_file$datapath,
+      sep = input$sep,
+      header = input$header,
+      dec = input$dec,
+      data.table = FALSE,
+      na.strings = c("NA", ""), #   I added this after testing as fread parsed some of the test trailing columns as empty strings...
+      nThread = min(4, parallel::detectCores()-1)  # Use multiple cores, but not all
+    )
     uploaded_df(df)
     # create log event for successful initialization of reactive values
     
