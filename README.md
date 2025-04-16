@@ -78,5 +78,5 @@ Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo.
 
 Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano - an intuitive tool
 that helps experimental scientists with no bioinformatics background
-explore and analyze pre-processed omics data. Pre-release. (v0.1.1).
+explore and analyze pre-processed omics data. Pre-release. (v0.1.2).
 Zenodo. <https://doi.org/10.5281/zenodo.15119703>
