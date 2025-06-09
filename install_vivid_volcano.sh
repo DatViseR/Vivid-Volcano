@@ -91,85 +91,184 @@ install_essential_dependencies() {
     
     case $os in
         ubuntu|debian)
-            print_step "Installing minimal Ubuntu/Debian dependencies"
+            print_step "Available Ubuntu/Debian dependencies"
             if command_exists apt-get; then
                 print_info "Updating package list..."
                 sudo apt-get update -qq
                 
-                # Only essential packages for core R packages
-                local packages=(
-                    "libssl-dev"             # SSL library (for openssl, httr)
-                    "libcurl4-openssl-dev"   # cURL library (for curl, httr)
-                    "libxml2-dev"            # XML library (for xml2) - optional
-                    "libfontconfig1-dev"     # Font configuration (for Cairo) - optional
-                    "libcairo2-dev"          # Cairo graphics (for Cairo) - optional
-                    "libharfbuzz-dev"        # Text shaping - optional
-                    "libfribidi-dev"         # Bidirectional text - optional
-                    "libfreetype6-dev"       # Font rendering - optional
-                    "libpng-dev"             # PNG support - optional
-                    "libjpeg-dev"            # JPEG support - optional
+                # Define packages with descriptions
+                declare -A packages_desc=(
+                    ["libssl-dev"]="SSL library - Required for secure connections (openssl, httr packages)"
+                    ["libcurl4-openssl-dev"]="cURL library - Required for HTTP requests (curl, httr packages)"
+                    ["libxml2-dev"]="XML library - Optional for XML processing (xml2 package)"
+                    ["libfontconfig1-dev"]="Font configuration - Optional for advanced text rendering"
+                    ["libcairo2-dev"]="Cairo graphics - Optional for high-quality graphics output"
+                    ["libharfbuzz-dev"]="Text shaping - Optional for complex text layout"
+                    ["libfribidi-dev"]="Bidirectional text - Optional for right-to-left text support"
+                    ["libfreetype6-dev"]="Font rendering - Optional for custom font support"
+                    ["libpng-dev"]="PNG support - Optional for PNG image processing"
+                    ["libjpeg-dev"]="JPEG support - Optional for JPEG image processing"
                 )
                 
-                print_info "Installing essential packages: ${packages[*]}"
-                sudo apt-get install -y "${packages[@]}" || {
-                    print_warning "Some optional packages failed, but continuing with core installation..."
-                }
+                local packages_to_install=()
                 
-                print_success "Essential dependencies installation completed"
+                echo
+                print_info "Please choose which dependencies to install:"
+                echo
+                
+                for package in "${!packages_desc[@]}"; do
+                    echo -e "${CYAN}Package:${NC} ${package}"
+                    echo -e "${YELLOW}Description:${NC} ${packages_desc[$package]}"
+                    read -p "Install $package? (Y/n): " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        packages_to_install+=("$package")
+                        echo -e "${GREEN}✓ Will install $package${NC}"
+                    else
+                        echo -e "${YELLOW}⚬ Skipping $package${NC}"
+                    fi
+                    echo
+                done
+                
+                if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+                    print_info "Installing selected packages: ${packages_to_install[*]}"
+                    sudo apt-get install -y "${packages_to_install[@]}" || {
+                        print_warning "Some packages failed to install, but continuing with core installation..."
+                    }
+                    print_success "Selected dependencies installation completed"
+                else
+                    print_info "No packages selected for installation"
+                fi
             else
                 print_warning "apt-get not found, skipping system dependencies"
             fi
             ;;
             
         fedora|centos|rhel)
-            print_step "Installing minimal Red Hat/Fedora dependencies"
+            print_step "Available Red Hat/Fedora dependencies"
             if command_exists dnf; then
-                local packages=(
-                    "openssl-devel" 
-                    "libcurl-devel"
-                    "libxml2-devel"
-                    "fontconfig-devel"
-                    "cairo-devel"
-                    "harfbuzz-devel"
-                    "fribidi-devel"
-                    "freetype-devel"
-                    "libpng-devel"
-                    "libjpeg-turbo-devel"
+                # Define packages with descriptions
+                declare -A packages_desc=(
+                    ["openssl-devel"]="SSL library - Required for secure connections (openssl, httr packages)"
+                    ["libcurl-devel"]="cURL library - Required for HTTP requests (curl, httr packages)"
+                    ["libxml2-devel"]="XML library - Optional for XML processing (xml2 package)"
+                    ["fontconfig-devel"]="Font configuration - Optional for advanced text rendering"
+                    ["cairo-devel"]="Cairo graphics - Optional for high-quality graphics output"
+                    ["harfbuzz-devel"]="Text shaping - Optional for complex text layout"
+                    ["fribidi-devel"]="Bidirectional text - Optional for right-to-left text support"
+                    ["freetype-devel"]="Font rendering - Optional for custom font support"
+                    ["libpng-devel"]="PNG support - Optional for PNG image processing"
+                    ["libjpeg-turbo-devel"]="JPEG support - Optional for JPEG image processing"
                 )
-                print_info "Installing essential packages: ${packages[*]}"
-                sudo dnf install -y "${packages[@]}" || {
-                    print_warning "Some optional packages failed, but continuing..."
-                }
-                print_success "Essential dependencies installation completed"
+                
+                local packages_to_install=()
+                
+                echo
+                print_info "Please choose which dependencies to install:"
+                echo
+                
+                for package in "${!packages_desc[@]}"; do
+                    echo -e "${CYAN}Package:${NC} ${package}"
+                    echo -e "${YELLOW}Description:${NC} ${packages_desc[$package]}"
+                    read -p "Install $package? (Y/n): " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        packages_to_install+=("$package")
+                        echo -e "${GREEN}✓ Will install $package${NC}"
+                    else
+                        echo -e "${YELLOW}⚬ Skipping $package${NC}"
+                    fi
+                    echo
+                done
+                
+                if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+                    print_info "Installing selected packages: ${packages_to_install[*]}"
+                    sudo dnf install -y "${packages_to_install[@]}" || {
+                        print_warning "Some packages failed to install, but continuing..."
+                    }
+                    print_success "Selected dependencies installation completed"
+                else
+                    print_info "No packages selected for installation"
+                fi
             elif command_exists yum; then
-                print_info "Using yum package manager"
-                sudo yum install -y openssl-devel libcurl-devel libxml2-devel || {
-                    print_warning "Some packages failed, but continuing..."
-                }
+                print_info "Using yum package manager - installing essential packages only"
+                declare -A packages_desc=(
+                    ["openssl-devel"]="SSL library - Required for secure connections"
+                    ["libcurl-devel"]="cURL library - Required for HTTP requests"
+                    ["libxml2-devel"]="XML library - Optional for XML processing"
+                )
+                
+                local packages_to_install=()
+                
+                echo
+                for package in "${!packages_desc[@]}"; do
+                    echo -e "${CYAN}Package:${NC} ${package}"
+                    echo -e "${YELLOW}Description:${NC} ${packages_desc[$package]}"
+                    read -p "Install $package? (Y/n): " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        packages_to_install+=("$package")
+                        echo -e "${GREEN}✓ Will install $package${NC}"
+                    else
+                        echo -e "${YELLOW}⚬ Skipping $package${NC}"
+                    fi
+                    echo
+                done
+                
+                if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+                    sudo yum install -y "${packages_to_install[@]}" || {
+                        print_warning "Some packages failed to install, but continuing..."
+                    }
+                fi
             else
                 print_warning "Neither dnf nor yum found, skipping system dependencies"
             fi
             ;;
             
         macos)
-            print_step "Installing minimal macOS dependencies"
+            print_step "Available macOS dependencies (via Homebrew)"
             if command_exists brew; then
-                local packages=(
-                    "openssl"
-                    "curl"
-                    "libxml2"
-                    "cairo"
-                    "harfbuzz"
-                    "fribidi"
-                    "freetype"
-                    "libpng"
-                    "jpeg"
+                declare -A packages_desc=(
+                    ["openssl"]="SSL library - Required for secure connections (openssl, httr packages)"
+                    ["curl"]="cURL library - Required for HTTP requests (curl, httr packages)"
+                    ["libxml2"]="XML library - Optional for XML processing (xml2 package)"
+                    ["cairo"]="Cairo graphics - Optional for high-quality graphics output"
+                    ["harfbuzz"]="Text shaping - Optional for complex text layout"
+                    ["fribidi"]="Bidirectional text - Optional for right-to-left text support"
+                    ["freetype"]="Font rendering - Optional for custom font support"
+                    ["libpng"]="PNG support - Optional for PNG image processing"
+                    ["jpeg"]="JPEG support - Optional for JPEG image processing"
                 )
-                print_info "Installing Homebrew packages: ${packages[*]}"
-                brew install "${packages[@]}" || {
-                    print_warning "Some packages failed, but continuing..."
-                }
-                print_success "Essential dependencies installation completed"
+                
+                local packages_to_install=()
+                
+                echo
+                print_info "Please choose which dependencies to install:"
+                echo
+                
+                for package in "${!packages_desc[@]}"; do
+                    echo -e "${CYAN}Package:${NC} ${package}"
+                    echo -e "${YELLOW}Description:${NC} ${packages_desc[$package]}"
+                    read -p "Install $package? (Y/n): " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        packages_to_install+=("$package")
+                        echo -e "${GREEN}✓ Will install $package${NC}"
+                    else
+                        echo -e "${YELLOW}⚬ Skipping $package${NC}"
+                    fi
+                    echo
+                done
+                
+                if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+                    print_info "Installing selected packages: ${packages_to_install[*]}"
+                    brew install "${packages_to_install[@]}" || {
+                        print_warning "Some packages failed to install, but continuing..."
+                    }
+                    print_success "Selected dependencies installation completed"
+                else
+                    print_info "No packages selected for installation"
+                fi
             else
                 print_warning "Homebrew not found. Install Homebrew first: https://brew.sh"
             fi
@@ -706,7 +805,7 @@ if not exist "app.R" (
 
 echo Checking core environment...
 
-R --slave --no-restore --no-save -e "source('renv/activate.R'); essential <- c('shiny', 'dplyr', 'ggplot2', 'DT'); missing <- c(); for (pkg in essential) { if (!requireNamespace(pkg, quietly = TRUE)) { missing <- c(missing, pkg) } }; if (length(missing) > 0) { cat('❌ Missing essential packages:', paste(missing, collapse = ', '), '\n'); quit(status = 1) }; cat('✅ Core environment verified\n'); cat('🚀 Launching Vivid Volcano...\n'); cat('Note: Core version - some features may be limited\n'); library(shiny); runApp('app.R', launch.browser = TRUE, host = '127.0.0.1')"
+R --slave --no-restore --no-save -e "source('renv/activate.R'); essential <- c('shiny', 'dplyr', 'ggplot2', 'DT'); missing <- c(); for (pkg in essential) { if (!requireNamespace(pkg, quietly = TRUE)) [...]
 
 echo 👋 Vivid Volcano session ended
 pause
@@ -782,12 +881,13 @@ main() {
     print_info "Repository: https://github.com/DatViseR/Vivid-Volcano"
     print_info "Started at: $(date)"
     
-    # Ask user about system dependencies
+    # Ask user about system dependencies with individual choice
     echo
-    read -p "Install minimal system dependencies? (Y/n): " -n 1 -r
+    print_info "System dependencies will be presented individually for your selection"
+    read -p "Proceed with system dependency installation? (Y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]]; then
-        print_info "Skipping system dependencies"
+        print_info "Skipping all system dependencies"
     else
         install_essential_dependencies || {
             print_warning "System dependencies installation had issues, but continuing..."
