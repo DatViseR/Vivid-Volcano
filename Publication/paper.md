@@ -1,5 +1,6 @@
 ---
-title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data"
+title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics
+  Data"
 tags:
 - R
 - R Shiny
@@ -13,15 +14,19 @@ tags:
 - Omics data visualisation
 - Omics data exploration
 - Omics data analysis
-date: "2025-03-28"
-affiliations:
-- name: "DatViseR - Freelance R programmer, Warsaw, Poland"
-  index: 1
+date: "2025-06-09"
+output:
+  html_document:
+    df_print: paged
 authors:
 - name: Tomasz M. Stępkowski
   orcid: "0000-0002-8454-4421"
   affiliation: 1
 bibliography: paper.bib
+affiliations:
+- name: "Tumour Hypoxia and Epigenomics Laboratory, Nencki Institute of Experimental
+    Biology, Polish Academy of Sciences, 3 Pasteur Street, 02-093, Warsaw, Poland"
+  index: 1
 ---
 
 # Summary
