@@ -32,33 +32,170 @@ of detected and regulated genes within a specific category\
 • Process log system for user sessions, useful for checking data
 processing outcomes, debugging, and analyzing app functionality
 
-**The application is available in the cloud:**
+## **The application is available in the cloud or can be installed locally:**
 
-[**Vivid volcano live at POSIT Connect
-Cloud**](https://datviser-vivid-volcano.share.connect.posit.cloud//)
+### **Vivid Volcano live at POSIT Connect Cloud**
 
-**The live demo of the first beta version linked below. Now the app is
-after closed beta testing, pre-released and waiting for professional
+**Data Privacy Notice**\
+When you use this cloud-based application, your data is processed
+securely within your own session. What it means :
+
+-   **Your uploaded data is not stored permanently**, and it is **not
+    accessible to other users**.
+
+-   Each session is isolated, meaning your data is **only available
+    during your active session** and is **automatically cleared when the
+    session ends (including temporal logs)**.
+
+-   Vivid Volcano does **not collect, store, or share** any uploaded
+    files or analysis results. It collects non-sensitive telemetry
+    data - number of sessions, analyses performed, time of sessions
+    etc....
+
+-   For your safety, I recommend not uploading highly sensitive data
+    (ex. not blinded patients data) , as the app is hosted on a public
+    server without authentication.
+
+**The live demo of the first beta version is linked below. Now the app
+is after closed beta testing, pre-released and waiting for professional
 peer review from the scientific community.**
 
 [**Vivid volcano features- demo
 movie**](https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link)
 
-To run the app locally follow the Instructions:
+### Instructions for running the app locally:
 
-1.  Clone this repository:\
-    git clone <https://github.com/DatViseR/Vivid-Volcano.git>
+Vivid Volcano uses **renv** (R environment management) to ensure
+reproducible package dependencies across different systems. This creates
+an isolated R environment with the exact package versions specified in
+`renv.lock`, preventing conflicts with your system-wide R packages.
 
-2.  Change directory:\
-    cd Vivid-Volcano
+#### For UNIX Systems (Linux/macOS)
 
-3.  Run the app in R:\
-    Rscript -e "shiny::runApp()"
+1.  Automated installation
 
-**Contributions are welcome!** Please fork the repository and submit a
-pull request.
+Download the [automated installation
+script](https://drive.google.com/file/d/11mdl1ZFYsPH2RoTNlqMMipiKJz9VmxAp/view?usp=sharing)
+written in bash - it that handles system dependencies, renv setup,
+cloning the repository and should enable working with Vivid Volcano
+locally with just few clicks.
 
-### How to cite Vivid Volcano?
+``` bash
+# Run the automated installer in the bash terminal
+chmod +x install_vivid_volcano.sh
+./install_vivid_volcano.sh
+```
+
+**What the installation script does:**
+
+-   Checks prerequisites (R 4.4+, Git, system dependencies)
+
+-   Offers selective installation of system libraries (SSL, cURL, Cairo,
+    etc.)
+
+-   Sets up renv environment with core packages
+
+-   Excludes problematic packages (PostgreSQL, V8) for stability
+
+-   Creates launcher scripts for easy app startup
+
+-   Generates an installation report
+
+2.  Manual installation
+
+If the installation script fails or you prefer full manual control over
+the installation process use the following code to start using Vivid
+Volcano locally
+
+``` bash
+# Clone and enter directory
+git clone https://github.com/DatViseR/Vivid-Volcano.git
+cd Vivid-Volcano
+
+# Install system dependencies (Ubuntu/Debian example)
+sudo apt-get update
+sudo apt-get install libssl-dev libcurl4-openssl-dev libxml2-dev
+
+# Setup R environment
+R -e "install.packages('renv')"
+R -e "renv::restore()"
+
+# Launch the app
+R -e "shiny::runApp('app.R')"
+```
+
+### For Windows users
+
+**Step-by-step manual installation:**
+
+1.  **Install Prerequisites**
+
+-   Install R (4.4+ recommended): <https://cran.r-project.org/>
+
+-   Install Git: <https://git-scm.com/>
+
+-   Install Rtools (for package compilation):
+    <https://cran.r-project.org/bin/windows/Rtools/>
+
+2.  **Clone the Repository**
+
+-   Open Git Bash or Command Prompt
+
+``` bash
+git clone https://github.com/DatViseR/Vivid-Volcano.git
+cd Vivid-Volcano
+```
+
+3.  Set Up R Environment Open R or RStudio and run:
+
+``` r
+# Install renv if not already installed
+if (!requireNamespace("renv", quietly = TRUE)) {
+  install.packages("renv")
+}
+
+# Activate the project environment
+renv::activate()
+
+# Restore packages from lockfile
+renv::restore()
+```
+
+4.  Handle Potential Issues If package installation fails:
+
+``` r
+# Skip problematic packages and install core ones
+core_packages <- c("shiny", "dplyr", "ggplot2", "DT", "ggtext", 
+                   "ggrepel", "shiny.semantic", "arrow")
+install.packages(core_packages)
+```
+
+5.  **Launch the App**
+
+``` r
+# Run the app
+shiny::runApp("app.R")
+```
+
+The app will launch in your default web browser, typically at
+<http://127.0.0.1:3838> or similar.
+
+#### Why renv?
+
+-   **Reproducibility**: Ensures everyone uses the same package versions
+
+-   **Isolation**: Doesn't interfere with your global R package library
+
+-   **Stability**: Prevents version conflicts that could break the app
+
+-   **Portability**: Makes the project work consistently across
+    different systems
+
+### **Contributions are welcome !**
+
+Please check the CONTRIBUTIING.md file in .github folder
+
+## How to cite Vivid Volcano?
 
 The scientific article on Vivid Volcano was sent for review and is
 currently under consideration. In the meantime, please cite the
