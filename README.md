@@ -36,6 +36,8 @@ processing outcomes, debugging, and analyzing app functionality
 
 ### **Vivid Volcano live at POSIT Connect Cloud**
 
+[**Vivid volcano cloud version**](https://datviser-vivid-volcano.share.connect.posit.cloud/)
+
 **Data Privacy Notice**\
 When you use this cloud-based application, your data is processed
 securely within your own session. What it means :
