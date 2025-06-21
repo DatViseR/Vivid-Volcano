@@ -36,7 +36,8 @@ processing outcomes, debugging, and analyzing app functionality
 
 ### **Vivid Volcano live at POSIT Connect Cloud**
 
-[**Vivid volcano cloud version**](https://datviser-vivid-volcano.share.connect.posit.cloud/)
+[**Vivid volcano cloud
+version**](https://datviser-vivid-volcano.share.connect.posit.cloud/)
 
 **Data Privacy Notice**\
 When you use this cloud-based application, your data is processed
@@ -99,9 +100,9 @@ chmod +x install_vivid_volcano.sh
 
 -   Excludes problematic packages (PostgreSQL, V8) for stability
 
--   Creates launcher scripts for easy app startup
-
 -   Generates an installation report
+
+-   If users accepts run the app in the browser
 
 2.  Manual installation
 

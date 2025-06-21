@@ -4,8 +4,8 @@
 # Vivid Volcano - Core Installation Script (PostgreSQL-free)
 # ====================================================================
 # Author: DatViseR
-# Date: 2025-06-09
-# Description: Clones Vivid Volcano repository and sets up core renv environment
+# Date: 2025-06-21
+# Description: Clones Vivid Volcano repository, sets up core renv environment and runs the application
 # Repository: https://github.com/DatViseR/Vivid-Volcano
 #  ====================================================================
 
@@ -631,19 +631,16 @@ generate_summary <- function(install_success, verify_success, test_success) {
         }
     }
     
-    cat("\n=== NEXT STEPS ===\n")
+    cat("\n=== APPLICATION READY ===\n")
     if (status == "READY") {
-        cat("🎉 Core installation successful! You can now:\n")
-        cat("1. Run: ./run_vivid_volcano.sh\n")
-        cat("2. Or: R -e \"source('renv/activate.R'); shiny::runApp('app.R')\"\n")
+        cat("🎉 Core installation successful!\n")
+        cat("The application is ready to run in your browser.\n")
     } else if (status == "PARTIAL") {
-        cat("⚠ Partial installation. Try running the app - it may still work:\n")
-        cat("1. Run: ./run_vivid_volcano.sh\n")
-        cat("2. Some features may be limited\n")
+        cat("⚠ Partial installation. The app may still work.\n")
+        cat("Some features may be limited.\n")
     } else {
         cat("❌ Installation incomplete. Check error messages above.\n")
-        cat("1. Try running the script again\n")
-        cat("2. Or install packages manually in R\n")
+        cat("You may try running the app anyway.\n")
     }
     
     cat("\nNote: This core installation excludes PostgreSQL and other\n")
@@ -722,98 +719,6 @@ EOF
     fi
 }
 
-# Create simple launcher script
-create_simple_launcher() {
-    print_header "CREATING SIMPLE LAUNCHER SCRIPTS"
-    
-    print_step "Creating core launcher script"
-    
-    cat > run_vivid_volcano.sh << 'EOF'
-#!/bin/bash
-
-# Vivid Volcano Core Launcher
-# Focuses on core functionality without problematic packages
-
-echo "🌋 Starting Vivid Volcano (Core Version)..."
-
-# Check if we're in the right directory
-if [[ ! -f "app.R" ]] || [[ ! -f "renv.lock" ]]; then
-    echo "❌ Error: Not in Vivid Volcano directory"
-    echo "Please run this script from the Vivid-Volcano directory"
-    exit 1
-fi
-
-echo "Checking core environment..."
-
-R --slave --no-restore --no-save -e "
-# Activate renv
-source('renv/activate.R')
-
-# Check essential packages only
-essential <- c('shiny', 'dplyr', 'ggplot2', 'DT')
-missing <- c()
-
-for (pkg in essential) {
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-        missing <- c(missing, pkg)
-    }
-}
-
-if (length(missing) > 0) {
-    cat('❌ Missing essential packages:', paste(missing, collapse = ', '), '\n')
-    cat('Please run the installation script again\n')
-    quit(status = 1)
-}
-
-cat('✅ Core environment verified\n')
-cat('🚀 Launching Vivid Volcano (Core)...\n')
-cat('📱 The app will open in your default web browser\n')
-cat('🛑 To stop the app, press Ctrl+C in this terminal\n\n')
-
-cat('Note: This core version focuses on volcano plots and GO analysis\n')
-cat('Some advanced features may be limited\n\n')
-
-# Launch the application
-tryCatch({
-    library(shiny)
-    runApp('app.R', launch.browser = TRUE, host = '127.0.0.1')
-}, error = function(e) {
-    cat('❌ Error launching app:', e\$message, '\n')
-    cat('The app may still work if you run it manually:\n')
-    cat('R -e \"source(\\\"renv/activate.R\\\"); shiny::runApp(\\\"app.R\\\")\"\n')
-    quit(status = 1)
-})
-"
-
-echo "👋 Vivid Volcano session ended"
-EOF
-
-    chmod +x run_vivid_volcano.sh
-    print_success "Core launcher created: run_vivid_volcano.sh"
-    
-    # Create Windows version
-    cat > run_vivid_volcano.bat << 'EOF'
-@echo off
-echo 🌋 Starting Vivid Volcano (Core Version)...
-
-if not exist "app.R" (
-    echo ❌ Error: app.R not found
-    echo Please run this script from the Vivid-Volcano directory
-    pause
-    exit /b 1
-)
-
-echo Checking core environment...
-
-R --slave --no-restore --no-save -e "source('renv/activate.R'); essential <- c('shiny', 'dplyr', 'ggplot2', 'DT'); missing <- c(); for (pkg in essential) { if (!requireNamespace(pkg, quietly = TRUE)) [...]
-
-echo 👋 Vivid Volcano session ended
-pause
-EOF
-
-    print_success "Windows launcher created: run_vivid_volcano.bat"
-}
-
 # Generate simple report
 generate_simple_report() {
     print_header "GENERATING INSTALLATION REPORT"
@@ -853,24 +758,71 @@ DATA FILES:
 - GO.parquet2: $(test -f GO.parquet2 && echo "Present ($(du -h GO.parquet2 | cut -f1))" || echo "Missing")
 - Demo Data: $(test -f www/demo_data.csv && echo "Present" || echo "Missing")
 
-LAUNCHERS:
-- run_vivid_volcano.sh: $(test -f run_vivid_volcano.sh && echo "Created" || echo "Missing")
-- run_vivid_volcano.bat: $(test -f run_vivid_volcano.bat && echo "Created" || echo "Missing")
-
-TO RUN VIVIS VOLCANO:
-1. Run: ./run_vivid_volcano.sh (Linux/Mac) or run_vivid_volcano.bat (Windows)
-2. Or manually: "R -e shiny::runApp()"
-
+TO RUN VIVID VOLCANO:
+Run: R -e "shiny::runApp()"
 
 LIMITATIONS IN THE CORE MASTER VERSION designed to work locally:
 - No PostgreSQL database connectivity (Install dependencies manually and clone deployed with telemetry branch of the repository)
 - Limited database features 
 
-
 For support: https://github.com/DatViseR/Vivid-Volcano or datviser@gmail.com
 EOF
 
     print_success "Core installation report saved: $report_file"
+}
+
+# Launch application function
+launch_application() {
+    print_header "LAUNCHING VIVID VOLCANO"
+    
+    # Check if we're in the right directory
+    if [[ ! -f "app.R" ]] || [[ ! -f "renv.lock" ]]; then
+        print_error "Not in Vivid Volcano directory"
+        print_info "Cannot launch application - essential files missing"
+        return 1
+    fi
+    
+    print_info "🌋 Starting Vivid Volcano (Core Version)..."
+    print_info "📱 The app will open in your default web browser"
+    print_info "🛑 To stop the app, press Ctrl+C in this terminal"
+    
+    # Launch the application
+    R --slave --no-restore --no-save -e "
+        # Activate renv
+        source('renv/activate.R')
+        
+        # Check essential packages
+        essential <- c('shiny', 'dplyr', 'ggplot2', 'DT')
+        missing <- c()
+        
+        for (pkg in essential) {
+            if (!requireNamespace(pkg, quietly = TRUE)) {
+                missing <- c(missing, pkg)
+            }
+        }
+        
+        if (length(missing) > 0) {
+            cat('❌ Missing essential packages:', paste(missing, collapse = ', '), '\n')
+            cat('Installation may be incomplete\n')
+            quit(status = 1)
+        }
+        
+        cat('✅ Core environment verified\n')
+        cat('🚀 Launching Vivid Volcano...\n\n')
+        
+        # Launch the application
+        library(shiny)
+        runApp('app.R', launch.browser = TRUE, host = '127.0.0.1')
+    "
+    
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        print_info "👋 Vivid Volcano session ended successfully"
+    else
+        print_warning "Application ended with issues"
+        print_info "You can try running manually: R -e \"shiny::runApp()\""
+    fi
 }
 
 # Main installation function
@@ -898,7 +850,6 @@ main() {
     check_prerequisites
     setup_repository
     setup_core_renv_environment
-    create_simple_launcher
     generate_simple_report
     
     local end_time=$(date +%s)
@@ -912,10 +863,7 @@ main() {
     
     echo
     print_header "READY TO USE VIVID VOLCANO!"
-    print_step "To run the app:"
-    echo "   ./run_vivid_volcano.sh     (Linux/Mac)"
-    echo "   run_vivid_volcano.bat      (Windows)"
-    echo
+    
     print_step "Features available:"
     echo "   ✅ Upload CSV/TSV omics data"
     echo "   ✅ Generate publication-ready volcano plots"
@@ -928,7 +876,26 @@ main() {
     echo "   ❌ Some advanced graphics options"
     echo "   ❌ Web screenshot features"
     echo
-    print_success "Core functionality ready - enjoy using Vivid Volcano! 🌋"
+    
+    print_success "🎉 Core functionality ready - Vivid Volcano is installed! 🌋"
+    
+    # Ask user if they want to run the application now
+    echo
+    print_info "The application is ready to run in your browser."
+    read -p "Would you like to run Vivid Volcano now? (Y/n): " -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        echo
+        launch_application
+    else
+        echo
+        print_info "You can run Vivid Volcano later by navigating to the Vivid-Volcano directory and running:"
+        print_info "  R -e \"shiny::runApp()\""
+        print_info "or run the app.R file directly in RStudio."
+        echo
+        print_success "Installation complete! 🌋"
+    fi
     
     return 0
 }
