@@ -78,7 +78,7 @@ an isolated R environment with the exact package versions specified in
 1.  Automated installation
 
 Download the [automated installation
-script](https://drive.google.com/file/d/11mdl1ZFYsPH2RoTNlqMMipiKJz9VmxAp/view?usp=sharing)
+script](https://drive.google.com/file/d/17_YcYaYWQfYlosE_dQLDN2_PFcA1F2HB/view?usp=sharing)
 written in bash - it that handles system dependencies, renv setup,
 cloning the repository and should enable working with Vivid Volcano
 locally with just few clicks.
