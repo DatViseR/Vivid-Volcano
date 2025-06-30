@@ -104,6 +104,15 @@ chmod +x install_vivid_volcano.sh
 
 -   If users accepts run the app in the browser
 
+Next time if you want to run the app from the unix terminal type:
+
+``` bash
+# Acivate R terminal and run Vivid-Volcano
+R -e "shiny::runApp('app.R')"
+
+```
+or run it from R GUI, R Studio or other R IDE
+
 2.  Manual installation
 
 If the installation script fails or you prefer full manual control over
