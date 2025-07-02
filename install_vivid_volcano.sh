@@ -759,7 +759,10 @@ DATA FILES:
 - Demo Data: $(test -f www/demo_data.csv && echo "Present" || echo "Missing")
 
 TO RUN VIVID VOLCANO:
-Run: R -e "shiny::runApp()"
+Enhanced launcher (recommended): ./launch_app.sh
+R launcher with browser support: R -f launch_app.R
+Basic command: R -e "shiny::runApp()"
+From RStudio: Open and run app.R
 
 LIMITATIONS IN THE CORE MASTER VERSION designed to work locally:
 - No PostgreSQL database connectivity (Install dependencies manually and clone deployed with telemetry branch of the repository)
@@ -782,38 +785,124 @@ launch_application() {
         return 1
     fi
     
+    # Detect operating system for enhanced browser launching
+    local os_type="unknown"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        os_type="macos"
+        print_info "🍎 macOS detected - using enhanced browser launching"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        os_type="linux"
+        print_info "🐧 Linux detected"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        os_type="windows"
+        print_info "🪟 Windows detected"
+    fi
+    
     print_info "🌋 Starting Vivid Volcano (Core Version)..."
     print_info "📱 The app will open in your default web browser"
     print_info "🛑 To stop the app, press Ctrl+C in this terminal"
     
-    # Launch the application
-    R --slave --no-restore --no-save -e "
-        # Activate renv
-        source('renv/activate.R')
+    # Use enhanced launcher if available, otherwise fallback to basic launcher
+    if [[ -f "launch_app.R" ]]; then
+        print_info "🚀 Using enhanced launcher with improved browser support..."
         
-        # Check essential packages
-        essential <- c('shiny', 'dplyr', 'ggplot2', 'DT')
-        missing <- c()
+        R --slave --no-restore --no-save -f launch_app.R
+    else
+        print_info "🚀 Using basic launcher..."
         
-        for (pkg in essential) {
-            if (!requireNamespace(pkg, quietly = TRUE)) {
-                missing <- c(missing, pkg)
+        # Launch the application with enhanced browser launching for macOS
+        R --slave --no-restore --no-save -e "
+            # Activate renv
+            source('renv/activate.R')
+            
+            # Check essential packages
+            essential <- c('shiny', 'dplyr', 'ggplot2', 'DT')
+            missing <- c()
+            
+            for (pkg in essential) {
+                if (!requireNamespace(pkg, quietly = TRUE)) {
+                    missing <- c(missing, pkg)
+                }
             }
-        }
-        
-        if (length(missing) > 0) {
-            cat('❌ Missing essential packages:', paste(missing, collapse = ', '), '\n')
-            cat('Installation may be incomplete\n')
-            quit(status = 1)
-        }
-        
-        cat('✅ Core environment verified\n')
-        cat('🚀 Launching Vivid Volcano...\n\n')
-        
-        # Launch the application
-        library(shiny)
-        runApp('app.R', launch.browser = TRUE, host = '127.0.0.1')
-    "
+            
+            if (length(missing) > 0) {
+                cat('❌ Missing essential packages:', paste(missing, collapse = ', '), '\n')
+                cat('Installation may be incomplete\n')
+                quit(status = 1)
+            }
+            
+            cat('✅ Core environment verified\n')
+            cat('🚀 Launching Vivid Volcano...\n\n')
+            
+            # Load shiny library
+            library(shiny)
+            
+            # Enhanced browser launching for macOS
+            if (Sys.info()['sysname'] == 'Darwin') {
+                cat('🍎 macOS detected - using enhanced browser launching...\n')
+                
+                # Custom browser launcher for macOS
+                custom_browser <- function(url) {
+                    cat('📍 App URL:', url, '\n')
+                    success <- FALSE
+                    
+                    # Method 1: Try system open command
+                    tryCatch({
+                        system(paste('open', url), wait = FALSE)
+                        success <- TRUE
+                        cat('✅ Browser launched via open command\n')
+                    }, error = function(e) {
+                        cat('⚠️ open command failed, trying alternatives...\n')
+                    })
+                    
+                    # Method 2: Try specific browsers if default failed
+                    if (!success) {
+                        browsers <- c(
+                            '/Applications/Safari.app/Contents/MacOS/Safari',
+                            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                            '/Applications/Firefox.app/Contents/MacOS/firefox'
+                        )
+                        
+                        for (browser in browsers) {
+                            if (file.exists(browser)) {
+                                tryCatch({
+                                    system(paste(shQuote(browser), url), wait = FALSE)
+                                    success <- TRUE
+                                    cat('✅ Browser launched:', basename(browser), '\n')
+                                    break
+                                }, error = function(e) {
+                                    # Continue to next browser
+                                })
+                            }
+                        }
+                    }
+                    
+                    # Fallback: provide manual instructions
+                    if (!success) {
+                        cat('⚠️ Automatic browser launching failed\n')
+                        cat('📋 Manual Instructions:\n')
+                        cat('   1. Open your web browser\n')
+                        cat('   2. Navigate to:', url, '\n')
+                        cat('🛑 To stop the app, press Ctrl+C\n')
+                        
+                        # Try to copy URL to clipboard
+                        tryCatch({
+                            system(paste('echo', shQuote(url), '| pbcopy'))
+                            cat('📋 URL copied to clipboard!\n')
+                        }, error = function(e) {})
+                    }
+                    
+                    cat('🛑 To stop the app, press Ctrl+C in this terminal\n\n')
+                    return(TRUE)
+                }
+                
+                runApp('app.R', launch.browser = custom_browser, host = '127.0.0.1')
+            } else {
+                # Standard launching for other platforms
+                runApp('app.R', launch.browser = TRUE, host = '127.0.0.1')
+            }
+        "
+    fi
     
     local exit_code=$?
     
@@ -821,7 +910,10 @@ launch_application() {
         print_info "👋 Vivid Volcano session ended successfully"
     else
         print_warning "Application ended with issues"
-        print_info "You can try running manually: R -e \"shiny::runApp()\""
+        print_info "💡 Alternative ways to run the app:"
+        print_info "   • Use enhanced launcher: ./launch_app.sh"
+        print_info "   • Use R launcher: R -f launch_app.R"
+        print_info "   • Basic manual run: R -e \"shiny::runApp()\""
     fi
 }
 
@@ -891,8 +983,10 @@ main() {
     else
         echo
         print_info "You can run Vivid Volcano later by navigating to the Vivid-Volcano directory and running:"
-        print_info "  R -e \"shiny::runApp()\""
-        print_info "or run the app.R file directly in RStudio."
+        print_info "🚀 Enhanced launcher (recommended): ./launch_app.sh"
+        print_info "🚀 R launcher with browser support: R -f launch_app.R"  
+        print_info "🚀 Basic command: R -e \"shiny::runApp()\""
+        print_info "🚀 Or run the app.R file directly in RStudio"
         echo
         print_success "Installation complete! 🌋"
     fi
