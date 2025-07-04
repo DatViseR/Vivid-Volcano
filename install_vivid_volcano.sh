@@ -319,7 +319,7 @@ check_prerequisites() {
     fi
     
     # Check internet connectivity
-    if ping -c 1 github.com >/dev/null 2>&1; then
+    if curl -s 1 github.com >/dev/null 2>&1; then
         print_success "Internet connectivity confirmed"
     else
         missing_deps+=("internet")
@@ -743,7 +743,7 @@ STRATEGY:
 PREREQUISITES:
 - Git: $(git --version 2>/dev/null || echo "Not found")
 - R Version: $(R --version | head -n1 2>/dev/null || echo "Not found")
-- Internet: $(ping -c 1 github.com >/dev/null 2>&1 && echo "Connected" || echo "Not connected")
+- Internet: $(curl -s 1 github.com >/dev/null 2>&1 && echo "Connected" || echo "Not connected")
 
 REPOSITORY:
 - Directory: $(pwd)
