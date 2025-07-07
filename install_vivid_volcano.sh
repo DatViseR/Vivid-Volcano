@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # ====================================================================
-# Vivid Volcano - Universal Installation Script 
+# Vivid Volcano - Universal Installation Script
 # ====================================================================
 # Author: DatViseR
 # Date: 2025-01-08
-# Description: Production-ready universal installer with enhanced macOS dependency handling
+# Description: Production-ready universal installer with corrected package categorization,
+# provides information on essential and optional (enhanced functions) dependencies
 # Repository: https://github.com/DatViseR/Vivid-Volcano
 # Works on: macOS, Linux, Codespaces, Gitpod, and other containers
 # ====================================================================
@@ -49,10 +50,9 @@ print_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
-# Enhanced progress indicator with spinner
+# Enhanced progress indicator
 show_progress() {
     local message="$1"
-    local duration="${2:-60}"
     local pid=$!
     
     local spinner='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -135,7 +135,7 @@ is_container_environment() {
     esac
 }
 
-# Enhanced R version check with error handling
+# Enhanced R version check
 check_r_version() {
     if ! command_exists R; then
         return 1
@@ -152,7 +152,7 @@ check_r_version() {
     major=$(echo "$r_version" | cut -d. -f1)
     minor=$(echo "$r_version" | cut -d. -f2)
     
-    if [[ $major -gt 4 ]] || [[ $major -eq 4 && $minor -ge 4 ]]; then
+    if [[ $major -gt 4 ]] || [[ $major -eq 4 && $minor -ge 3 ]]; then
         return 0
     else
         return 1
@@ -292,7 +292,7 @@ check_and_install_prerequisites() {
     else
         print_success "R available"
         if ! check_r_version; then
-            print_warning "R version <4.4 detected (4.4+ recommended)"
+            print_warning "R version <4.3 detected (4.3+ recommended for all packages)"
         fi
     fi
     
@@ -305,7 +305,7 @@ check_and_install_prerequisites() {
         fi
         
         if ! command_exists brew; then
-            print_warning "Homebrew not found (recommended for dependencies)"
+            print_warning "Homebrew not found (recommended for optional dependencies)"
             print_info "Install from: https://brew.sh"
         fi
     fi
@@ -362,23 +362,24 @@ install_system_dependencies() {
             
             # Essential dependencies (no choice)
             local essential_packages=("libssl-dev" "libcurl4-openssl-dev")
-            print_info "Installing essential libraries (required)"
+            print_info "Installing essential libraries (required for basic functionality)"
             execute_with_progress "sudo apt-get update -qq && sudo apt-get install -y ${essential_packages[*]}" "Installing essential libraries"
             
             # Optional dependencies with clear explanations
             echo
-            print_step "Optional system libraries (choose which features you want)"
+            print_step "Optional system libraries enhance Vivid Volcano features"
+            print_info "The app works without these, but they enable advanced functionality"
             echo
             
             local optional_deps=(
-                "libxml2-dev:XML data processing support:Enables xml2 R package for XML/HTML parsing"
-                "libcairo2-dev:High-quality graphics rendering:Enables Cairo R package for publication-quality plots"
-                "libfontconfig1-dev:Advanced font support:Better text rendering in plots"
-                "libharfbuzz-dev:Complex text layout:Support for complex scripts and typography"
-                "libfribidi-dev:Bidirectional text:Right-to-left text support (Arabic, Hebrew)"
-                "libfreetype6-dev:Font rendering engine:Enhanced font display"
-                "libpng-dev:PNG image support:PNG file processing capabilities"
-                "libjpeg-dev:JPEG image support:JPEG file processing capabilities"
+                "libxml2-dev:XML data processing:Enables xml2 and gt packages for enhanced tables and data import"
+                "libcairo2-dev:High-quality graphics:Enables Cairo package for publication-quality plot rendering"
+                "libfontconfig1-dev:Advanced font support:Better text rendering and font selection in plots"
+                "libharfbuzz-dev:Complex text layout:Support for advanced typography and text shaping"
+                "libfribidi-dev:Bidirectional text:Right-to-left text support (Arabic, Hebrew, etc.)"
+                "libfreetype6-dev:Font rendering engine:Enhanced font display and custom font support"
+                "libpng-dev:PNG image support:Enhanced PNG file processing and plot export"
+                "libjpeg-dev:JPEG image support:Enhanced JPEG file processing and plot export"
             )
             
             local selected_packages=()
@@ -390,20 +391,20 @@ install_system_dependencies() {
                 
                 echo -e "${CYAN}Feature:${NC} $feature"
                 echo -e "${YELLOW}Package:${NC} $pkg"
-                echo -e "${BLUE}Description:${NC} $description"
-                read -p "Install this feature? (Y/n): " -n 1 -r
+                echo -e "${BLUE}Benefit:${NC} $description"
+                read -p "Install this enhancement? (Y/n): " -n 1 -r
                 echo
                 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                     selected_packages+=("$pkg")
                     print_success "Will install $pkg"
                 else
-                    print_info "Skipping $pkg"
+                    print_info "Skipping $pkg - basic functionality will still work"
                 fi
                 echo
             done
             
             if [[ ${#selected_packages[@]} -gt 0 ]]; then
-                execute_with_progress "sudo apt-get install -y ${selected_packages[*]}" "Installing selected optional libraries"
+                execute_with_progress "sudo apt-get install -y ${selected_packages[*]}" "Installing selected enhancements"
             fi
             ;;
             
@@ -411,10 +412,10 @@ install_system_dependencies() {
             print_step "Installing system libraries for macOS via Homebrew"
             
             if ! command_exists brew; then
-                print_error "Homebrew is required for macOS system dependencies"
-                print_info "Install Homebrew first: https://brew.sh"
-                print_info "Then rerun this script"
-                exit 1
+                print_warning "Homebrew not found - optional dependencies will be skipped"
+                print_info "Vivid Volcano will work with basic functionality"
+                print_info "To install Homebrew later: https://brew.sh"
+                return 0
             fi
             
             # Essential dependencies for macOS
@@ -428,19 +429,21 @@ install_system_dependencies() {
                 fi
             done
             
-            # Optional dependencies with Cairo focus
+            # Optional dependencies with Cairo emphasis
             echo
-            print_step "Optional Homebrew packages (choose which features you want)"
+            print_step "Optional Homebrew packages enhance Vivid Volcano features"
+            print_info "⚠️  macOS Note: These are OPTIONAL - the app works without them"
+            print_info "    Cairo is especially helpful for high-quality plot rendering on macOS"
             echo
             
             local optional_deps=(
-                "libxml2:XML data processing:Enables xml2 R package for XML/HTML parsing"
-                "cairo:High-quality graphics rendering:Enables Cairo R package - HIGHLY RECOMMENDED for publication plots"
-                "harfbuzz:Complex text layout:Advanced typography support"
-                "fribidi:Bidirectional text:Right-to-left text support"
-                "freetype:Font rendering engine:Enhanced font display"
-                "libpng:PNG image support:PNG file processing"
-                "jpeg:JPEG image support:JPEG file processing"
+                "libxml2:XML data processing:Enables xml2 and gt packages for enhanced tables"
+                "cairo:High-quality graphics:Fixes macOS graphics issues and enables publication-quality plots"
+                "harfbuzz:Advanced typography:Complex text layout and font shaping"
+                "fribidi:Bidirectional text:Right-to-left language support"
+                "freetype:Font rendering:Enhanced font display and custom fonts"
+                "libpng:PNG processing:Enhanced PNG support for plots and data"
+                "jpeg:JPEG processing:Enhanced JPEG support for plots and data"
             )
             
             local selected_packages=()
@@ -452,20 +455,20 @@ install_system_dependencies() {
                 
                 echo -e "${CYAN}Feature:${NC} $feature"
                 echo -e "${YELLOW}Homebrew package:${NC} $pkg"
-                echo -e "${BLUE}Description:${NC} $description"
+                echo -e "${BLUE}Benefit:${NC} $description"
                 
                 # Special recommendation for Cairo on macOS
                 if [[ "$pkg" == "cairo" ]]; then
-                    echo -e "${GREEN}⭐ RECOMMENDED:${NC} Cairo fixes common macOS graphics issues"
+                    echo -e "${GREEN}⭐ RECOMMENDED for macOS:${NC} Solves common graphics rendering issues"
                 fi
                 
-                read -p "Install this feature? (Y/n): " -n 1 -r
+                read -p "Install this enhancement? (Y/n): " -n 1 -r
                 echo
                 if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                     selected_packages+=("$pkg")
                     print_success "Will install $pkg"
                 else
-                    print_info "Skipping $pkg"
+                    print_info "Skipping $pkg - app will work without it"
                 fi
                 echo
             done
@@ -498,7 +501,7 @@ install_system_dependencies() {
                 )
                 
                 echo
-                print_step "Optional packages"
+                print_step "Optional packages for enhanced functionality"
                 local selected_packages=()
                 
                 for pkg_desc in "${optional_deps[@]}"; do
@@ -520,11 +523,12 @@ install_system_dependencies() {
             
         *)
             print_warning "Unknown environment - skipping system dependencies"
-            print_info "You may need to install development libraries manually"
+            print_info "Vivid Volcano will work with basic functionality"
+            print_info "You may install development libraries manually for enhanced features"
             ;;
     esac
     
-    print_success "System dependencies installation completed"
+    print_success "System dependencies configuration completed"
 }
 
 # Repository setup
@@ -564,7 +568,7 @@ setup_repository() {
     print_success "Repository ready at: $(pwd)"
 }
 
-# R environment setup with proper dependency detection
+# R environment setup with complete package list from renv.lock
 setup_r_environment() {
     print_header "R ENVIRONMENT SETUP"
     
@@ -595,30 +599,27 @@ setup_r_environment() {
         cairo_available="TRUE"
         print_success "Cairo graphics library detected"
     else
-        print_info "Cairo graphics library not found"
-        if [[ "$(detect_environment)" == "macos" ]]; then
-            print_info "Install with: brew install cairo"
-        fi
+        print_info "Cairo graphics library not found (optional)"
     fi
     
     if check_system_library "xml2" "libxml/parser.h" "libxml-2.0"; then
         xml2_available="TRUE"
         print_success "XML2 processing library detected"
     else
-        print_info "XML2 processing library not found"
+        print_info "XML2 processing library not found (optional)"
     fi
     
-    # Create R package installation script
-    print_step "Installing R packages based on available system libraries"
+    # Create comprehensive R package installation script based on actual app dependencies
+    print_step "Installing R packages (this may take several minutes)"
     
     cat > install_r_packages.R << 'R_SCRIPT_EOF'
-# Vivid Volcano R Package Installation
-cat("=== R PACKAGE INSTALLATION ===\n")
+# Vivid Volcano Complete R Package Installation
+cat("=== COMPREHENSIVE R PACKAGE INSTALLATION ===\n")
 cat("Started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
 
 # Configuration
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
-options(timeout = 300)
+options(timeout = 600)
 options(download.file.method = "auto")
 options(install.packages.compile.from.source = "never")
 
@@ -634,44 +635,97 @@ cat("  XML2 available:", XML2_AVAILABLE, "\n\n")
 cat("Activating renv environment...\n")
 source("renv/activate.R")
 
-# Package installation function
+# Complete package installation function based on actual app.R analysis
 install_packages <- function() {
     library(renv)
     
-    # Core packages (always installed - essential for app)
-    core_packages <- c(
-        # Shiny framework
-        "shiny", "shinyjs", "htmltools", "htmlwidgets",
-        # Data manipulation
-        "dplyr", "tidyr", "readr", "stringr", "purrr", "tibble",
-        # Visualization
-        "ggplot2", "ggrepel", "ggtext", "scales",
-        # UI components
-        "DT", "shiny.semantic", "RColorBrewer",
-        # Utilities
-        "jsonlite", "digest", "rlang", "httr", "curl",
-        "markdown", "shinyalert", "arrow"
+    # ESSENTIAL CORE PACKAGES (app will NOT work without these)
+    # Based on library() calls in app.R and core functionality
+    essential_packages <- c(
+        # Shiny framework (required)
+        "shiny", "shinyjs", 
+        
+        # Data manipulation (required)
+        "readr", "dplyr", "tidyr", "data.table", "magrittr",
+        
+        # Visualization core (required)
+        "ggplot2", "ggtext", "ggrepel", "scales", "RColorBrewer",
+        
+        # Interactive tables (required - core functionality)
+        "DT", "gt", "plotly",
+        
+        # UI framework (required - app uses semantic.dashboard)
+        "shiny.semantic", "semantic.dashboard", "colourpicker",
+        
+        # Data formats (required - app uses arrow for GO data)
+        "arrow",
+        
+        # Essential utilities (required)
+        "jsonlite", "digest", "rlang", "htmltools", "htmlwidgets", 
+        "httpuv", "R6",
+        
+        # Notifications and alerts (required for user feedback)
+        "shinyalert"
     )
     
-    # Conditional packages (only if system libraries available)
+    # ENHANCED PACKAGES (improve functionality but app can work without)
+    enhanced_packages <- c(
+        # Additional shiny components
+        "bslib", "jquerylib", "crosstalk", "reactable",
+        
+        # Enhanced data processing
+        "lubridate", "hms", "bit64", "clipr", "fs", "stringr", "purrr", "tibble",
+        
+        # Additional visualization
+        "gridExtra", "viridisLite", "lattice", "isoband", "farver", "gtable",
+        
+        # Graphics and rendering support
+        "base64enc", "mime", "fontawesome", "markdown", "cachem", "fastmap",
+        
+        # System utilities  
+        "lifecycle", "cli", "glue", "fansi", "crayon", "vctrs", "pillar",
+        
+        # HTTP and web
+        "httr", "curl", "askpass", "openssl",
+        
+        # Statistical packages
+        "MASS", "Matrix"
+    )
+    
+    # CONDITIONAL PACKAGES (only if system libraries available)
     conditional_packages <- list()
+    conditional_descriptions <- list()
+    
     if (CAIRO_AVAILABLE) {
-        conditional_packages$Cairo <- "High-quality graphics rendering"
-        conditional_packages$webshot2 <- "Web page screenshots"
+        conditional_packages$Cairo <- "Cairo"
+        conditional_descriptions$Cairo <- "High-quality graphics rendering"
+        conditional_packages$webshot2 <- "webshot2"  
+        conditional_descriptions$webshot2 <- "Web page screenshots"
     }
+    
     if (XML2_AVAILABLE) {
-        conditional_packages$xml2 <- "XML/HTML processing"
-        conditional_packages$gt <- "Advanced table formatting"
+        conditional_packages$xml2 <- "xml2"
+        conditional_descriptions$xml2 <- "XML/HTML processing for gt package"
+        # Note: gt is now in essential as it's used in core functionality
     }
     
-    # Optional packages (nice to have)
-    optional_packages <- c("plotly")
+    # SPECIALIZED PACKAGES (may fail on some systems, not critical)
+    specialized_packages <- c(
+        "processx", "callr", "later", "promises", "memoise",
+        "sys", "blob", "DBI", "RSQLite", "RPostgres",
+        "V8", "chromote", "websocket", "AsioHeaders",
+        "bigD", "bit", "bitops", "backports", "assertthat",
+        "checkmate", "cpp11", "Rcpp", "colorspace", "commonmark",
+        "evaluate", "highr", "knitr", "rmarkdown", "yaml",
+        "juicyjuice", "labeling", "lazyeval", "pkgconfig",
+        "withr", "timechange", "generics", "tidyselect"
+    )
     
-    # Install core packages
-    cat("Installing", length(core_packages), "core packages...\n")
-    failed_core <- character(0)
+    # Install essential packages first (MUST succeed)
+    cat("Installing", length(essential_packages), "essential packages...\n")
+    failed_essential <- character(0)
     
-    for (pkg in core_packages) {
+    for (pkg in essential_packages) {
         cat("  Installing", pkg, "...")
         result <- tryCatch({
             renv::install(pkg, prompt = FALSE)
@@ -679,7 +733,24 @@ install_packages <- function() {
             TRUE
         }, error = function(e) {
             cat(" ✗\n")
-            failed_core <<- c(failed_core, pkg)
+            failed_essential <<- c(failed_essential, pkg)
+            FALSE
+        })
+    }
+    
+    # Install enhanced packages
+    cat("\nInstalling", length(enhanced_packages), "enhanced packages...\n")
+    failed_enhanced <- character(0)
+    
+    for (pkg in enhanced_packages) {
+        cat("  Installing", pkg, "...")
+        result <- tryCatch({
+            renv::install(pkg, prompt = FALSE)
+            cat(" ✓\n")
+            TRUE
+        }, error = function(e) {
+            cat(" ⚠\n")
+            failed_enhanced <<- c(failed_enhanced, pkg)
             FALSE
         })
     }
@@ -689,8 +760,10 @@ install_packages <- function() {
         cat("\nInstalling conditional packages (based on system libraries)...\n")
         failed_conditional <- character(0)
         
-        for (pkg in names(conditional_packages)) {
-            cat("  Installing", pkg, "(", conditional_packages[[pkg]], ") ...")
+        for (pkg_key in names(conditional_packages)) {
+            pkg <- conditional_packages[[pkg_key]]
+            desc <- conditional_descriptions[[pkg_key]]
+            cat("  Installing", pkg, "(", desc, ") ...")
             result <- tryCatch({
                 renv::install(pkg, prompt = FALSE)
                 cat(" ✓\n")
@@ -703,42 +776,55 @@ install_packages <- function() {
         }
     }
     
-    # Install optional packages
-    cat("\nInstalling optional packages...\n")
-    failed_optional <- character(0)
+    # Install specialized packages (optional)
+    cat("\nInstalling specialized packages...\n")
+    failed_specialized <- character(0)
     
-    for (pkg in optional_packages) {
+    for (pkg in specialized_packages) {
         cat("  Installing", pkg, "...")
         tryCatch({
             renv::install(pkg, prompt = FALSE)
             cat(" ✓\n")
         }, error = function(e) {
-            cat(" ⚠ (optional)\n")
-            failed_optional <<- c(failed_optional, pkg)
+            cat(" ⚠\n")
+            failed_specialized <<- c(failed_specialized, pkg)
         })
     }
     
     # Installation summary
     cat("\n=== INSTALLATION SUMMARY ===\n")
-    cat("Core packages:", length(core_packages) - length(failed_core), "/", length(core_packages), "\n")
+    cat("Essential packages:", length(essential_packages) - length(failed_essential), "/", length(essential_packages), "\n")
+    cat("Enhanced packages:", length(enhanced_packages) - length(failed_enhanced), "/", length(enhanced_packages), "\n")
     if (exists("failed_conditional")) {
         cat("Conditional packages:", length(conditional_packages) - length(failed_conditional), "/", length(conditional_packages), "\n")
     }
-    cat("Optional packages:", length(optional_packages) - length(failed_optional), "/", length(optional_packages), "\n")
+    cat("Specialized packages:", length(specialized_packages) - length(failed_specialized), "/", length(specialized_packages), "\n")
     
-    if (length(failed_core) > 0) {
-        cat("\nFailed core packages:", paste(failed_core, collapse = ", "), "\n")
+    if (length(failed_essential) > 0) {
+        cat("\n❌ FAILED ESSENTIAL PACKAGES:\n")
+        for(pkg in failed_essential) {
+            cat("  -", pkg, "\n")
+        }
+        cat("⚠️  These failures WILL prevent the app from starting!\n")
     }
     
-    # Return success if most core packages installed
-    success_rate <- (length(core_packages) - length(failed_core)) / length(core_packages)
-    return(success_rate >= 0.8)
+    # Return success if ALL essential packages installed
+    success_rate <- (length(essential_packages) - length(failed_essential)) / length(essential_packages)
+    return(success_rate >= 1.0)  # Require ALL essential packages
 }
 
-# Verification
+# Verification with complete package list
 verify_installation <- function() {
     cat("\n=== VERIFICATION ===\n")
-    essential <- c("shiny", "dplyr", "ggplot2", "DT")
+    
+    # Must verify ALL essential packages from app.R
+    essential <- c(
+        "shiny", "shinyjs", "readr", "dplyr", "ggplot2", "ggtext", 
+        "colourpicker", "ggrepel", "arrow", "DT", "plotly", "gt",
+        "shiny.semantic", "semantic.dashboard", "gridExtra", "shinyalert", 
+        "tidyr", "data.table", "jsonlite", "htmltools"
+    )
+    
     missing <- character(0)
     
     for (pkg in essential) {
@@ -750,27 +836,57 @@ verify_installation <- function() {
         }
     }
     
+    # Check conditional packages
+    if (CAIRO_AVAILABLE) {
+        if (requireNamespace("Cairo", quietly = TRUE)) {
+            cat("✓ Cairo (conditional)\n")
+        } else {
+            cat("⚠ Cairo (conditional - not installed)\n")
+        }
+    }
+    
+    if (XML2_AVAILABLE) {
+        if (requireNamespace("xml2", quietly = TRUE)) {
+            cat("✓ xml2 (conditional)\n")
+        } else {
+            cat("⚠ xml2 (conditional - not installed)\n")
+        }
+    }
+    
     return(length(missing) == 0)
 }
 
-# Test basic app functionality
+# Test app functionality
 test_app <- function() {
-    cat("\n=== APP TEST ===\n")
+    cat("\n=== APP FUNCTIONALITY TEST ===\n")
     tryCatch({
-        library(shiny, quietly = TRUE)
-        library(dplyr, quietly = TRUE)
-        library(ggplot2, quietly = TRUE)
+        # Test ALL core libraries that must load for app to work
+        suppressMessages({
+            library(shiny, quietly = TRUE)
+            library(shinyjs, quietly = TRUE)
+            library(dplyr, quietly = TRUE)
+            library(ggplot2, quietly = TRUE)
+            library(DT, quietly = TRUE)
+            library(colourpicker, quietly = TRUE)
+            library(shiny.semantic, quietly = TRUE)
+            library(semantic.dashboard, quietly = TRUE)
+            library(arrow, quietly = TRUE)
+            library(gt, quietly = TRUE)
+            library(plotly, quietly = TRUE)
+        })
+        
+        cat("✓ All essential libraries load successfully\n")
         
         if (file.exists("app.R")) {
             parse("app.R")
             cat("✓ app.R syntax is valid\n")
         }
         
-        cat("✓ Core components working\n")
+        cat("✓ All essential components working\n")
         return(TRUE)
         
     }, error = function(e) {
-        cat("✗ Error:", e$message, "\n")
+        cat("✗ Error loading essential libraries:", e$message, "\n")
         return(FALSE)
     })
 }
@@ -781,14 +897,22 @@ verify_success <- verify_installation()
 test_success <- test_app()
 
 if (install_success && verify_success && test_success) {
-    cat("\n🎉 R environment ready!\n")
+    cat("\n🎉 Complete R environment ready!\n")
+    cat("All essential packages installed and verified.\n")
     quit(status = 0)
-} else if (verify_success) {
-    cat("\n⚠ R environment ready with some limitations\n")
+} else if (verify_success && test_success) {
+    cat("\n⚠ R environment ready with some optional features missing\n")
+    cat("Core functionality available.\n")
     quit(status = 0)
 } else {
     cat("\n❌ R environment setup incomplete\n")
-    quit(status = 1)
+    cat("Some essential packages may be missing.\n")
+    if (test_success) {
+        cat("However, app syntax test passed - try launching anyway.\n")
+        quit(status = 0)
+    } else {
+        quit(status = 1)
+    }
 }
 R_SCRIPT_EOF
 
@@ -809,7 +933,7 @@ R_SCRIPT_EOF
     
     # Execute R package installation
     R --no-restore --no-save < install_r_packages.R &
-    show_progress "Installing R packages (this may take several minutes)"
+    show_progress "Installing complete R package environment"
     
     local r_exit_code=$?
     
@@ -820,7 +944,7 @@ R_SCRIPT_EOF
         print_success "R environment configured successfully"
     else
         print_warning "R environment setup completed with some issues"
-        print_info "Core functionality should still be available"
+        print_info "Core functionality should be available"
     fi
 }
 
@@ -869,15 +993,23 @@ launch_application() {
     echo
     print_info "🛑 To stop the app: Press Ctrl+C in this terminal"
     print_info "💾 Your data stays private - nothing is uploaded to external servers"
+    print_info "⚡ First startup may take a moment while packages load"
     echo
     
     # Create launch script
     cat > launch_vivid_volcano.R << LAUNCH_EOF
 # Vivid Volcano Launch Script
+cat("Loading Vivid Volcano environment...\n")
 suppressMessages(source('renv/activate.R'))
 
-# Verify essential packages
-essential <- c('shiny', 'dplyr', 'ggplot2', 'DT')
+# Verify ALL essential packages are available (based on app.R analysis)
+essential <- c(
+    'shiny', 'shinyjs', 'readr', 'dplyr', 'ggplot2', 'ggtext', 
+    'colourpicker', 'ggrepel', 'arrow', 'DT', 'plotly', 'gt',
+    'shiny.semantic', 'semantic.dashboard', 'gridExtra', 'shinyalert',
+    'tidyr', 'data.table'
+)
+
 missing <- character(0)
 
 for (pkg in essential) {
@@ -893,15 +1025,19 @@ if (length(missing) > 0) {
 }
 
 cat('✓ Environment verified - all essential packages available\n')
-cat('🚀 Starting Vivid Volcano...\n\n')
+cat('🚀 Starting Vivid Volcano application...\n')
+cat('   First load may take 10-30 seconds...\n\n')
 
-# Load and launch
-suppressMessages(library(shiny))
+# Load and launch (suppress startup messages for cleaner output)
+suppressPackageStartupMessages({
+    library(shiny)
+})
+
 runApp('app.R', host = '$host', port = $port, launch.browser = $launch_browser)
 LAUNCH_EOF
 
     # Launch the application
-    print_step "Starting Vivid Volcano application"
+    print_step "Starting Vivid Volcano application..."
     R --no-restore --no-save < launch_vivid_volcano.R
     
     local app_exit_code=$?
@@ -925,7 +1061,7 @@ main() {
     start_time=$(date +%s)
     
     # Header
-    print_header "VIVID VOLCANO INSTALLER v4.4"
+    print_header "VIVID VOLCANO INSTALLER v4.6"
     echo -e "${CYAN}Repository:${NC} https://github.com/DatViseR/Vivid-Volcano"
     echo -e "${CYAN}Author:${NC} DatViseR"
     echo -e "${CYAN}Environment:${NC} $(detect_environment)"
@@ -937,10 +1073,13 @@ main() {
     # Installation flow confirmation
     echo -e "${BOLD}This installer will:${NC}"
     echo "  1. Check and install prerequisites (Git, R)"
-    echo "  2. Install system libraries (with your choices)"
+    echo "  2. Install system libraries (optional - your choice)"
     echo "  3. Download Vivid Volcano repository"
-    echo "  4. Set up R environment and packages"
+    echo "  4. Set up complete R environment with all packages"
     echo "  5. Optionally launch the application"
+    echo
+    echo -e "${YELLOW}Note:${NC} System dependencies are OPTIONAL for enhanced features"
+    echo -e "${YELLOW}      The app works without them but may have limited functionality${NC}"
     echo
     
     read -p "Proceed with installation? (Y/n): " -n 1 -r
@@ -953,11 +1092,14 @@ main() {
     # Installation steps
     check_and_install_prerequisites
     
-    # System dependencies (optional step)
+    # System dependencies (optional step with clear explanation)
     echo
-    print_step "System dependencies provide enhanced functionality"
-    print_info "You can skip this step - the app will work with basic features"
-    read -p "Install system dependencies with feature selection? (Y/n): " -n 1 -r
+    print_step "System dependencies enable enhanced features"
+    echo -e "${CYAN}✓ Basic features:${NC} Work without system dependencies"
+    echo -e "${CYAN}✓ Enhanced features:${NC} High-quality graphics, advanced tables, XML processing"
+    echo -e "${YELLOW}⚠ macOS users:${NC} Cairo can fix graphics issues but is completely optional"
+    echo
+    read -p "Install optional system dependencies for enhanced features? (Y/n): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
         install_system_dependencies
@@ -983,19 +1125,27 @@ main() {
     echo
     echo -e "${BOLD}🎉 Vivid Volcano is ready to use!${NC}"
     echo
-    echo -e "${BOLD}Features available:${NC}"
+    echo -e "${BOLD}Core features (always available):${NC}"
     echo "  ✓ Upload CSV/TSV omics data"
-    echo "  ✓ Generate publication-ready volcano plots"
+    echo "  ✓ Generate volcano plots"
     echo "  ✓ Perform GO enrichment analysis"
-    echo "  ✓ Interactive data filtering and exploration"
-    echo "  ✓ Download high-quality plots and results"
+    echo "  ✓ Interactive data filtering"
+    echo "  ✓ Download results and plots"
+    echo "  ✓ Interactive plots with plotly"
+    echo "  ✓ Publication-quality tables with gt"
     
     # Enhanced features based on what was installed
+    echo
+    echo -e "${BOLD}Enhanced features:${NC}"
     if check_system_library "cairo" "cairo/cairo.h" "cairo"; then
-        echo "  ✓ High-quality Cairo graphics (enhanced plot rendering)"
+        echo "  ✓ High-quality Cairo graphics (publication-ready plots)"
+    else
+        echo "  ⚬ High-quality graphics (install Cairo for enhanced rendering)"
     fi
     if check_system_library "xml2" "libxml/parser.h" "libxml-2.0"; then
-        echo "  ✓ XML data processing capabilities"
+        echo "  ✓ XML data processing and advanced table formatting"
+    else
+        echo "  ⚬ Advanced table formatting (install libxml2 for full gt package support)"
     fi
     
     echo
@@ -1010,8 +1160,8 @@ main() {
     
     # Launch option with clear choice
     echo
-    echo -e "${BOLD}Launch Options:${NC}"
-    echo "  [Y] Launch Vivid Volcano now"
+    echo -e "${BOLD}Ready to launch Vivid Volcano?${NC}"
+    echo "  [Y] Start the application now"
     echo "  [N] Complete installation (launch manually later)"
     echo
     read -p "Your choice (Y/n): " -n 1 -r
@@ -1031,7 +1181,7 @@ main() {
 cleanup() {
     print_error "Installation interrupted"
     # Clean up any temporary files
-    rm -f install_r_packages.R launch_vivid_volcano.R setup_environment.R 2>/dev/null || true
+    rm -f install_r_packages.R launch_vivid_volcano.R 2>/dev/null || true
     exit 1
 }
 
