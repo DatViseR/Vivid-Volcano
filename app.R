@@ -15,12 +15,47 @@ library(ggrepel)
 library(arrow)
 library(DT)
 library(plotly)
-library(Cairo)
+
+# Cairo Graphics Library - Conditional Loading
+# Cairo provides high-quality graphics rendering and is especially beneficial for:
+# - Publication-quality plot output with better anti-aliasing
+# - Consistent cross-platform graphics rendering
+# - Enhanced PDF/PNG export capabilities
+# - Better font rendering and Unicode support
+#
+# macOS Installation Issues:
+# Cairo can be problematic on macOS due to:
+# - Complex system dependencies (X11, fontconfig, freetype)
+# - Conflicts between Homebrew Intel/ARM installations
+# - Xcode Command Line Tools version mismatches
+# - Different Cairo versions in system vs. Homebrew paths
+#
+# The app functions without Cairo using R's default graphics devices,
+# but users may experience slightly lower quality plot rendering.
+
+if (requireNamespace("Cairo", quietly = TRUE)) {
+  library(Cairo)
+  message("✓ Cairo graphics library loaded - enhanced plot rendering available")
+} else {
+  message("ℹ Cairo not available - using default graphics (install Cairo for enhanced rendering)")
+}
+
 library(gt)
 library(shiny.semantic)
 library(semantic.dashboard)
 library(gridExtra)
-library(webshot2)
+
+# WebShot2 - Conditional Loading
+# WebShot2 enables web page screenshots and may depend on Cairo availability
+# Falls back gracefully if not available
+
+if (requireNamespace("webshot2", quietly = TRUE)) {
+  library(webshot2)
+  message("✓ WebShot2 loaded - screenshot capabilities available")
+} else {
+  message("ℹ WebShot2 not available - some export features may be limited")
+}
+
 library(shinyalert)  
 library(tidyr)
 library(data.table)
