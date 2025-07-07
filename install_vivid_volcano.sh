@@ -372,7 +372,7 @@ install_system_dependencies() {
             echo
             
             local optional_deps=(
-                "libxml2-dev:XML data processing:Enables xml2 and gt packages for enhanced tables and data import"
+                "libxml2-dev:XML data processing:Enables xml2 package for XML/HTML parsing and web scraping (gt tables should work without this - install only if you have issueus with GT tables display in the app"
                 "libcairo2-dev:High-quality graphics:Enables Cairo package for publication-quality plot rendering"
                 "libfontconfig1-dev:Advanced font support:Better text rendering and font selection in plots"
                 "libharfbuzz-dev:Complex text layout:Support for advanced typography and text shaping"
@@ -932,10 +932,11 @@ R_SCRIPT_EOF
     fi
     
     # Execute R package installation
-    R --no-restore --no-save < install_r_packages.R &
-    show_progress "Installing complete R package environment"
-    
-    local r_exit_code=$?
+    print_step "Installing R packages with detailed progress..."
+echo
+R --no-restore --no-save < install_r_packages.R
+
+local r_exit_code=$?
     
     # Cleanup
     rm -f install_r_packages.R
