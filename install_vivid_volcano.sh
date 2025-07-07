@@ -534,18 +534,18 @@ setup_enhanced_renv_environment() {
     print_success "renv is available"
     
     # Check system library availability
-    local cairo_available=false
-    local xml2_available=false
+    local cairo_available=FALSE
+    local xml2_available=FALSE
     
     if check_system_library "cairo" "cairo/cairo.h" "cairo"; then
-        cairo_available=true
+        cairo_available=TRUE
         print_info "Cairo system library: Available"
     else
         print_info "Cairo system library: Not available"
     fi
     
     if check_system_library "xml2" "libxml/parser.h" "libxml-2.0"; then
-        xml2_available=true
+        xml2_available=TRUE
         print_info "XML2 system library: Available"
     else
         print_info "XML2 system library: Not available"
