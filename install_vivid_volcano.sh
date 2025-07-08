@@ -1074,7 +1074,7 @@ echo -e "${YELLOW}💡 Public Cloud Available:${NC}"
 echo -e "   For instant access, visit: ${BLUE}https://datviser-vivid-volcano.share.connect.posit.cloud/${NC}"
 echo
 
-echo -e "${CYAN}  Available via web; Data privacy information:${NC}"
+echo -e "${CYAN} Data privacy information for public Cloud (Posit Connect):${NC}"
 echo -e "    • Your uploaded data is NOT stored permanently, and is NOT accessible to other users."
 echo -e "    • Each session is isolated: your data is only available during your active session and is cleared when the session ends (including temporary logs)."
 echo -e "    • Vivid Volcano does NOT collect, store, or share any uploaded files or analysis results."
@@ -1085,6 +1085,8 @@ echo -e "${YELLOW}⚠️  For your safety:${NC}"
 echo -e "    • Do NOT upload highly sensitive data (e.g., non-blinded patient data), as the app is hosted on a public server without authentication."
 echo -e "    • For sensitive data, use this installer to run the app locally or in your own secure cloud container."
 echo
+echo -e "${CYAN}This installer installs Vivid Volcano localy or on the private server container:${NC}"
+echo    
     
     # Installation flow confirmation
     echo -e "${BOLD}This installer will:${NC}"
