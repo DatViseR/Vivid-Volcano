@@ -49,6 +49,11 @@ library(gridExtra)
 # WebShot2 enables web page screenshots and may depend on Cairo availability
 # Falls back gracefully if not available
 
+# This version of the app exports GT tables as HTML files and does not depend on
+# webshot2.  PDF export depends on webshot2 which is not working in the posit connect cloud - that is why
+# export was changed to HTML export. You can enable
+#pdf export by modifying the downloadHandler() code for gt tables before installation in your private server
+
 if (requireNamespace("webshot2", quietly = TRUE)) {
   library(webshot2)
   message("✓ WebShot2 loaded - screenshot capabilities available")
