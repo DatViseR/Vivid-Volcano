@@ -437,7 +437,7 @@ install_system_dependencies() {
             echo
             
             local optional_deps=(
-                "libxml2:XML data processing:Enables xml2 and gt packages for enhanced tables"
+                "libxml2:XML data processing::Enables xml2 package for XML/HTML parsing and web scraping (gt tables should work without this - install only if you have issueus with GT tables display in the app"
                 "cairo:High-quality graphics:Fixes macOS graphics issues and enables publication-quality plots"
                 "harfbuzz:Advanced typography:Complex text layout and font shaping"
                 "fribidi:Bidirectional text:Right-to-left language support"
@@ -524,7 +524,7 @@ install_system_dependencies() {
         *)
             print_warning "Unknown environment - skipping system dependencies"
             print_info "Vivid Volcano will work with basic functionality"
-            print_info "You may install development libraries manually for enhanced features"
+            print_info "You may install system libraries manually for enhanced features"
             ;;
     esac
     
@@ -1062,13 +1062,23 @@ main() {
     start_time=$(date +%s)
     
     # Header
-    print_header "VIVID VOLCANO INSTALLER v4.6"
+    print_header "VIVID VOLCANO UNIVERSAL INSTALLER"
     echo -e "${CYAN}Repository:${NC} https://github.com/DatViseR/Vivid-Volcano"
     echo -e "${CYAN}Author:${NC} DatViseR"
     echo -e "${CYAN}Environment:${NC} $(detect_environment)"
     echo
-    echo -e "${YELLOW}💡 Cloud Alternative:${NC} For instant access, visit ${BLUE}https://vivid-volcano.com${NC}"
-    echo -e "${CYAN}   No installation required, works immediately in any browser${NC}"
+    echo -e "${YELLOW}💡Public Cloud availible:${NC} For instant access, visit ${BLUE}https://datviser-vivid-volcano.share.connect.posit.cloud/${NC}"
+    echo -e "${CYAN}  Availible via web; Data privacy: When you use this cloud-based application, your data is processed securely within your own session. What it means :
+
+    Your uploaded data is not stored permanently, and it is not accessible to other users.
+
+    Each session is isolated, meaning your data is only available during your active session and is automatically cleared when the session ends (including temporal logs).
+
+    Vivid Volcano does not collect, store, or share any uploaded files or analysis results. It collects non-sensitive telemetry data - number of sessions, analyses performed, time of sessions etc....
+
+    For your safety, I recommend not uploading highly sensitive data (ex. not blinded patients data) , as the app is hosted on a public server without authentication. For sensitive data you can
+    use this installer to install the app localy or in your own cloud container. 
+ ${NC}"
     echo
     
     # Installation flow confirmation
