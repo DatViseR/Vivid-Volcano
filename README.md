@@ -73,7 +73,7 @@ reproducible package dependencies across different systems. This creates
 an isolated R environment with the exact package versions specified in
 `renv.lock`, preventing conflicts with your system-wide R packages.
 
-#### For UNIX Systems (Linux/macOS)
+#### For UNIX Systems (Linux/macOS/cloud containers)
 
 1.  Automated installation
 
@@ -81,7 +81,7 @@ Download the [automated installation
 script](https://drive.google.com/file/d/17_YcYaYWQfYlosE_dQLDN2_PFcA1F2HB/view?usp=sharing)
 written in bash - it that handles system dependencies, renv setup,
 cloning the repository and should enable working with Vivid Volcano
-locally with just few clicks.
+locally or in cloud container with just few clicks.
 
 ``` bash
 # Run the automated installer in the bash terminal
@@ -100,13 +100,14 @@ chmod +x install_vivid_volcano.sh
 
 -   Excludes problematic packages (PostgreSQL, V8) for stability
 
--   Generates an installation report
-
 -   If users accepts run the app in the browser
 
-Next time if you want to run the app from the unix terminal, you have several options:
+Next time if you want to run the app from the unix terminal, you have
+several options:
 
 ``` bash
+# Make sure you are in Vivid-Volcano folder
+
 # Enhanced launcher (recommended for macOS)
 ./launch_app.sh
 
@@ -116,6 +117,7 @@ R -f launch_app.R
 # Basic R command
 R -e "shiny::runApp('app.R')"
 ```
+
 or run it from R GUI, R Studio or other R IDE
 
 2.  Manual installation
@@ -212,49 +214,64 @@ The app will launch in your default web browser, typically at
 
 #### Browser Issues on macOS
 
-If you're experiencing issues with the app not opening in your browser on macOS, here are several solutions:
+If you're experiencing issues with the app not opening in your browser
+on macOS, here are several solutions:
 
-**Problem**: Running `R -e "shiny::runApp()"` shows "Listening on [URL]" but doesn't open browser, and terminal appears frozen.
+**Problem**: Running `R -e "shiny::runApp()"` shows "Listening on [URL]"
+but doesn't open browser, and terminal appears frozen.
 
 **Solutions** (in order of recommendation):
 
-1. **Use the Enhanced Launcher (Recommended)**
-   ```bash
-   ./launch_app.sh
-   ```
-   This script provides robust browser launching with multiple fallback methods specifically designed for macOS.
+1.  **Use the Enhanced Launcher (Recommended)**
 
-2. **Use the R Launcher Script**
-   ```r
-   # From R console or terminal
-   R -f launch_app.R
-   ```
-   This provides enhanced browser support with platform detection.
+    ``` bash
+    ./launch_app.sh
+    ```
 
-3. **Manual Browser Opening**
-   ```r
-   # Run this and manually open the URL shown
-   R -e "shiny::runApp('app.R', launch.browser = FALSE)"
-   ```
-   Then copy the displayed URL (typically `http://127.0.0.1:3838` or similar) into your browser.
+    This script provides robust browser launching with multiple fallback
+    methods specifically designed for macOS.
 
-4. **Browser-Specific Solutions**
-   
-   If automatic launching fails, try these macOS-specific commands:
-   ```bash
-   # For Safari
-   open -a Safari http://127.0.0.1:3838
-   
-   # For Chrome  
-   open -a "Google Chrome" http://127.0.0.1:3838
-   
-   # For Firefox
-   open -a Firefox http://127.0.0.1:3838
-   ```
+2.  **Use the R Launcher Script**
 
-**Why This Happens**: macOS sometimes has security restrictions or session context issues that prevent automatic browser launching from R, especially when run from certain terminal environments.
+    ``` r
+    # From R console or terminal
+    R -f launch_app.R
+    ```
 
-**Prevention**: Use the enhanced launchers (`./launch_app.sh` or `R -f launch_app.R`) which include multiple fallback methods and better error handling for macOS.
+    This provides enhanced browser support with platform detection.
+
+3.  **Manual Browser Opening**
+
+    ``` r
+    # Run this and manually open the URL shown
+    R -e "shiny::runApp('app.R', launch.browser = FALSE)"
+    ```
+
+    Then copy the displayed URL (typically `http://127.0.0.1:3838` or
+    similar) into your browser.
+
+4.  **Browser-Specific Solutions**
+
+    If automatic launching fails, try these macOS-specific commands:
+
+    ``` bash
+    # For Safari
+    open -a Safari http://127.0.0.1:3838
+
+    # For Chrome  
+    open -a "Google Chrome" http://127.0.0.1:3838
+
+    # For Firefox
+    open -a Firefox http://127.0.0.1:3838
+    ```
+
+**Why This Happens**: macOS sometimes has security restrictions or
+session context issues that prevent automatic browser launching from R,
+especially when run from certain terminal environments.
+
+**Prevention**: Use the enhanced launchers (`./launch_app.sh` or
+`R -f launch_app.R`) which include multiple fallback methods and better
+error handling for macOS.
 
 ### **Contributions are welcome !**
 

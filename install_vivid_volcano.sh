@@ -1062,24 +1062,29 @@ main() {
     start_time=$(date +%s)
     
     # Header
-    print_header "VIVID VOLCANO UNIVERSAL INSTALLER"
-    echo -e "${CYAN}Repository:${NC} https://github.com/DatViseR/Vivid-Volcano"
-    echo -e "${CYAN}Author:${NC} DatViseR"
-    echo -e "${CYAN}Environment:${NC} $(detect_environment)"
-    echo
-    echo -e "${YELLOW}💡Public Cloud availible:${NC} For instant access, visit ${BLUE}https://datviser-vivid-volcano.share.connect.posit.cloud/${NC}"
-    echo -e "${CYAN}  Availible via web; Data privacy: When you use this cloud-based application, your data is processed securely within your own session. What it means :
+    # VIVID VOLCANO UNIVERSAL INSTALLER
 
-    Your uploaded data is not stored permanently, and it is not accessible to other users.
+print_header "VIVID VOLCANO UNIVERSAL INSTALLER"
+echo -e "${CYAN}Repository:${NC} https://github.com/DatViseR/Vivid-Volcano"
+echo -e "${CYAN}Author:${NC}        DatViseR"
+echo -e "${CYAN}Environment:${NC}   $(detect_environment)"
+echo
 
-    Each session is isolated, meaning your data is only available during your active session and is automatically cleared when the session ends (including temporal logs).
+echo -e "${YELLOW}💡 Public Cloud Available:${NC}"
+echo -e "   For instant access, visit: ${BLUE}https://datviser-vivid-volcano.share.connect.posit.cloud/${NC}"
+echo
 
-    Vivid Volcano does not collect, store, or share any uploaded files or analysis results. It collects non-sensitive telemetry data - number of sessions, analyses performed, time of sessions etc....
+echo -e "${CYAN}  Available via web; Data privacy information:${NC}"
+echo -e "    • Your uploaded data is NOT stored permanently, and is NOT accessible to other users."
+echo -e "    • Each session is isolated: your data is only available during your active session and is cleared when the session ends (including temporary logs)."
+echo -e "    • Vivid Volcano does NOT collect, store, or share any uploaded files or analysis results."
+echo -e "    • The application only collects non-sensitive telemetry data (number of sessions, analyses performed, session durations, etc.)."
+echo
 
-    For your safety, I recommend not uploading highly sensitive data (ex. not blinded patients data) , as the app is hosted on a public server without authentication. For sensitive data you can
-    use this installer to install the app localy or in your own cloud container. 
- ${NC}"
-    echo
+echo -e "${YELLOW}⚠️  For your safety:${NC}"
+echo -e "    • Do NOT upload highly sensitive data (e.g., non-blinded patient data), as the app is hosted on a public server without authentication."
+echo -e "    • For sensitive data, use this installer to run the app locally or in your own secure cloud container."
+echo
     
     # Installation flow confirmation
     echo -e "${BOLD}This installer will:${NC}"
