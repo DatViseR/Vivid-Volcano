@@ -32,14 +32,14 @@ of detected and regulated genes within a specific category\
 • Process log system for user sessions, useful for checking data
 processing outcomes, debugging, and analyzing app functionality
 
-## **The application is available in the cloud or can be installed locally:**
+## **The application is available in the cloud or can be easily installed locally or on private server container:**
 
 ### **Vivid Volcano live at POSIT Connect Cloud**
 
 [**Vivid volcano cloud
 version**](https://datviser-vivid-volcano.share.connect.posit.cloud/)
 
-**Data Privacy Notice**\
+**Data Privacy Notice for the version deployed in the public cloud:**\
 When you use this cloud-based application, your data is processed
 securely within your own session. What it means :
 
@@ -66,7 +66,7 @@ peer review from the scientific community.**
 [**Vivid volcano features- demo
 movie**](https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link)
 
-### Instructions for running the app locally:
+### Instructions for running the app locally or installing inside a container on the private server:
 
 Vivid Volcano uses **renv** (R environment management) to ensure
 reproducible package dependencies across different systems. This creates
@@ -77,11 +77,17 @@ an isolated R environment with the exact package versions specified in
 
 1.  Automated installation
 
-Download the [automated installation
-script](https://drive.google.com/file/d/17_YcYaYWQfYlosE_dQLDN2_PFcA1F2HB/view?usp=sharing)
-written in bash - it that handles system dependencies, renv setup,
+Download the **automated installation script** written in bash :
+
+``` bash
+# Download the installation script
+curl -fsSL -o install_vivid_volcano.sh https://raw.githubusercontent.com/DatViseR/Vivid-Volcano/master/install_vivid_volcano.sh
+```
+
+\- This script that handles optional system dependencies, renv setup,
 cloning the repository and should enable working with Vivid Volcano
-locally or in cloud container with just few clicks.
+locally or in linux based cloud container with just few clicks. The full
+installation may take around 5 min.
 
 ``` bash
 # Run the automated installer in the bash terminal
@@ -93,20 +99,18 @@ chmod +x install_vivid_volcano.sh
 
 -   Checks prerequisites (R 4.4+, Git, system dependencies)
 
--   Offers selective installation of system libraries (SSL, cURL, Cairo,
-    etc.)
+-   Offers selective installation of optional system libraries(such as
+    Cairo that enhances graphical outputs)
 
 -   Sets up renv environment with core packages
 
--   Excludes problematic packages (PostgreSQL, V8) for stability
-
 -   If users accepts run the app in the browser
 
-Next time if you want to run the app from the unix terminal, you have
-several options:
+Next time if you want to run the app from the UNIX terminal, you have
+two options:
 
 ``` bash
-# Make sure you are in Vivid-Volcano folder
+# Make sure you are in Vivid-Volcano folder (cd Vivid-Volcano)
 
 # Enhanced launcher (recommended for macOS)
 ./launch_app.sh
@@ -131,7 +135,7 @@ Volcano locally
 git clone https://github.com/DatViseR/Vivid-Volcano.git
 cd Vivid-Volcano
 
-# Install system dependencies (Ubuntu/Debian example)
+# Install system dependencies (Ubuntu/Debian example) - OPTIONAL for enhance feuteres and developers who wish to modify the app (enabling pdf gt tables output) 
 sudo apt-get update
 sudo apt-get install libssl-dev libcurl4-openssl-dev libxml2-dev
 
@@ -180,12 +184,31 @@ renv::activate()
 renv::restore()
 ```
 
-4.  Handle Potential Issues If package installation fails:
+4.  Handle Potential Issues If renv package installation fails - install
+    essential core packages from CRAN repository:
 
 ``` r
-# Skip problematic packages and install core ones
-core_packages <- c("shiny", "dplyr", "ggplot2", "DT", "ggtext", 
-                   "ggrepel", "shiny.semantic", "arrow")
+
+core_packages <- c(
+  "shiny",             # Core web application framework
+  "shinyjs",           # JavaScript integration for Shiny
+  "shinyalert",        # Modal alerts in Shiny
+  "shiny.semantic",    # Semantic UI theming
+  "semantic.dashboard",# Semantic UI dashboards
+  "dplyr",             # Data manipulation
+  "tidyr",             # Data tidying
+  "data.table",        # High-performance data manipulation
+  "readr",             # Fast data import
+  "arrow",             # Parquet/Feather file support
+  "ggplot2",           # Core plotting
+  "ggrepel",           # Better text labels in ggplot2
+  "ggtext",            # Rich text in ggplot2
+  "DT",                # Interactive tables
+  "gt",                # Modern HTML tables
+  "plotly",            # Interactive plots
+  "colourpicker",      # Flexible color pickers
+  "gridExtra"          # Arrange multiple grid-based plots
+  )
 install.packages(core_packages)
 ```
 
