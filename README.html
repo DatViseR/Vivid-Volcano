@@ -395,12 +395,15 @@ of detected and regulated genes within a specific category<br />
 processing outcomes, debugging, and analyzing app functionality</p>
 </div>
 </div>
-<div id="the-application-is-available-in-the-cloud-or-can-be-installed-locally" class="section level2">
-<h2><strong>The application is available in the cloud or can be
-installed locally:</strong></h2>
+<div id="the-application-is-available-in-the-cloud-or-can-be-easily-installed-locally-or-on-private-server-container" class="section level2">
+<h2><strong>The application is available in the cloud or can be easily
+installed locally or on private server container:</strong></h2>
 <div id="vivid-volcano-live-at-posit-connect-cloud" class="section level3">
 <h3><strong>Vivid Volcano live at POSIT Connect Cloud</strong></h3>
-<p><strong>Data Privacy Notice</strong><br />
+<p><a href="https://datviser-vivid-volcano.share.connect.posit.cloud/"><strong>Vivid
+volcano cloud version</strong></a></p>
+<p><strong>Data Privacy Notice for the version deployed in the public
+cloud:</strong><br />
 When you use this cloud-based application, your data is processed
 securely within your own session. What it means :</p>
 <ul>
@@ -424,36 +427,51 @@ professional peer review from the scientific community.</strong></p>
 <p><a href="https://drive.google.com/file/d/1b7IzoJnTdTEW1VTk-L8TeDV9CMX0qKEz/view?usp=drive_link"><strong>Vivid
 volcano features- demo movie</strong></a></p>
 </div>
-<div id="instructions-for-running-the-app-locally" class="section level3">
-<h3>Instructions for running the app locally:</h3>
+<div id="instructions-for-running-the-app-locally-or-installing-inside-a-container-on-the-private-server" class="section level3">
+<h3>Instructions for running the app locally or installing inside a
+container on the private server:</h3>
 <p>Vivid Volcano uses <strong>renv</strong> (R environment management)
 to ensure reproducible package dependencies across different systems.
 This creates an isolated R environment with the exact package versions
 specified in <code>renv.lock</code>, preventing conflicts with your
 system-wide R packages.</p>
-<div id="for-unix-systems-linuxmacos" class="section level4">
-<h4>For UNIX Systems (Linux/macOS)</h4>
+<div id="for-unix-systems-linuxmacoscloud-containers" class="section level4">
+<h4>For UNIX Systems (Linux/macOS/cloud containers)</h4>
 <ol style="list-style-type: decimal">
 <li>Automated installation</li>
 </ol>
-<p>Download the <a href="https://drive.google.com/file/d/11mdl1ZFYsPH2RoTNlqMMipiKJz9VmxAp/view?usp=sharing">automated
-installation script</a> written in bash - it that handles system
-dependencies, renv setup, cloning the repository and should enable
-working with Vivid Volcano locally with just few clicks.</p>
-<pre class="bash"><code># Run the automated installer
+<p>Download the <strong>automated installation script</strong> written
+in bash :</p>
+<pre class="bash"><code># Download the installation script
+curl -fsSL -o install_vivid_volcano.sh https://raw.githubusercontent.com/DatViseR/Vivid-Volcano/master/install_vivid_volcano.sh</code></pre>
+<p>- This script that handles optional system dependencies, renv setup,
+cloning the repository and should enable working with Vivid Volcano
+locally or in linux based cloud container with just few clicks. The full
+installation may take around 5 min.</p>
+<pre class="bash"><code># Run the automated installer in the bash terminal
 chmod +x install_vivid_volcano.sh
 ./install_vivid_volcano.sh</code></pre>
 <p><strong>What the installation script does:</strong></p>
 <ul>
 <li><p>Checks prerequisites (R 4.4+, Git, system dependencies)</p></li>
-<li><p>Offers selective installation of system libraries (SSL, cURL,
-Cairo, etc.)</p></li>
+<li><p>Offers selective installation of optional system libraries(such
+as Cairo that enhances graphical outputs)</p></li>
 <li><p>Sets up renv environment with core packages</p></li>
-<li><p>Excludes problematic packages (PostgreSQL, V8) for
-stability</p></li>
-<li><p>Creates launcher scripts for easy app startup</p></li>
-<li><p>Generates an installation report</p></li>
+<li><p>If users accepts run the app in the browser</p></li>
 </ul>
+<p>Next time if you want to run the app from the UNIX terminal, you have
+two options:</p>
+<pre class="bash"><code># Make sure you are in Vivid-Volcano folder (cd Vivid-Volcano)
+
+# Enhanced launcher (recommended for macOS)
+./launch_app.sh
+
+# R launcher with improved browser support
+R -f launch_app.R
+
+# Basic R command
+R -e &quot;shiny::runApp(&#39;app.R&#39;)&quot;</code></pre>
+<p>or run it from R GUI, R Studio or other R IDE</p>
 <ol start="2" style="list-style-type: decimal">
 <li>Manual installation</li>
 </ol>
@@ -464,7 +482,7 @@ Vivid Volcano locally</p>
 git clone https://github.com/DatViseR/Vivid-Volcano.git
 cd Vivid-Volcano
 
-# Install system dependencies (Ubuntu/Debian example)
+# Install system dependencies (Ubuntu/Debian example) - OPTIONAL for enhance feuteres and developers who wish to modify the app (enabling pdf gt tables output) 
 sudo apt-get update
 sudo apt-get install libssl-dev libcurl4-openssl-dev libxml2-dev
 
@@ -509,11 +527,30 @@ renv::activate()
 # Restore packages from lockfile
 renv::restore()</code></pre>
 <ol start="4" style="list-style-type: decimal">
-<li>Handle Potential Issues If package installation fails:</li>
+<li>Handle Potential Issues If renv package installation fails - install
+essential core packages from CRAN repository:</li>
 </ol>
-<pre class="r"><code># Skip problematic packages and install core ones
-core_packages &lt;- c(&quot;shiny&quot;, &quot;dplyr&quot;, &quot;ggplot2&quot;, &quot;DT&quot;, &quot;ggtext&quot;, 
-                   &quot;ggrepel&quot;, &quot;shiny.semantic&quot;, &quot;arrow&quot;)
+<pre class="r"><code>
+core_packages &lt;- c(
+  &quot;shiny&quot;,             # Core web application framework
+  &quot;shinyjs&quot;,           # JavaScript integration for Shiny
+  &quot;shinyalert&quot;,        # Modal alerts in Shiny
+  &quot;shiny.semantic&quot;,    # Semantic UI theming
+  &quot;semantic.dashboard&quot;,# Semantic UI dashboards
+  &quot;dplyr&quot;,             # Data manipulation
+  &quot;tidyr&quot;,             # Data tidying
+  &quot;data.table&quot;,        # High-performance data manipulation
+  &quot;readr&quot;,             # Fast data import
+  &quot;arrow&quot;,             # Parquet/Feather file support
+  &quot;ggplot2&quot;,           # Core plotting
+  &quot;ggrepel&quot;,           # Better text labels in ggplot2
+  &quot;ggtext&quot;,            # Rich text in ggplot2
+  &quot;DT&quot;,                # Interactive tables
+  &quot;gt&quot;,                # Modern HTML tables
+  &quot;plotly&quot;,            # Interactive plots
+  &quot;colourpicker&quot;,      # Flexible color pickers
+  &quot;gridExtra&quot;          # Arrange multiple grid-based plots
+  )
 install.packages(core_packages)</code></pre>
 <ol start="5" style="list-style-type: decimal">
 <li><strong>Launch the App</strong></li>
@@ -522,9 +559,8 @@ install.packages(core_packages)</code></pre>
 shiny::runApp(&quot;app.R&quot;)</code></pre>
 <p>The app will launch in your default web browser, typically at <a href="http://127.0.0.1:3838" class="uri">http://127.0.0.1:3838</a> or
 similar.</p>
-</div>
-<div id="why-renv" class="section level3">
-<h3>Why renv?</h3>
+<div id="why-renv" class="section level4">
+<h4>Why renv?</h4>
 <ul>
 <li><p><strong>Reproducibility</strong>: Ensures everyone uses the same
 package versions</p></li>
@@ -535,11 +571,62 @@ break the app</p></li>
 <li><p><strong>Portability</strong>: Makes the project work consistently
 across different systems</p></li>
 </ul>
-<p><strong>Contributions are welcome -</strong> Please check the
-CONTRIBUTIONS.md file</p>
 </div>
-<div id="how-to-cite-vivid-volcano" class="section level3">
-<h3>How to cite Vivid Volcano?</h3>
+</div>
+<div id="troubleshooting" class="section level3">
+<h3><strong>Troubleshooting</strong></h3>
+<div id="browser-issues-on-macos" class="section level4">
+<h4>Browser Issues on macOS</h4>
+<p>If you’re experiencing issues with the app not opening in your
+browser on macOS, here are several solutions:</p>
+<p><strong>Problem</strong>: Running <code>R -e &quot;shiny::runApp()&quot;</code>
+shows “Listening on [URL]” but doesn’t open browser, and terminal
+appears frozen.</p>
+<p><strong>Solutions</strong> (in order of recommendation):</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Use the Enhanced Launcher (Recommended)</strong></p>
+<pre class="bash"><code>./launch_app.sh</code></pre>
+<p>This script provides robust browser launching with multiple fallback
+methods specifically designed for macOS.</p></li>
+<li><p><strong>Use the R Launcher Script</strong></p>
+<pre class="r"><code># From R console or terminal
+R -f launch_app.R</code></pre>
+<p>This provides enhanced browser support with platform
+detection.</p></li>
+<li><p><strong>Manual Browser Opening</strong></p>
+<pre class="r"><code># Run this and manually open the URL shown
+R -e &quot;shiny::runApp(&#39;app.R&#39;, launch.browser = FALSE)&quot;</code></pre>
+<p>Then copy the displayed URL (typically
+<code>http://127.0.0.1:3838</code> or similar) into your
+browser.</p></li>
+<li><p><strong>Browser-Specific Solutions</strong></p>
+<p>If automatic launching fails, try these macOS-specific commands:</p>
+<pre class="bash"><code># For Safari
+open -a Safari http://127.0.0.1:3838
+
+# For Chrome  
+open -a &quot;Google Chrome&quot; http://127.0.0.1:3838
+
+# For Firefox
+open -a Firefox http://127.0.0.1:3838</code></pre></li>
+</ol>
+<p><strong>Why This Happens</strong>: macOS sometimes has security
+restrictions or session context issues that prevent automatic browser
+launching from R, especially when run from certain terminal
+environments.</p>
+<p><strong>Prevention</strong>: Use the enhanced launchers
+(<code>./launch_app.sh</code> or <code>R -f launch_app.R</code>) which
+include multiple fallback methods and better error handling for
+macOS.</p>
+</div>
+</div>
+<div id="contributions-are-welcome" class="section level3">
+<h3><strong>Contributions are welcome !</strong></h3>
+<p>Please check the CONTRIBUTIING.md file in .github folder</p>
+</div>
+</div>
+<div id="how-to-cite-vivid-volcano" class="section level2">
+<h2>How to cite Vivid Volcano?</h2>
 <p>The scientific article on Vivid Volcano was sent for review and is
 currently under consideration. In the meantime, please cite the
 application as follows:</p>
@@ -550,12 +637,11 @@ article:</strong></p>
 Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo. <a href="https://doi.org/10.5281/zenodo.15119893" class="uri">https://doi.org/10.5281/zenodo.15119893</a></p>
 <p><strong>If you want to cite the source code image from
 Zenodo:</strong></p>
-<p><a href="https://doi.org/10.5281/zenodo.15119703"><img role="img" aria-label="DOI" src="data:image/svg+xml; charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgICAgd2lkdGg9IjE5MC44NDM3NSIgaGVpZ2h0PSIyMCI+CiAgICAgICAgPGxpbmVhckdyYWRpZW50IGlkPSJiIiB4Mj0iMCIgeTI9IjEwMCUiPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNiYmIiIHN0b3Atb3BhY2l0eT0iLjEiLz4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLW9wYWNpdHk9Ii4xIi8+CiAgICAgICAgPC9saW5lYXJHcmFkaWVudD4KICAgICAgICA8bWFzayBpZD0iYSIgd2lkdGg9IjE5MC44NDM3NSIgaGVpZ2h0PSIyMCI+CiAgICAgICAgICAgIDxyZWN0IHdpZHRoPSIxOTAuODQzNzUiIGhlaWdodD0iMjAiIHJ4PSIzIgogICAgICAgICAgICBmaWxsPSIjZmZmIi8+CiAgICAgICAgPC9tYXNrPgogICAgICAgIDxnIG1hc2s9InVybCgjYSkiPgogICAgICAgICAgICA8cGF0aCBmaWxsPSIjNTU1IiBkPSJNMCAwaDMxLjM3NXYyMEgweiIgLz4KICAgICAgICAgICAgPHBhdGggZmlsbD0iIzAwN2VjNiIKICAgICAgICAgICAgZD0iTTMxLjM3NSAwaDE1OS40Njg3NXYyMEgzMS4zNzV6IgogICAgICAgICAgICAvPgogICAgICAgICAgICA8cGF0aCBmaWxsPSJ1cmwoI2IpIiBkPSJNMCAwaDE5MC44NDM3NXYyMEgweiIgLz4KICAgICAgICA8L2c+CiAgICAgICAgPGcgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkRlamFWdSBTYW5zLAogICAgICAgIFZlcmRhbmEsR2VuZXZhLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiPgogICAgICAgICAgICA8dGV4dCB4PSIxNi4xODc1IiB5PSIxNSIgZmlsbD0iIzAxMDEwMSIKICAgICAgICAgICAgZmlsbC1vcGFjaXR5PSIuMyI+CiAgICAgICAgICAgICAgICBET0kKICAgICAgICAgICAgPC90ZXh0PgogICAgICAgICAgICA8dGV4dCB4PSIxNi4xODc1IiB5PSIxNCI+CiAgICAgICAgICAgICAgICBET0kKICAgICAgICAgICAgPC90ZXh0PgogICAgICAgICAgICA8dGV4dCB4PSIxMTAuNjA5Mzc1IgogICAgICAgICAgICB5PSIxNSIgZmlsbD0iIzAxMDEwMSIgZmlsbC1vcGFjaXR5PSIuMyI+CiAgICAgICAgICAgICAgICAxMC41MjgxL3plbm9kby4xNTExOTcwMwogICAgICAgICAgICA8L3RleHQ+CiAgICAgICAgICAgIDx0ZXh0IHg9IjExMC42MDkzNzUiIHk9IjE0Ij4KICAgICAgICAgICAgICAgIDEwLjUyODEvemVub2RvLjE1MTE5NzAzCiAgICAgICAgICAgIDwvdGV4dD4KICAgICAgICA8L2c+CiAgICA8L3N2Zz4=" alt="DOI" /></a></p>
-<p>Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano - an intuitive tool
-that helps experimental scientists with no bioinformatics background
-explore and analyze pre-processed omics data. Pre-release. (v0.1.2).
-Zenodo. <a href="https://doi.org/10.5281/zenodo.15119703" class="uri">https://doi.org/10.5281/zenodo.15119703</a></p>
-</div>
+<p><a href="https://doi.org/10.5281/zenodo.15119702"><img role="img" aria-label="DOI" src="data:image/svg+xml; charset=utf-8;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgICAgd2lkdGg9IjE5MC44NDM3NSIgaGVpZ2h0PSIyMCI+CiAgICAgICAgPGxpbmVhckdyYWRpZW50IGlkPSJiIiB4Mj0iMCIgeTI9IjEwMCUiPgogICAgICAgICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNiYmIiIHN0b3Atb3BhY2l0eT0iLjEiLz4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLW9wYWNpdHk9Ii4xIi8+CiAgICAgICAgPC9saW5lYXJHcmFkaWVudD4KICAgICAgICA8bWFzayBpZD0iYSIgd2lkdGg9IjE5MC44NDM3NSIgaGVpZ2h0PSIyMCI+CiAgICAgICAgICAgIDxyZWN0IHdpZHRoPSIxOTAuODQzNzUiIGhlaWdodD0iMjAiIHJ4PSIzIgogICAgICAgICAgICBmaWxsPSIjZmZmIi8+CiAgICAgICAgPC9tYXNrPgogICAgICAgIDxnIG1hc2s9InVybCgjYSkiPgogICAgICAgICAgICA8cGF0aCBmaWxsPSIjNTU1IiBkPSJNMCAwaDMxLjM3NXYyMEgweiIgLz4KICAgICAgICAgICAgPHBhdGggZmlsbD0iIzAwN2VjNiIKICAgICAgICAgICAgZD0iTTMxLjM3NSAwaDE1OS40Njg3NXYyMEgzMS4zNzV6IgogICAgICAgICAgICAvPgogICAgICAgICAgICA8cGF0aCBmaWxsPSJ1cmwoI2IpIiBkPSJNMCAwaDE5MC44NDM3NXYyMEgweiIgLz4KICAgICAgICA8L2c+CiAgICAgICAgPGcgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkRlamFWdSBTYW5zLAogICAgICAgIFZlcmRhbmEsR2VuZXZhLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiPgogICAgICAgICAgICA8dGV4dCB4PSIxNi4xODc1IiB5PSIxNSIgZmlsbD0iIzAxMDEwMSIKICAgICAgICAgICAgZmlsbC1vcGFjaXR5PSIuMyI+CiAgICAgICAgICAgICAgICBET0kKICAgICAgICAgICAgPC90ZXh0PgogICAgICAgICAgICA8dGV4dCB4PSIxNi4xODc1IiB5PSIxNCI+CiAgICAgICAgICAgICAgICBET0kKICAgICAgICAgICAgPC90ZXh0PgogICAgICAgICAgICA8dGV4dCB4PSIxMTAuNjA5Mzc1IgogICAgICAgICAgICB5PSIxNSIgZmlsbD0iIzAxMDEwMSIgZmlsbC1vcGFjaXR5PSIuMyI+CiAgICAgICAgICAgICAgICAxMC41MjgxL3plbm9kby4xNTExOTcwMwogICAgICAgICAgICA8L3RleHQ+CiAgICAgICAgICAgIDx0ZXh0IHg9IjExMC42MDkzNzUiIHk9IjE0Ij4KICAgICAgICAgICAgICAgIDEwLjUyODEvemVub2RvLjE1MTE5NzAzCiAgICAgICAgICAgIDwvdGV4dD4KICAgICAgICA8L2c+CiAgICA8L3N2Zz4=" alt="DOI" /></a></p>
+<p>Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano: Vivid Volcano v1.0
+- an intuitive tool that helps experimental scientists with no
+bioinformatics background explore and analyze pre-processed omics data.
+(v1.0.0). Zenodo. <a href="https://doi.org/10.5281/zenodo.16742973" class="uri">https://doi.org/10.5281/zenodo.16742973</a></p>
 </div>
 
 
