@@ -97,7 +97,10 @@ The application is available online at
 <https://datviser-vivid-volcano.share.connect.posit.cloud/>, making it
 readily accessible to researchers worldwide.
 
-The source code is available at <https://github.com/DatViseR/Vivid-Volcano>.
+If you would like to run the application locally, it can be easily installed
+by following the instructions and using the automatic installer (for UNIX systems) 
+available on the repository page: <https://github.com/DatViseR/Vivid-Volcano.> 
+The full source code and the instructions for windows installation are also available there.
 
 # Technical description and implementation
 
