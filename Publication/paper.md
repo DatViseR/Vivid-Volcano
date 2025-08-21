@@ -182,11 +182,11 @@ extensive bioinformatics expertise.
 
 # Figures
 
-![**Figure 1.** Vivid Volcano data input modules: A - Data upload, data select and data curation modules; B - Data analysis options, GSEA and Volcano plot customisation options](Paper_figures/Figure_1.png)
+![Vivid Volcano data input modules: A - Data upload, data select and data curation modules; B - Data analysis options, GSEA and Volcano plot customisation options](Paper_figures/Figure_1.png)
 
 ------------------------------------------------------------------------
 
-![**Figure 2.** Vivid Volcano results modules: A - Volcano plot image and display controlers, pdf downloaders, GO annotation tabular data; B - GSEA results table and barplot; C - GO term details section with lists of GO category genes with subsets of genes regulated and detected in the experiment highlighted](Paper_figures/Figure_2.png)
+![Vivid Volcano results modules: A - Volcano plot image and display controlers, pdf downloaders, GO annotation tabular data; B - GSEA results table and barplot; C - GO term details section with lists of GO category genes with subsets of genes regulated and detected in the experiment highlighted](Paper_figures/Figure_2.png)
 
 
 
