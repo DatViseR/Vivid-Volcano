@@ -316,7 +316,6 @@ Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo.
 
 **If you want to cite the source code image from Zenodo:**
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119703.svg)](https://doi.org/10.5281/zenodo.15119702)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119702.svg)](https://doi.org/10.5281/zenodo.15119702)
 
-Tomasz Stępkowski. (2025). Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo. 
-<https://doi.org/10.5281/zenodo.16742973>
+Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data (v1.0.1). Zenodo. https://doi.org/10.5281/zenodo.16920103
