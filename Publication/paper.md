@@ -182,28 +182,13 @@ extensive bioinformatics expertise.
 
 # Figures
 
-![Data upload and data select and curation modules of the Vivid Volcano
-application](Paper_figures/Data_upload_and_curation.jpeg){width="300"}
+![**Figure 1.** Vivid Volcano data input modules: A - Data upload, data select and data curation modules; B - Data analysis options, GSEA and Volcano plot customisation options](Paper_figures/Figure_1.png)
 
 ------------------------------------------------------------------------
 
-![Interactive datatable preview of the analyzed data in the Vivid
-Volcano application.](Paper_figures/Data_preview.jpeg)
+![**Figure 2.** Vivid Volcano results modules: A - Volcano plot image and display controlers, pdf downloaders, GO annotation tabular data; B - GSEA results table and barplot; C - GO term details section with lists of GO category genes with subsets of genes regulated and detected in the experiment highlighted](Paper_figures/Figure_2.png)
 
-------------------------------------------------------------------------
 
-![Volcano plot customisation options in the Vivid Volcano
-application](Paper_figures/Volcano_plot_customisation_options.jpeg){width="300"}
-
-------------------------------------------------------------------------
-
-![Volcano plot and publication ready tabular results generated with
-Vivid Volcano application](Paper_figures/Volcano.jpeg)
-
-------------------------------------------------------------------------
-
-![The results of Gene Set Enrichment analysis performed with VIvid
-Volcano application](Paper_figures/GSEA.jpeg)
 
 # Acknowledgements
 
