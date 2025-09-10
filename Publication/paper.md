@@ -36,7 +36,7 @@ helps experimental scientists with no bioinformatics background explore
 and analyze pre-processed omics data. It enables users to perform
 crucial bioinformatic analyses without the help of specialists. With
 Vivid Volcano, one can create highly customizable, publication-ready
-volcano plots and perform comprehensive data exploration, and gene
+volcano plots and perform comprehensive data exploration and gene
 ontology (GO) enrichment analysis. Users can download variously
 formatted publication-ready plots and neatly formatted tables that
 adhere to scientific standards. Vivid Volcano empowers both exploratory
@@ -45,11 +45,11 @@ and explanatory data analysis.
 # Statement of need
 
 Modern biological research relies heavily on omics technologies
-(genomics, proteomics, transcriptomics, etc. ) that generate large,
+(genomics, proteomics, transcriptomics, etc.) that generate large,
 complex datasets requiring specialized analysis and processing by
 bioinformaticians – experts with a unique combination of programming,
 statistics, and data science skills blended with biology domain
-knowledge[@manzoni2018]. These experts build analysis pipelines which
+knowledge [@manzoni2018]. These experts build analysis pipelines which
 produce pre-processed data conveying metadata on experiments and
 statistical results for the changes in expression of thousands of
 proteins, genes, etc. However, to draw valid biological conclusions,
@@ -62,12 +62,12 @@ scientists struggle with data analysis due to technical barriers and
 communication challenges between computational and experimental
 disciplines, even with bioinformatician support.
 
-Vivid Volcano was designed with two basic aims: 1. Empowering
+Vivid Volcano was designed with two basic aims: First, empowering
 experimental biologists with a tool that can help them explore and
-analyze pre-processed omics data on their own 2. Lowering the workload
+analyze pre-processed omics data on their own. Second, lowering the workload
 for bioinformaticians who can focus on more statistically and
 computationally challenging tasks such as integration of complex
-multiomics data
+multiomics data.
 
 Vivid Volcano addresses a critical need in the biological research
 community by empowering wet-lab scientists to independently analyze and
@@ -88,7 +88,7 @@ enable experimental biologists to gain deeper insights from their omics
 data, accelerate research workflows, and produce publication-quality
 outputs without advanced computational skills.
 
-In summary Vivid Volcano has been designed based on firsthand experience
+In summary, Vivid Volcano has been designed based on firsthand experience
 with the challenges faced by experimental biologists working with omics
 data and aims to provide comprehensive yet accessible solutions for
 generating publication-ready outputs from preprocessed omics datasets.
@@ -100,7 +100,7 @@ readily accessible to researchers worldwide.
 If you would like to run the application locally, it can be easily installed
 by following the instructions and using the automatic installer (for UNIX systems) 
 available on the repository page: <https://github.com/DatViseR/Vivid-Volcano.> 
-The full source code and the instructions for windows installation are also available there.
+The full source code and the instructions for Windows installation are also available there.
 
 # Technical description and implementation
 
@@ -110,17 +110,17 @@ application architecture is characterized by clear separation between
 the user interface, server logic, and data processing components. The
 core functionality is implemented in R, with CSS for custom styling and
 JavaScript for enhanced interactivity. The application utilizes several
-key R packages, among others: shiny for the web framework [@shiny] ,
-shiny.semantic[@shiny.semantic] for user interface, DT for interactive
-data tables[@DT] , ggplot2[@ggplot2] and plotly[@plotly] for generating
-publication-quality visualizations, GT for publication ready tables[@gt]
-and shinyjs[@shinyjs] and shinyalert[@shinyalert] for improved user
-experience . For statistical analysis, the application employs basic R
+key R packages, among others: shiny for the web framework [@shiny],
+shiny.semantic [@shiny.semantic] for user interface, DT for interactive
+data tables [@DT], ggplot2 [@ggplot2] and plotly [@plotly] for generating
+publication-quality visualizations, GT for publication ready tables [@gt]
+and shinyjs [@shinyjs] and shinyalert [@shinyalert] for improved user
+experience. For statistical analysis, the application employs basic R
 operations and custom functions for ontology enrichment that don't rely
 on Bioconductor dependencies, making the application more accessible and
-maintainable as a web tool. Data processing is handled through dplyr,
-tidyr, and other tidyverse packages which provide efficient data
-manipulation capabilities[@dplyr][@tidyr] . The application implements a
+maintainable as a web tool. Data processing is handled through dplyr [@dplyr],
+tidyr [@tidyr], and other tidyverse packages which provide efficient data
+manipulation capabilities. The application implements a
 custom logging system to track all data transformations, ensuring
 transparency and reproducibility of results. Vivid Volcano's modular
 design allows for straightforward extension and maintenance, with
