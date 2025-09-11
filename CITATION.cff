@@ -1,0 +1,28 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Stępkowski
+  given-names: Tomasz M.
+  orcid: "https://orcid.org/0000-0002-8454-4421"
+doi: 10.5281/zenodo.16920103
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Stępkowski
+    given-names: Tomasz M.
+    orcid: "https://orcid.org/0000-0002-8454-4421"
+  date-published: 2025-09-10
+  doi: 10.21105/joss.08055
+  issn: 2475-9066
+  issue: 113
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 8055
+  title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze
+    Pre-Processed Omics Data"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.08055"
+  volume: 10
+title: "Vivid Volcano: Empowering Non-Bioinformaticians to Analyze
+  Pre-Processed Omics Data"
