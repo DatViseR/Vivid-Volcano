@@ -302,20 +302,7 @@ Please check the CONTRIBUTIING.md file in .github folder
 
 ## How to cite Vivid Volcano?
 
-The scientific article on Vivid Volcano was sent for review and is
-currently under consideration. In the meantime, please cite the
-application as follows:
+Please refer to the following article on Vivid Volcano that was published in Journal of Open Source Software (JOOS):
 
-**If you want to cite the pre-print of a journal article:**
+Stępkowski, T. M., (2025). Vivid Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Journal of Open Source Software, 10(113), 8055, [![DOI](https://joss.theoj.org/papers/10.21105/joss.08055/status.svg)](https://doi.org/10.21105/joss.08055)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119893.svg)](https://doi.org/10.5281/zenodo.15119893)
-
-Stępkowski, T. M. (2025). Vivid Volcano: Empowering
-Non-Bioinformaticians to Analyze Pre-Processed Omics Data. Zenodo.
-<https://doi.org/10.5281/zenodo.15119893>
-
-**If you want to cite the source code image from Zenodo:**
-
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15119702.svg)](https://doi.org/10.5281/zenodo.15119702)
-
-Tomasz Stępkowski. (2025). DatViseR/Vivid-Volcano: Empowering Non-Bioinformaticians to Analyze Pre-Processed Omics Data (v1.0.1). Zenodo. https://doi.org/10.5281/zenodo.16920103
